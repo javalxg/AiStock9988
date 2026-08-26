@@ -11,6 +11,7 @@ from dataclasses import dataclass
 import pandas as pd
 
 from ..execution.prices import validate_execution_panel
+from ..execution.corporate_actions import CorporateAction, apply_action
 
 
 @dataclass(frozen=True)
@@ -28,7 +29,8 @@ class BacktestConfig:
     sell_slippage: float = 0.0
 
 
-def run_backtest(signals: pd.DataFrame, prices: pd.DataFrame, *, config: BacktestConfig = BacktestConfig()) -> dict[str, pd.DataFrame]:
+def run_backtest(signals: pd.DataFrame, prices: pd.DataFrame, *, config: BacktestConfig = BacktestConfig(),
+                 corporate_actions: pd.DataFrame | None = None) -> dict[str, pd.DataFrame]:
     """Run a causal long-only backtest and return trades, positions and NAV.
 
     ``signals`` must contain ``asof``, ``ts_code`` and ``candidate_rank``.
@@ -48,6 +50,7 @@ def run_backtest(signals: pd.DataFrame, prices: pd.DataFrame, *, config: Backtes
     if not required_economic <= set(px.columns):
         raise ValueError("prices must provide the explicit raw/economic execution contract")
     px = validate_execution_panel(px)
+    actions = _prepare_actions(corporate_actions)
     sig["asof"] = _dates(sig["asof"])
     px["trade_date"] = _dates(px["trade_date"])
     for col in ("raw_open", "raw_close"):
@@ -62,6 +65,7 @@ def run_backtest(signals: pd.DataFrame, prices: pd.DataFrame, *, config: Backtes
     positions: dict[str, dict] = {}
     trades: list[dict] = []
     nav_rows: list[dict] = []
+    action_rows: list[dict] = []
     signal_map = {d: g.sort_values(["candidate_rank", "ts_code"], kind="mergesort")
                   for d, g in sig.groupby("asof", sort=True)}
 
@@ -78,6 +82,16 @@ def run_backtest(signals: pd.DataFrame, prices: pd.DataFrame, *, config: Backtes
         return gross + commission if side == "BUY" else gross - commission - duty
 
     for i, day in enumerate(sessions):
+        # Company actions are applied before the day's mark and execution.
+        for action in actions.get(day, []):
+            pos = positions.get(action.ts_code)
+            if pos is None:
+                continue
+            dividend = apply_action(pos, action)
+            cash += dividend
+            action_rows.append({"trade_date": day, "ts_code": action.ts_code,
+                                "split_ratio": action.split_ratio, "cash_dividend": dividend,
+                                "cash_after": cash})
         # Decisions made at yesterday's close become executable at today's open.
         for code, pos in list(positions.items()):
             prior_close = pos["last_close"]
@@ -126,19 +140,31 @@ def run_backtest(signals: pd.DataFrame, prices: pd.DataFrame, *, config: Backtes
 
     # Final liquidation is explicitly marked and uses the last available close.
     final_day = sessions[-1]
+    residual = []
     for code, pos in list(positions.items()):
         if (final_day, code) in by_key.index:
             row = by_key.loc[(final_day, code)]
             if not bool(row.is_suspended):
                 execute(final_day, code, "SELL", float(row.raw_close) * (1.0 - config.sell_slippage), pos["shares"], "end_of_test_liquidation")
-        del positions[code]
-    if nav_rows and trades:
+                del positions[code]
+                continue
+        residual.append({"trade_date": final_day, "ts_code": code, "shares": pos["shares"],
+                         "raw_mark_price": float(by_key.loc[(final_day, code)].raw_close) if (final_day, code) in by_key.index else None,
+                         "reason": "unclosed_non_tradable"})
+    if nav_rows and trades and not positions:
         nav_rows[-1]["cash"] = cash
         nav_rows[-1]["market_value"] = 0.0
         nav_rows[-1]["nav"] = cash
         nav_rows[-1]["open_positions"] = 0
+    if nav_rows and positions:
+        mark = sum(pos["shares"] * float(by_key.loc[(final_day, code)].raw_close)
+                   for code, pos in positions.items() if (final_day, code) in by_key.index)
+        nav_rows[-1]["cash"] = cash
+        nav_rows[-1]["market_value"] = mark
+        nav_rows[-1]["nav"] = cash + mark
+        nav_rows[-1]["open_positions"] = len(positions)
     return {"trades": pd.DataFrame(trades), "nav": pd.DataFrame(nav_rows),
-            "positions": pd.DataFrame(columns=["trade_date", "ts_code", "shares"])}
+            "positions": pd.DataFrame(residual), "corporate_actions": pd.DataFrame(action_rows)}
 
 
 def _dates(values: pd.Series) -> list[pd.Timestamp]:
@@ -151,6 +177,25 @@ def _validate_config(config: BacktestConfig) -> None:
         raise ValueError("cash, positions, hold_sessions and lot_size must be positive")
     if config.buy_slippage < 0 or config.sell_slippage < 0:
         raise ValueError("slippage must be non-negative")
+
+
+def _prepare_actions(frame: pd.DataFrame | None) -> dict[pd.Timestamp, list[CorporateAction]]:
+    if frame is None or frame.empty:
+        return {}
+    required = {"ts_code", "ex_date", "split_ratio", "cash_dividend"}
+    missing = required - set(frame.columns)
+    if missing:
+        raise ValueError(f"corporate actions missing columns: {sorted(missing)}")
+    out: dict[pd.Timestamp, list[CorporateAction]] = {}
+    for row in frame.to_dict("records"):
+        action = CorporateAction(str(row["ts_code"]), str(pd.Timestamp(row["ex_date"]).date()),
+                                 float(row["split_ratio"]), float(row["cash_dividend"]),
+                                 str(row["available_time"]) if row.get("available_time") is not None else None)
+        day = pd.Timestamp(action.ex_date, tz="UTC")
+        if action.available_time is not None and pd.Timestamp(action.available_time, tz="UTC") > day + pd.Timedelta(hours=16):
+            raise ValueError("corporate action is not PIT-visible on its ex-date")
+        out.setdefault(day, []).append(action)
+    return out
     if config.stop_loss_pct is not None and config.stop_loss_pct >= 0:
         raise ValueError("stop_loss_pct must be negative")
     if config.take_profit_pct is not None and config.take_profit_pct <= 0:

@@ -32,3 +32,20 @@ def test_stop_loss_uses_economic_price_but_executes_raw_price():
     result = run_backtest(signals, prices, config=BacktestConfig(initial_cash=1000, stop_loss_pct=-0.08))
     assert result["trades"].iloc[-1].side == "SELL"
     assert result["trades"].iloc[-1].price == 8.0
+
+
+def test_corporate_action_changes_shares_and_dividend_cash():
+    signals = pd.DataFrame({"asof": ["2026-08-20"], "ts_code": ["A"], "candidate_rank": [1]})
+    prices = pd.DataFrame({"trade_date": ["2026-08-20", "2026-08-21", "2026-08-22"],
+                           "ts_code": ["A"] * 3, "raw_open": [10.0, 10.0, 5.0],
+                           "raw_high": [10.0, 10.0, 5.0], "raw_low": [10.0, 10.0, 5.0],
+                           "raw_close": [10.0, 5.0, 5.0], "economic_open": [10.0, 10.0, 10.0],
+                           "economic_high": [10.0, 10.0, 10.0], "economic_low": [10.0, 10.0, 10.0],
+                           "economic_close": [10.0, 10.0, 10.0], "adj_factor": [1.0, 2.0, 2.0]})
+    actions = pd.DataFrame({"ts_code": ["A"], "ex_date": ["2026-08-22"],
+                            "split_ratio": [2.0], "cash_dividend": [0.5],
+                            "available_time": ["2026-08-22T15:00:00Z"]})
+    result = run_backtest(signals, prices, corporate_actions=actions,
+                          config=BacktestConfig(initial_cash=1000, hold_sessions=10))
+    assert result["corporate_actions"].iloc[0].cash_dividend == 25.0
+    assert result["positions"].empty
