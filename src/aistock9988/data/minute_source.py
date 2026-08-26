@@ -72,9 +72,12 @@ def load_minute_execution_panel(start: str, end: str, *, freq: str = "5min",
                 "a.update_time AS adj_update_time, l.up_limit, l.down_limit, "
                 "l.update_time AS limit_update_time "
                 f"FROM `{table}` m "
+                "JOIN market_daily_ts d ON d.ts_code=m.ts_code AND d.trade_date=DATE(m.trade_time) "
                 "JOIN adj_factor_ts a ON a.ts_code=m.ts_code AND a.trade_date=DATE(m.trade_time) "
                 "JOIN stk_limit_ts l ON l.ts_code=m.ts_code AND l.trade_date=DATE(m.trade_time) "
-                "WHERE m.trade_time >= %s AND m.trade_time < %s" + code_filter +
+                "WHERE m.trade_time >= %s AND m.trade_time < %s "
+                "AND d.open > 0 AND d.high > 0 AND d.low > 0 AND d.close > 0 "
+                "AND COALESCE(d.amount, 0) > 0" + code_filter +
                 " ORDER BY m.trade_time, m.ts_code", conn, params=tuple(params))
             frames.append(frame)
     frame = pd.concat(frames, ignore_index=True) if frames else pd.DataFrame()
