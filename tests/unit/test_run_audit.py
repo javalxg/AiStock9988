@@ -52,3 +52,30 @@ def test_verify_then_complete_reuses_same_audit_report(tmp_path, monkeypatch):
     status = json.loads((completed / "RUN_STATUS.json").read_text())
     assert status["status"] == "COMPLETED"
     assert status["audit_artifact_count"] == verified["artifact_count"]
+
+
+def test_run_audit_rejects_non_finite_nav(tmp_path):
+    run_dir = _run_dir(tmp_path)
+    (run_dir / "trades" / "nav.csv").write_text(
+        "trade_date,cash,market_value,nav\n2026-01-01,NaN,10,NaN\n"
+    )
+    with pytest.raises(RunAuditError, match="NAV accounting identity"):
+        audit_run(run_dir)
+
+
+def test_run_audit_rejects_duplicate_ledger_keys(tmp_path):
+    run_dir = _run_dir(tmp_path)
+    (run_dir / "predictions" / "ledger.csv").write_text(
+        "asof,ts_code,score\n2026-01-01,A,1\n2026-01-01,A,2\n"
+    )
+    with pytest.raises(RunAuditError, match="prediction ledger has duplicate"):
+        audit_run(run_dir)
+
+
+def test_run_audit_rejects_infinite_fill_values(tmp_path):
+    run_dir = _run_dir(tmp_path)
+    (run_dir / "trades" / "fills.csv").write_text(
+        "order_id,status,side,price,shares\n1,FILLED,BUY,inf,1\n"
+    )
+    with pytest.raises(RunAuditError, match="fills ledger has invalid"):
+        audit_run(run_dir)

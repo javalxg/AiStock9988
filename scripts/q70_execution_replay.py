@@ -22,6 +22,7 @@ import pandas as pd
 import yaml
 
 from aistock9988.backtest.engine import BacktestConfig, run_backtest
+from aistock9988.audit.code_manifest import build_code_manifest
 from aistock9988.data.corporate_actions_source import load_corporate_actions
 from aistock9988.data.execution_source import load_execution_panel
 from aistock9988.data.minute_source import load_minute_execution_panel
@@ -186,6 +187,8 @@ def run(*, run_dir: Path, source_run: Path, config_path: Path) -> dict[str, Any]
         "contract": "reused frozen q70 selection; raw accounting, economic risk triggers, 5min intraday stop",
     }
     _write_json(run_dir / "data_manifest.json", manifest)
+    _write_json(run_dir / "code_manifest.json", build_code_manifest(
+        repo_root=ROOT, config_path=config_path, entrypoint=Path(__file__).resolve()))
     LOGGER.info("run_complete models_reused=%d selected_rows=%d elapsed_seconds=%.1f",
                 len(source_meta["artifacts"]["models"]), len(signals), time.monotonic() - started)
     return {"models_reused": len(source_meta["artifacts"]["models"]),

@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import numpy as np
 import os
 import tempfile
 from pathlib import Path
@@ -65,34 +66,57 @@ def _validate_ledgers(run_dir: Path) -> None:
     selection_files = sorted((run_dir / "selections").glob("*.csv"))
     for selection_file in selection_files:
         selection = pd.read_csv(selection_file)
+        if {"asof", "ts_code"} <= set(selection.columns) and selection.duplicated(["asof", "ts_code"]).any():
+            raise RunAuditError(f"selection ledger has duplicate asof/ts_code keys: {selection_file.name}")
         required = {"selected", "selection_decision_id", "policy_id", "candidate_rank",
                     "target_weight", "context_hash"}
         if not required <= set(selection.columns):
             raise RunAuditError(f"selection ledger is not a SelectionDecision ledger: {selection_file.name}")
         selected = selection["selected"].astype(str).str.lower().map({"true": True, "false": False})
+        ranks = pd.to_numeric(selection["candidate_rank"], errors="coerce")
         weights = pd.to_numeric(selection["target_weight"], errors="coerce")
-        if selected.isna().any() or weights.isna().any() or (weights < 0).any():
+        if (selected.isna().any() or weights.isna().any() or ranks.isna().any() or
+                not np.isfinite(weights.to_numpy(dtype=float)).all() or
+                not np.isfinite(ranks.to_numpy(dtype=float)).all() or (weights < 0).any()):
             raise RunAuditError(f"selection ledger has invalid selected/weight values: {selection_file.name}")
         if selected.any() and abs(float(weights[selected].sum()) - 1.0) > 1e-8:
             raise RunAuditError(f"selection weights do not sum to one: {selection_file.name}")
         if (weights[~selected] != 0).any():
             raise RunAuditError(f"rejected candidates carry target weight: {selection_file.name}")
+    for prediction_file in sorted((run_dir / "predictions").glob("*.csv")):
+        predictions = pd.read_csv(prediction_file)
+        if {"asof", "ts_code"} <= set(predictions.columns) and predictions.duplicated(["asof", "ts_code"]).any():
+            raise RunAuditError(f"prediction ledger has duplicate asof/ts_code keys: {prediction_file.name}")
+        if "score" in predictions:
+            scores = pd.to_numeric(predictions["score"], errors="coerce")
+            if scores.isna().any() or not np.isfinite(scores.to_numpy(dtype=float)).all():
+                raise RunAuditError(f"prediction ledger has non-finite scores: {prediction_file.name}")
     fills_files = sorted((run_dir / "trades").glob("*fills*.csv"))
     for fills_file in fills_files:
         fills = pd.read_csv(fills_file)
         if not {"order_id", "side", "price", "shares"} <= set(fills.columns):
             raise RunAuditError(f"fills ledger is missing accounting columns: {fills_file.name}")
-        if not fills.empty and ((pd.to_numeric(fills["price"], errors="coerce") <= 0).any() or
-                                (pd.to_numeric(fills["shares"], errors="coerce") <= 0).any()):
+        prices = pd.to_numeric(fills["price"], errors="coerce")
+        shares = pd.to_numeric(fills["shares"], errors="coerce")
+        if not fills.empty and (prices.isna().any() or shares.isna().any() or
+                                not np.isfinite(prices.to_numpy(dtype=float)).all() or
+                                not np.isfinite(shares.to_numpy(dtype=float)).all() or
+                                (prices <= 0).any() or (shares <= 0).any()):
             raise RunAuditError(f"fills ledger has invalid price/shares: {fills_file.name}")
+        if "order_id" in fills and fills["order_id"].duplicated().any():
+            raise RunAuditError(f"fills ledger has duplicate order_id: {fills_file.name}")
     nav_files = sorted((run_dir / "trades").glob("nav*.csv"))
     for nav_file in nav_files:
         nav = pd.read_csv(nav_file)
         if not {"cash", "market_value", "nav"} <= set(nav.columns):
             raise RunAuditError(f"NAV ledger is missing accounting identity columns: {nav_file.name}")
         values = nav[["cash", "market_value", "nav"]].apply(pd.to_numeric, errors="coerce")
-        if values.isna().any().any() or ((values["cash"] + values["market_value"] - values["nav"]).abs() > 1e-8).any():
+        if (values.isna().any().any() or
+                not np.isfinite(values.to_numpy(dtype=float)).all() or
+                ((values["cash"] + values["market_value"] - values["nav"]).abs() > 1e-8).any()):
             raise RunAuditError(f"NAV accounting identity failed: {nav_file.name}")
+        if "trade_date" in nav and nav["trade_date"].duplicated().any():
+            raise RunAuditError(f"NAV ledger has duplicate trade_date: {nav_file.name}")
 
 
 def write_audit_report(run_dir: Path, report: dict) -> Path:

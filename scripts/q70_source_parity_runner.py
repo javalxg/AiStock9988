@@ -16,6 +16,7 @@ import pandas as pd
 import yaml
 
 from aistock9988.backtest.engine import BacktestConfig, run_backtest
+from aistock9988.audit.code_manifest import build_code_manifest
 from aistock9988.data.corporate_actions_source import load_corporate_actions
 from aistock9988.data.execution_source import load_execution_panel, load_market_context_panel
 from aistock9988.data.q70_source import load_f0_panel
@@ -277,6 +278,8 @@ def run(*, run_dir: Path, config_path: Path) -> dict:
                 "config_sha256": hashlib.sha256(config_path.read_bytes()).hexdigest(),
                 "contract": "raw accounting, economic risk triggers, 5min intraday stop"}
     _write_json_once(run_dir / "data_manifest.json", manifest)
+    _write_json_once(run_dir / "code_manifest.json", build_code_manifest(
+        repo_root=ROOT, config_path=config_path.resolve(), entrypoint=Path(__file__).resolve()))
     LOGGER.info("run_complete models=%d prediction_dates=%d selected_rows=%d elapsed_seconds=%.1f", trained_models, len(prediction_dates), len(signals), time.monotonic() - started)
     return {"models": trained_models, "prediction_dates": len(prediction_dates), "selected_rows": len(signals)}
 
