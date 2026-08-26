@@ -34,10 +34,30 @@ def test_late_snapshot_without_announcement_date_is_rejected():
 
 def test_corporate_action_revisions_are_applied_once():
     out = normalize_corporate_actions(pd.DataFrame([
-        {"ts_code": "000001.SZ", "ex_date": "2026-08-21", "div_cash": 2.0,
+            {"ts_code": "000001.SZ", "ex_date": "2026-08-21", "div_cash": 3.0,
          "update_time": "2026-08-19T01:00:00Z", "div_proc": "实施"},
         {"ts_code": "000001.SZ", "ex_date": "2026-08-21", "div_cash": 3.0,
          "update_time": "2026-08-20T01:00:00Z", "div_proc": "实施"},
     ]))
     assert len(out) == 1
     assert out.iloc[0].cash_dividend == pytest.approx(0.3)
+
+
+def test_conflicting_corporate_action_revisions_are_rejected():
+    with pytest.raises(ValueError, match="conflicting economic terms"):
+        normalize_corporate_actions(pd.DataFrame([
+            {"ts_code": "A.SZ", "ex_date": "2026-08-21", "div_cash": 3.0,
+             "stk_div": 0.0, "stk_bo_rate": 0.0, "stk_co_rate": 0.0,
+             "div_proc": "实施", "ann_date": "2026-08-01", "update_time": "2026-08-02"},
+            {"ts_code": "A.SZ", "ex_date": "2026-08-21", "div_cash": 4.0,
+             "stk_div": 0.0, "stk_bo_rate": 0.0, "stk_co_rate": 0.0,
+             "div_proc": "实施", "ann_date": "2026-08-01", "update_time": "2026-08-03"},
+        ]))
+
+
+def test_non_numeric_corporate_action_value_is_rejected():
+    with pytest.raises(ValueError, match="non-numeric"):
+        normalize_corporate_actions(pd.DataFrame([{
+            "ts_code": "A.SZ", "ex_date": "2026-08-21", "div_cash": "bad",
+            "div_proc": "实施", "update_time": "2026-08-01",
+        }]))

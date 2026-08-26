@@ -30,7 +30,14 @@ def normalize_corporate_actions(frame: pd.DataFrame) -> pd.DataFrame:
         raise ValueError("corporate action source contains invalid ex_date")
 
     def numeric(name: str) -> pd.Series:
-        return pd.to_numeric(out[name], errors="coerce").fillna(0.0) if name in out else pd.Series(0.0, index=out.index)
+        if name not in out:
+            return pd.Series(0.0, index=out.index)
+        raw = out[name]
+        converted = pd.to_numeric(raw, errors="coerce")
+        invalid = raw.notna() & converted.isna()
+        if invalid.any():
+            raise ValueError(f"corporate action field {name} contains non-numeric values")
+        return converted.fillna(0.0)
 
     # Tushare dividend fields are normally quoted per 10 shares.
     cash = numeric("div_cash") / 10.0
@@ -69,6 +76,12 @@ def normalize_corporate_actions(frame: pd.DataFrame) -> pd.DataFrame:
     if (out["available_time"] >= ex_open).any():
         raise ValueError("corporate action is not PIT-visible before ex-date market open")
     # A provider may retain several revisions of the same implemented event.
+    # Identical revisions are safe to collapse.  Conflicting economic terms
+    # are not safe to resolve by recency, so fail and preserve the evidence
+    # for an explicit data-quality decision instead of silently changing NAV.
+    economic_terms = out.groupby(["ts_code", "ex_date"], sort=False)[["split_ratio", "cash_dividend"]].nunique()
+    if (economic_terms > 1).any(axis=None):
+        raise ValueError("corporate action revisions contain conflicting economic terms")
     # Keep the latest PIT version once; applying every revision would multiply
     # dividends and split ratios in the accounting ledger.
     out = out.sort_values(["ts_code", "ex_date", "available_time"], kind="mergesort")

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import numpy as np
 import pandas as pd
 
 
@@ -27,6 +28,8 @@ def validate_execution_panel(panel: pd.DataFrame) -> pd.DataFrame:
             raise ValueError(f"execution panel {column} must be non-null")
     for column in NUMERIC_PRICE_COLUMNS:
         out[column] = pd.to_numeric(out[column], errors="raise")
+        if not np.isfinite(out[column].to_numpy(dtype=float)).all():
+            raise ValueError(f"{column} must be finite")
         if (out[column] <= 0).any():
             raise ValueError(f"{column} must be positive")
     if out.duplicated(["trade_date", "ts_code"]).any():

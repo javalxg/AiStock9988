@@ -30,3 +30,13 @@ def test_execution_source_rejects_missing_limit_prices():
             "open": [10], "high": [11], "low": [9], "close": [10],
             "adj_factor": [1], "up_limit": [None], "down_limit": [9],
         }))
+
+
+def test_execution_source_rejects_infinite_prices():
+    with pytest.raises(ValueError, match="finite"):
+        normalize_execution_panel(pd.DataFrame({
+            "ts_code": ["A"], "trade_date": ["2026-01-01"],
+            "open": [float("inf")], "high": [11], "low": [9], "close": [10],
+            "adj_factor": [1], "up_limit": [12], "down_limit": [7],
+            "amount": [1000], "update_time": ["2026-01-01 14:00:00"],
+        }))

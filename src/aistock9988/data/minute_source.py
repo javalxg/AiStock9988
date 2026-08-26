@@ -4,6 +4,7 @@ from __future__ import annotations
 import re
 import hashlib
 
+import numpy as np
 import pandas as pd
 
 from .quantdb import readonly_connection
@@ -29,6 +30,8 @@ def normalize_minute_panel(frame: pd.DataFrame) -> pd.DataFrame:
         out[col] = pd.to_numeric(out[col], errors="raise")
     if out[["open", "high", "low", "close", "adj_factor", "up_limit", "down_limit"]].isna().any().any():
         raise ValueError("minute source contains null prices, adjustment factors or limits")
+    if not np.isfinite(out[["open", "high", "low", "close", "adj_factor", "up_limit", "down_limit"]].to_numpy(dtype=float)).all():
+        raise ValueError("minute source contains non-finite prices, adjustment factors or limits")
     if (out[["open", "high", "low", "close", "adj_factor", "up_limit", "down_limit"]] <= 0).any().any():
         raise ValueError("minute source prices, adjustment factors and limits must be positive")
     if out.duplicated(["ts_code", "trade_time"]).any():
