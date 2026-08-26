@@ -136,6 +136,14 @@ def run(*, run_dir: Path, source_run: Path, config_path: Path) -> dict[str, Any]
     prices = load_execution_panel(data["oos_start"], formal_end, ts_codes=codes)
     actions = load_corporate_actions(data["oos_start"], formal_end, ts_codes=codes)
     minutes = load_minute_execution_panel(data["oos_start"], formal_end, freq="5min", ts_codes=codes)
+    requested_end = pd.Timestamp(formal_end).date()
+    actual_daily_end = pd.to_datetime(prices["trade_date"], utc=True).dt.date.max()
+    actual_minute_end = pd.to_datetime(minutes["trade_time"], utc=True).dt.date.max()
+    if actual_daily_end < requested_end or actual_minute_end < requested_end:
+        raise ValueError(
+            f"execution data does not cover formal mature_end={requested_end}: "
+            f"daily_end={actual_daily_end}, minute_end={actual_minute_end}"
+        )
     LOGGER.info("execution_daily rows=%d cols=%d", len(prices), len(prices.columns))
     LOGGER.info("corporate_actions rows=%d cols=%d", len(actions), len(actions.columns))
     LOGGER.info("execution_5min rows=%d cols=%d", len(minutes), len(minutes.columns))
