@@ -4,8 +4,10 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import logging
 import os
 import tempfile
+import time
 from dataclasses import asdict
 from pathlib import Path
 from typing import Any
@@ -31,6 +33,25 @@ from aistock9988.time.session import session_close
 
 ROOT = Path(__file__).resolve().parents[1]
 LABEL_PROFILE = LabelProfile("label.endpoint_open_open_t10.v1", 1, 10, 11)
+LOGGER = logging.getLogger("aistock9988.q70_runner")
+
+
+def _configure_logging(run_dir: Path) -> None:
+    log_path = run_dir / "logs" / "runner.log"
+    log_path.parent.mkdir(parents=True, exist_ok=True)
+    LOGGER.setLevel(logging.INFO)
+    LOGGER.handlers.clear()
+    formatter = logging.Formatter("%(asctime)s %(levelname)s %(message)s", "%Y-%m-%dT%H:%M:%S%z")
+    file_handler = logging.FileHandler(log_path, encoding="utf-8")
+    file_handler.setFormatter(formatter)
+    stream_handler = logging.StreamHandler()
+    stream_handler.setFormatter(formatter)
+    LOGGER.addHandler(file_handler)
+    LOGGER.addHandler(stream_handler)
+
+
+def _log_frame(name: str, frame: pd.DataFrame) -> None:
+    LOGGER.info("%s rows=%d cols=%d", name, len(frame), len(frame.columns))
 
 
 def _write_json_once(path: Path, payload: dict[str, Any]) -> None:
@@ -116,6 +137,9 @@ def run(*, run_dir: Path, config_path: Path) -> dict:
     run_dir = run_dir.resolve()
     if not (run_dir / "RUN_STATUS.json").is_file():
         raise RuntimeError("run directory must be created by the project CLI")
+    _configure_logging(run_dir)
+    started = time.monotonic()
+    LOGGER.info("run_start run_dir=%s config=%s", run_dir, config_path)
     spec = FeatureSet.from_f0_json(ROOT / "configs/feature_sets/f0_123_columns.json")
     if data["feature_set"] != spec.id or len(spec.columns) != 123:
         raise ValueError("formal runner requires the frozen feature.f0_123.v1 contract")
@@ -124,9 +148,14 @@ def run(*, run_dir: Path, config_path: Path) -> dict:
             config["label"]["entry_to_exit_sessions"] != LABEL_PROFILE.horizon_sessions):
         raise ValueError("formal runner requires a 12-month window and T+1/T+10 labels")
     _write_bytes_once(run_dir / "data" / "experiment_config.yaml", config_path.read_bytes())
+    LOGGER.info("phase=f0_load start=%s end=%s", data["train_start"], data["raw_end"])
     panel, audit = load_f0_panel(data["train_start"], data["raw_end"], return_audit=True)
+    _log_frame("f0_panel", panel)
+    LOGGER.info("phase=f0_load elapsed_seconds=%.1f", time.monotonic() - started)
     sessions = pd.DatetimeIndex(sorted(panel["event_time"].drop_duplicates()))
+    LOGGER.info("phase=labels start sessions=%d", len(sessions))
     labels = build_q70_t10_labels(panel, profile=LABEL_PROFILE, session_dates=sessions)
+    _log_frame("labels", labels)
     formal_end = pd.Timestamp(data["mature_end"])
     model_dates = [pd.Timestamp(x) for x in config["model"]["expected_monthly_models"]
                    if pd.Timestamp(x) <= formal_end]
@@ -137,7 +166,9 @@ def run(*, run_dir: Path, config_path: Path) -> dict:
         horizon_sessions=config["label"]["entry_to_exit_sessions"], mature_end=formal_end,
     )
     context_start = pd.Timestamp(data["oos_start"]) - pd.Timedelta(days=45)
+    LOGGER.info("phase=market_context_load start=%s end=%s", context_start.date(), formal_end.date())
     context = load_market_context_panel(context_start.strftime("%Y-%m-%d"), formal_end.strftime("%Y-%m-%d"))
+    _log_frame("market_context", context)
     _write_frame_once(run_dir / "data" / "f0_panel.csv", panel)
     _write_frame_once(run_dir / "data" / "labels.csv", labels)
     _write_frame_once(run_dir / "data" / "market_context.csv", context)
@@ -154,10 +185,13 @@ def run(*, run_dir: Path, config_path: Path) -> dict:
             continue
         cutoff = prior[-1]
         model_id = f"q70_{model_date.strftime('%Y%m%d')}_cutoff_{cutoff.strftime('%Y%m%d')}"
+        model_started = time.monotonic()
+        LOGGER.info("phase=model_train model=%s cutoff=%s window_months=%s", model_id, cutoff.date(), config["model"]["train_window_months"])
         _train_one(panel, labels, spec, run_dir, config["model"]["train_window_months"], cutoff, model_id, params)
         trained_models += 1
         next_model_date = model_dates[model_index + 1] if model_index + 1 < len(model_dates) else formal_end + pd.Timedelta(days=1)
         month_predictions = [d for d in prediction_dates if model_date.date() <= d.date() < next_model_date.date()]
+        LOGGER.info("phase=model_train_complete model=%s prediction_dates=%d elapsed_seconds=%.1f", model_id, len(month_predictions), time.monotonic() - model_started)
         for prediction_date in month_predictions:
             source = panel[panel["event_time"] == prediction_date].copy()
             source = source[source["available_time"] <= session_close(prediction_date)]
@@ -184,6 +218,7 @@ def run(*, run_dir: Path, config_path: Path) -> dict:
                                                    exclude_beijing=config["selection"]["exclude_beijing"],
                                                    alpha_weight=config["selection"]["alpha_weight"],
                                                    alpha_power=config["selection"]["alpha_power"])
+            LOGGER.info("phase=selection date=%s candidates=%d selected=%d", prediction_date.date(), len(selected), int(selected["selected"].sum()))
             write_ledger(predictions, run_dir / "predictions" / f"{prediction_date.date()}_prediction.csv")
             write_ledger(selected, run_dir / "selections" / f"{prediction_date.date()}_selection.csv")
             all_selected.append(selected[selected["selected"]].assign(asof=str(prediction_date.date())))
@@ -193,10 +228,15 @@ def run(*, run_dir: Path, config_path: Path) -> dict:
     if signals.empty:
         raise RuntimeError("SelectionPolicy rejected every candidate")
     codes = sorted(signals["ts_code"].astype(str).unique())
+    LOGGER.info("phase=execution_data_load start=%s end=%s codes=%d", data["oos_start"], formal_end.date(), len(codes))
     prices = load_execution_panel(data["oos_start"], str(formal_end.date()), ts_codes=codes)
     actions = load_corporate_actions(data["oos_start"], str(formal_end.date()), ts_codes=codes)
     from aistock9988.data.minute_source import load_minute_execution_panel
     minutes = load_minute_execution_panel(data["oos_start"], str(formal_end.date()), freq="5min", ts_codes=codes)
+    _log_frame("execution_daily", prices)
+    _log_frame("corporate_actions", actions)
+    _log_frame("execution_5min", minutes)
+    LOGGER.info("phase=backtest start hold_sessions=%d stop_loss_mode=%s", config["label"]["entry_to_exit_sessions"], config["execution"]["stop_loss_mode"])
     _write_frame_once(run_dir / "data" / "execution_daily.csv", prices)
     _write_frame_once(run_dir / "data" / "corporate_actions.csv", actions)
     _write_frame_once(run_dir / "data" / "execution_5min.csv", minutes)
@@ -206,6 +246,7 @@ def run(*, run_dir: Path, config_path: Path) -> dict:
                                                 stop_loss_pct=config["execution"]["stop_loss_pct"],
                                                 take_profit_pct=config["execution"]["take_profit_pct"],
                                                 stop_loss_mode=config["execution"]["stop_loss_mode"]))
+    LOGGER.info("phase=backtest_complete trades=%d orders=%d nav_rows=%d", len(result["trades"]), len(result["orders"]), len(result["nav"]))
     for key, filename in (("orders", "orders.csv"), ("trades", "fills.csv"), ("nav", "nav.csv"),
                           ("positions", "positions.csv"), ("corporate_actions", "corporate_actions.csv")):
         _write_frame_once(run_dir / "trades" / filename, result[key])
@@ -234,6 +275,7 @@ def run(*, run_dir: Path, config_path: Path) -> dict:
                 "config_sha256": hashlib.sha256(config_path.read_bytes()).hexdigest(),
                 "contract": "raw accounting, economic risk triggers, 5min intraday stop"}
     _write_json_once(run_dir / "data_manifest.json", manifest)
+    LOGGER.info("run_complete models=%d prediction_dates=%d selected_rows=%d elapsed_seconds=%.1f", trained_models, len(prediction_dates), len(signals), time.monotonic() - started)
     return {"models": trained_models, "prediction_dates": len(prediction_dates), "selected_rows": len(signals)}
 
 
