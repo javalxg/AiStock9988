@@ -16,11 +16,34 @@ def build_q70_t10_labels(panel: pd.DataFrame, *, profile: LabelProfile,
     if profile.entry_delay_sessions != 1 or profile.horizon_sessions != 10:
         raise ValueError("q70_t10 requires entry_delay_sessions=1 and horizon_sessions=10")
     ordered = panel.sort_values(["ts_code", "event_time"], kind="mergesort").copy()
-    grouped = ordered.groupby("ts_code", sort=False)
-    ordered["entry_time"] = grouped["event_time"].shift(-profile.entry_delay_sessions)
-    ordered["exit_time"] = grouped["event_time"].shift(-(profile.entry_delay_sessions + profile.horizon_sessions))
-    ordered["entry_economic_open"] = grouped["economic_open"].shift(-profile.entry_delay_sessions)
-    ordered["exit_economic_open"] = grouped["economic_open"].shift(-(profile.entry_delay_sessions + profile.horizon_sessions))
+    sessions = pd.DatetimeIndex(session_dates)
+    if sessions.tz is None:
+        sessions = sessions.tz_localize("UTC")
+    else:
+        sessions = sessions.tz_convert("UTC")
+    sessions = sessions.normalize().drop_duplicates().sort_values()
+    session_positions = {day: i for i, day in enumerate(sessions)}
+    signal_days = pd.to_datetime(ordered["event_time"], utc=True).dt.normalize()
+
+    def target_days(offset: int) -> pd.Series:
+        values = []
+        for day in signal_days:
+            position = session_positions.get(day)
+            values.append(sessions[position + offset] if position is not None and position + offset < len(sessions) else pd.NaT)
+        return pd.Series(values, index=ordered.index, dtype="datetime64[ns, UTC]")
+
+    # Join by the global session calendar, not by row offset. A missing
+    # security/session row must never turn T+11 into the next available row.
+    ordered["entry_time"] = target_days(profile.entry_delay_sessions)
+    ordered["exit_time"] = target_days(profile.entry_delay_sessions + profile.horizon_sessions)
+    prices = ordered[["ts_code", "event_time", "economic_open"]].copy()
+    prices["event_time"] = pd.to_datetime(prices["event_time"], utc=True).dt.normalize()
+    entry_prices = prices.rename(columns={"event_time": "entry_time", "economic_open": "entry_economic_open"})
+    exit_prices = prices.rename(columns={"event_time": "exit_time", "economic_open": "exit_economic_open"})
+    ordered = ordered.merge(entry_prices[["ts_code", "entry_time", "entry_economic_open"]],
+                            on=["ts_code", "entry_time"], how="left", validate="many_to_one")
+    ordered = ordered.merge(exit_prices[["ts_code", "exit_time", "exit_economic_open"]],
+                            on=["ts_code", "exit_time"], how="left", validate="many_to_one")
     candidates = ordered.dropna(subset=["entry_time", "exit_time", "entry_economic_open", "exit_economic_open"])
     labels = build_endpoint_labels(
         candidates.rename(columns={"event_time": "signal_time"}),
