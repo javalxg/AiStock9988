@@ -4,6 +4,7 @@ from __future__ import annotations
 import pandas as pd
 
 from .maturity import LabelProfile, build_endpoint_labels
+from ..time.session import session_open
 
 
 def build_q70_t10_labels(panel: pd.DataFrame, *, profile: LabelProfile,
@@ -29,5 +30,5 @@ def build_q70_t10_labels(panel: pd.DataFrame, *, profile: LabelProfile,
         session_dates=session_dates,
     )
     labels = labels.rename(columns={"signal_time": "event_time"})
-    labels["available_time"] = labels["exit_time"] + pd.Timedelta(hours=15)
+    labels["available_time"] = labels["exit_time"].map(session_open)
     return labels.sort_values(["event_time", "ts_code"], kind="mergesort").reset_index(drop=True)

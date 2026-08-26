@@ -12,6 +12,8 @@ def test_price_contract_keeps_raw_and_economic_fields_separate():
         "raw_open": [10], "raw_high": [11], "raw_low": [9], "raw_close": [10],
         "economic_open": [20], "economic_high": [22], "economic_low": [18],
         "economic_close": [20], "adj_factor": [2], "available_time": ["2026-08-20T06:59:00Z"],
+        "open_available_time": ["2026-08-20T01:30:00Z"],
+        "close_available_time": ["2026-08-20T07:00:00Z"],
         "is_suspended": [False], "is_limit_up": [False], "is_limit_down": [False],
     }))
     assert panel.iloc[0].raw_close == 10

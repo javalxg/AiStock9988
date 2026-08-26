@@ -9,6 +9,7 @@ def test_execution_source_derives_economic_prices_and_limit_states():
         "ts_code": ["A", "A"], "trade_date": ["2026-01-01", "2026-01-02"],
         "open": [10, 9], "high": [11, 10], "low": [9, 8], "close": [10, 9],
         "adj_factor": [2, 2], "up_limit": [10, 10], "down_limit": [9, 9],
+        "amount": [1000, 1000],
         "update_time": ["2026-01-01 14:00:00", "2026-01-02 14:00:00"],
     }))
     assert panel.iloc[0].economic_close == 20

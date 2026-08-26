@@ -47,7 +47,7 @@ def init_run(name: str) -> Path:
     run_id = f"{utc}_{name}_{config_hash}"
     running = ROOT / "experiments" / ".running" / run_id
     running.mkdir(parents=True, exist_ok=False)
-    for d in ("models", "predictions", "selections", "trades", "diagnostics", "logs"):
+    for d in ("data", "models", "predictions", "selections", "trades", "diagnostics", "logs"):
         (running / d).mkdir()
     manifest = {
         "run_id": run_id,

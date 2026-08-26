@@ -176,13 +176,13 @@ def run_backtest(signals: pd.DataFrame, prices: pd.DataFrame, *, config: Backtes
             order = pos.get("exit_order")
             if should_exit:
                 row = by_key.loc[(day, code)] if (day, code) in by_key.index else None
-                if row is not None and _visible_at(row, session_open(day)) and not bool(row.is_suspended) and not bool(row.is_limit_down):
+                if row is not None and _visible_at(row, session_open(day), "open_available_time") and not bool(row.is_suspended) and not bool(row.is_limit_down):
                     execute(day, code, "SELL", float(row.raw_open) * (1.0 - config.sell_slippage), pos["shares"],
                             "stop_loss_exit" if order.get("trigger_type") == "STOP_LOSS" else "scheduled_or_rule_exit", order,
                             economic_price=float(row.economic_open), entry_economic_price=pos["entry_economic_price"])
                     del positions[code]
                 elif row is not None:
-                    order["last_attempt_reason"] = "not_pit_visible" if not _visible_at(row, session_open(day)) else "suspended" if bool(row.is_suspended) else "limit_down"
+                    order["last_attempt_reason"] = "not_pit_visible" if not _visible_at(row, session_open(day), "open_available_time") else "suspended" if bool(row.is_suspended) else "limit_down"
                     order["final_reason"] = "pending_non_tradable"
                 else:
                     order["last_attempt_reason"] = "missing_execution_price"
@@ -193,18 +193,27 @@ def run_backtest(signals: pd.DataFrame, prices: pd.DataFrame, *, config: Backtes
         if previous in signal_map:
             available = signal_map[previous]
             slots = config.max_positions - len(positions)
-            for code in available.head(max(0, slots))["ts_code"]:
-                code = str(code)
+            entries = available.head(max(0, slots)).copy()
+            if "target_weight" in entries and (pd.to_numeric(entries["target_weight"], errors="coerce") > 0).all():
+                weights = pd.to_numeric(entries["target_weight"], errors="raise")
+                weights = weights / weights.sum()
+            elif len(entries):
+                weights = pd.Series(1.0 / len(entries), index=entries.index)
+            else:
+                weights = pd.Series(dtype=float)
+            entry_cash = cash
+            for entry_index, signal in entries.iterrows():
+                code = str(signal["ts_code"])
                 if code in positions or (day, code) not in by_key.index:
                     continue
                 row = by_key.loc[(day, code)]
-                if not _visible_at(row, session_open(day)) or bool(row.is_suspended) or bool(row.is_limit_up):
+                if not _visible_at(row, session_open(day), "open_available_time") or bool(row.is_suspended) or bool(row.is_limit_up):
                     order = new_order(previous, code, "BUY", 0, "not_tradable_at_open", decision_session=previous)
                     order["status"] = "REJECTED"
-                    order["last_attempt_reason"] = "not_pit_visible" if not _visible_at(row, session_open(day)) else "suspended" if bool(row.is_suspended) else "limit_up"
+                    order["last_attempt_reason"] = "not_pit_visible" if not _visible_at(row, session_open(day), "open_available_time") else "suspended" if bool(row.is_suspended) else "limit_up"
                     continue
                 price = float(row.raw_open) * (1.0 + config.buy_slippage)
-                budget = cash / max(1, config.max_positions)
+                budget = min(cash, entry_cash * float(weights.loc[entry_index]))
                 unit_cost = price * (1.0 + config.buy_commission)
                 shares = int((budget / unit_cost) // config.lot_size) * config.lot_size
                 if shares <= 0:
@@ -221,8 +230,10 @@ def run_backtest(signals: pd.DataFrame, prices: pd.DataFrame, *, config: Backtes
         for code, pos in positions.items():
             pos["prior_close_for_intraday"] = pos["last_close"]
             if (day, code) in by_key.index:
-                pos["last_close"] = float(by_key.loc[(day, code)].raw_close)
-                pos["last_economic_close"] = float(by_key.loc[(day, code)].economic_close)
+                row = by_key.loc[(day, code)]
+                if _visible_at(row, session_close(day), "close_available_time"):
+                    pos["last_close"] = float(row.raw_close)
+                    pos["last_economic_close"] = float(row.economic_close)
         # With minute data, stop-loss decisions are made inside the current
         # session. A position cannot be sold on its entry session (A-share T+1).
         if config.stop_loss_mode == "intraday_5min" and config.stop_loss_pct is not None:
@@ -257,11 +268,17 @@ def run_backtest(signals: pd.DataFrame, prices: pd.DataFrame, *, config: Backtes
                     pos["exit_order"]["final_reason"] = "pending_intraday_non_tradable"
         mark = 0.0
         for code, pos in positions.items():
-            mark += pos["shares"] * float(by_key.loc[(day, code)].raw_close) if (day, code) in by_key.index else pos["shares"] * pos["last_close"]
+            row = by_key.loc[(day, code)] if (day, code) in by_key.index else None
+            mark_price = (float(row.raw_close)
+                          if row is not None and _visible_at(row, session_close(day), "close_available_time")
+                          else pos["last_close"])
+            mark += pos["shares"] * mark_price
         nav_rows.append({"trade_date": day, "cash": cash, "market_value": mark, "nav": cash + mark,
                          "open_positions": len(positions)})
         if cash < -1e-8:
             raise AssertionError(f"accounting invariant violated: negative cash on {day}: {cash}")
+        if abs(nav_rows[-1]["nav"] - nav_rows[-1]["cash"] - nav_rows[-1]["market_value"]) > 1e-8:
+            raise AssertionError(f"accounting invariant violated: NAV identity on {day}")
 
     # Final liquidation is explicitly marked and uses the last available close.
     final_day = sessions[-1]
@@ -269,7 +286,9 @@ def run_backtest(signals: pd.DataFrame, prices: pd.DataFrame, *, config: Backtes
     for code, pos in list(positions.items()):
         if (final_day, code) in by_key.index:
             row = by_key.loc[(final_day, code)]
-            if not bool(row.is_suspended) and not bool(row.is_limit_down):
+            close_visible = _visible_at(row, session_close(final_day), "close_available_time")
+            a_share_t1 = pos["entry_date"] < final_day
+            if close_visible and a_share_t1 and not bool(row.is_suspended) and not bool(row.is_limit_down):
                 order = pos.get("exit_order") or new_order(final_day, code, "SELL", pos["shares"],
                                                             "end_of_test_liquidation", decision_session=final_day,
                                                             trigger_type="END_OF_TEST", reference_raw_close=pos["last_close"])
@@ -281,7 +300,10 @@ def run_backtest(signals: pd.DataFrame, prices: pd.DataFrame, *, config: Backtes
             pos["exit_order"]["status"] = "EXPIRED"
             pos["exit_order"]["final_reason"] = "unclosed_non_tradable"
         residual.append({"trade_date": final_day, "ts_code": code, "shares": pos["shares"],
-                         "raw_mark_price": float(by_key.loc[(final_day, code)].raw_close) if (final_day, code) in by_key.index else None,
+                         "raw_mark_price": (float(by_key.loc[(final_day, code)].raw_close)
+                                            if (final_day, code) in by_key.index and
+                                            _visible_at(by_key.loc[(final_day, code)], session_close(final_day), "close_available_time")
+                                            else pos["last_close"]),
                          "reason": "unclosed_non_tradable"})
     if nav_rows and trades and not positions:
         nav_rows[-1]["cash"] = cash
@@ -290,7 +312,9 @@ def run_backtest(signals: pd.DataFrame, prices: pd.DataFrame, *, config: Backtes
         nav_rows[-1]["open_positions"] = 0
     if nav_rows and positions:
         mark = sum(pos["shares"] * (float(by_key.loc[(final_day, code)].raw_close)
-                   if (final_day, code) in by_key.index else pos["last_close"])
+                   if (final_day, code) in by_key.index and
+                   _visible_at(by_key.loc[(final_day, code)], session_close(final_day), "close_available_time")
+                   else pos["last_close"])
                    for code, pos in positions.items())
         nav_rows[-1]["cash"] = cash
         nav_rows[-1]["market_value"] = mark
@@ -326,8 +350,8 @@ def previous_session(sessions: list[pd.Timestamp], index: int) -> pd.Timestamp |
     return sessions[index - 1] if index > 0 else None
 
 
-def _visible_at(row: object, timestamp: pd.Timestamp) -> bool:
-    available = pd.Timestamp(getattr(row, "available_time"))
+def _visible_at(row: object, timestamp: pd.Timestamp, column: str = "available_time") -> bool:
+    available = pd.Timestamp(getattr(row, column))
     if available.tzinfo is None:
         available = available.tz_localize("UTC")
     return available <= timestamp

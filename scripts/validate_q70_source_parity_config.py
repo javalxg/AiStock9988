@@ -27,8 +27,10 @@ def validate(config_path: Path = CONFIG) -> dict[str, object]:
         errors.append("historical raw end must be 2026-08-14")
     if data["forbid_old_ledger"] is not True or data["forbid_stage2"] is not True:
         errors.append("old ledger and Stage2 must both be forbidden")
-    if data["forbid_minute_data"] is not False or execution["minute_data"] != "5min":
+    if data["allow_minute_execution_data"] is not True or execution["minute_data"] != "5min":
         errors.append("productionized reference must use 5min data for intraday execution")
+    if execution["stop_loss_mode"] != "intraday_5min":
+        errors.append("5min reference execution requires explicit intraday_5min stop mode")
     if execution["accounting_price_basis"] != "raw" or execution["trigger_price_basis"] != "economic":
         errors.append("accounting must use raw prices and risk triggers economic prices")
     if model["objective"] != "rank:pairwise" or model["max_depth"] != 6 or model["seed"] != 42:

@@ -49,6 +49,11 @@ def normalize_corporate_actions(frame: pd.DataFrame) -> pd.DataFrame:
     out["available_time"] = parse_source_time(out["update_time"])
     if out["available_time"].isna().any():
         raise ValueError("corporate action source has null update_time")
+    # A provider may retain several revisions of the same implemented event.
+    # Keep the latest PIT version once; applying every revision would multiply
+    # dividends and split ratios in the accounting ledger.
+    out = out.sort_values(["ts_code", "ex_date", "available_time"], kind="mergesort")
+    out = out.drop_duplicates(["ts_code", "ex_date"], keep="last")
     cols = ["ts_code", "ex_date", "split_ratio", "cash_dividend", "available_time", "action_type"]
     return out[cols].sort_values(["ex_date", "ts_code"], kind="mergesort").reset_index(drop=True)
 

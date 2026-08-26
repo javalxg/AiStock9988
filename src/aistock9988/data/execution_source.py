@@ -5,7 +5,7 @@ import pandas as pd
 
 from ..execution.prices import validate_execution_panel
 from .quantdb import readonly_connection
-from ..time.session import parse_source_time
+from ..time.session import parse_source_time, session_close, session_open
 
 
 def normalize_execution_panel(frame: pd.DataFrame) -> pd.DataFrame:
@@ -33,8 +33,19 @@ def normalize_execution_panel(frame: pd.DataFrame) -> pd.DataFrame:
         if "update_time" not in out:
             raise ValueError("execution source requires available_time or update_time")
         out["available_time"] = parse_source_time(out["update_time"])
+    else:
+        out["available_time"] = pd.to_datetime(out["available_time"], errors="raise", utc=True)
+    if "open_available_time" not in out:
+        out["open_available_time"] = out["available_time"]
+    if "close_available_time" not in out:
+        out["close_available_time"] = out["available_time"]
     if "is_suspended" not in out:
-        out["is_suspended"] = False
+        if "amount" not in out:
+            raise ValueError("execution source requires explicit is_suspended or amount")
+        amount = pd.to_numeric(out["amount"], errors="coerce")
+        if amount.isna().any():
+            raise ValueError("execution source amount is required to derive suspension state")
+        out["is_suspended"] = amount <= 0
     out = out.rename(columns={"open": "raw_open", "high": "raw_high", "low": "raw_low", "close": "raw_close"})
     return validate_execution_panel(out)
 
@@ -62,29 +73,47 @@ def load_execution_panel(start: str, end: str, *, ts_codes: list[str] | None = N
     if frame.empty:
         raise ValueError("no execution rows for requested range")
     availability = pd.concat([parse_source_time(frame[c]) for c in update_cols], axis=1)
-    frame["available_time"] = availability.max(axis=1)
-    if frame["available_time"].isna().any():
+    frame["source_ingested_time"] = availability.max(axis=1)
+    if frame["source_ingested_time"].isna().any():
         raise ValueError("execution source has null available_time")
+    trade_days = pd.to_datetime(frame["trade_date"], errors="raise", utc=True).dt.normalize()
+    # Raw open/limit/tradability fields are observable at the exchange open;
+    # raw/economic close fields become observable at the exchange close.  Keep
+    # ingestion time separately so the snapshot remains auditable.
+    frame["open_available_time"] = trade_days.map(session_open)
+    frame["close_available_time"] = trade_days.map(session_close)
+    frame["available_time"] = frame["close_available_time"]
     return normalize_execution_panel(frame)
 
 
-def load_market_context_panel(dates: list[str]) -> pd.DataFrame:
-    """Load only daily cross-sections needed by SelectionPolicy."""
-    if not dates:
+def load_market_context_panel(start: str, end: str) -> pd.DataFrame:
+    """Load PIT-auditable daily history needed by SelectionPolicy."""
+    if pd.Timestamp(end) < pd.Timestamp(start):
+        raise ValueError("market context end must not precede start")
+    if not start or not end:
         return pd.DataFrame(columns=["ts_code", "trade_date", "raw_close", "pct_chg", "amount"])
-    placeholders = ",".join(["%s"] * len(dates))
     with readonly_connection() as conn:
         frame = pd.read_sql_query(
             "SELECT m.ts_code, m.trade_date, m.close AS raw_close, m.pct_chg, m.amount, "
-            "l.up_limit, l.down_limit "
+            "m.update_time AS market_update_time, l.up_limit, l.down_limit, "
+            "l.update_time AS limit_update_time "
             "FROM market_daily_ts m JOIN stk_limit_ts l "
             "ON l.ts_code=m.ts_code AND l.trade_date=m.trade_date "
-            "WHERE m.source='daily' AND m.trade_date IN (" + placeholders + ") "
-            "ORDER BY m.trade_date, m.ts_code", conn, params=tuple(dates),
+            "WHERE m.source='daily' AND m.trade_date >= %s AND m.trade_date <= %s "
+            "ORDER BY m.trade_date, m.ts_code", conn, params=(start, end),
         )
+    if frame.empty:
+        raise ValueError("no market context rows for requested range")
     frame["trade_date"] = pd.to_datetime(frame["trade_date"], utc=True).dt.normalize()
     frame["raw_close"] = pd.to_numeric(frame["raw_close"], errors="raise")
     frame["pct_chg"] = pd.to_numeric(frame["pct_chg"], errors="raise")
     frame["amount"] = pd.to_numeric(frame["amount"], errors="coerce")
+    frame["available_time"] = pd.concat([
+        parse_source_time(frame["market_update_time"]),
+        parse_source_time(frame["limit_update_time"]),
+    ], axis=1).max(axis=1)
+    if frame["available_time"].isna().any():
+        raise ValueError("market context contains null available_time")
+    frame["is_limit_up"] = frame["raw_close"] >= pd.to_numeric(frame["up_limit"], errors="raise")
     frame["is_limit_down"] = frame["raw_close"] <= pd.to_numeric(frame["down_limit"], errors="raise")
     return frame

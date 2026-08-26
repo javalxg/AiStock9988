@@ -6,7 +6,10 @@ from aistock9988.reporting.metrics import summarize_backtest
 
 
 def _complete_prices(frame):
-    frame["available_time"] = "2026-08-20T01:00:00Z"
+    days = pd.to_datetime(frame["trade_date"], utc=True).dt.normalize()
+    frame["open_available_time"] = days + pd.Timedelta(hours=1, minutes=30)
+    frame["close_available_time"] = days + pd.Timedelta(hours=7)
+    frame["available_time"] = frame["close_available_time"]
     for column in ("is_suspended", "is_limit_up", "is_limit_down"):
         if column not in frame:
             frame[column] = False
@@ -78,14 +81,64 @@ def test_backtest_uses_intraday_stop_before_daily_close():
                            "raw_close": [10., 10., 10., 10.], "economic_open": [100., 100., 100., 100.],
                            "economic_high": [100., 100., 100., 100.], "economic_low": [100., 100., 100., 100.],
                            "economic_close": [100., 100., 100., 100.], "adj_factor": [10., 10., 10., 10.]}))
-    minute = pd.DataFrame({"ts_code": ["A"], "trade_time": ["2026-08-22 09:31:00Z"],
+    minute = pd.DataFrame({"ts_code": ["A"], "trade_time": ["2026-08-22 01:31:00Z"],
                            "open": [8.], "high": [10.], "low": [8.], "close": [9.],
                            "adj_factor": [10.], "up_limit": [12.], "down_limit": [7.],
-                           "available_time": ["2026-08-22T06:00:00Z"]})
+                           "available_time": ["2026-08-22T01:31:00Z"]})
     result = run_backtest(signals, prices, minute_prices=minute,
                           config=BacktestConfig(initial_cash=1000, stop_loss_pct=-0.08, stop_loss_mode="intraday_5min"))
     assert result["trades"].iloc[-1].reason == "intraday_stop_loss"
     assert result["trades"].iloc[-1].trade_date == pd.Timestamp("2026-08-22", tz="UTC")
+
+
+def test_backtest_rejects_minute_bar_that_was_not_yet_available():
+    signals = pd.DataFrame({"asof": ["2026-08-20"], "ts_code": ["A"], "candidate_rank": [1],
+                            "selected": [True], "selection_decision_id": ["d1"], "policy_id": ["p1"]})
+    prices = _complete_prices(pd.DataFrame({
+        "trade_date": ["2026-08-20", "2026-08-21", "2026-08-22"], "ts_code": ["A"] * 3,
+        "raw_open": [10.] * 3, "raw_high": [10.] * 3, "raw_low": [10.] * 3, "raw_close": [10.] * 3,
+        "economic_open": [100.] * 3, "economic_high": [100.] * 3,
+        "economic_low": [100.] * 3, "economic_close": [100.] * 3, "adj_factor": [10.] * 3,
+    }))
+    minute = pd.DataFrame({
+        "ts_code": ["A"], "trade_time": ["2026-08-22T01:31:00Z"],
+        "open": [8.], "high": [10.], "low": [8.], "close": [9.], "adj_factor": [10.],
+        "up_limit": [12.], "down_limit": [7.], "available_time": ["2026-08-22T06:00:00Z"],
+    })
+    result = run_backtest(signals, prices, minute_prices=minute,
+                          config=BacktestConfig(initial_cash=1000, stop_loss_pct=-0.08,
+                                                stop_loss_mode="intraday_5min"))
+    assert "intraday_stop_loss" not in result["trades"].get("reason", pd.Series(dtype=str)).tolist()
+
+
+def test_nav_does_not_use_close_that_was_not_visible_by_session_close():
+    signals = pd.DataFrame({"asof": ["2026-08-20"], "ts_code": ["A"], "candidate_rank": [1],
+                            "selected": [True], "selection_decision_id": ["d1"], "policy_id": ["p1"]})
+    prices = _complete_prices(pd.DataFrame({
+        "trade_date": ["2026-08-20", "2026-08-21", "2026-08-22"], "ts_code": ["A"] * 3,
+        "raw_open": [10., 10., 10.], "raw_high": [10., 10., 100.], "raw_low": [10.] * 3,
+        "raw_close": [10., 10., 100.], "economic_open": [10.] * 3,
+        "economic_high": [10., 10., 100.], "economic_low": [10.] * 3,
+        "economic_close": [10., 10., 100.], "adj_factor": [1.] * 3,
+    }))
+    prices.loc[2, "close_available_time"] = "2026-08-22T08:00:00Z"
+    result = run_backtest(signals, prices, config=BacktestConfig(initial_cash=1000, hold_sessions=10))
+    assert result["positions"].iloc[0].raw_mark_price == 10.0
+    assert result["nav"].iloc[-1].market_value == 990.0
+
+
+def test_terminal_liquidation_respects_a_share_t1():
+    signals = pd.DataFrame({"asof": ["2026-08-20"], "ts_code": ["A"], "candidate_rank": [1],
+                            "selected": [True], "selection_decision_id": ["d1"], "policy_id": ["p1"]})
+    prices = _complete_prices(pd.DataFrame({
+        "trade_date": ["2026-08-20", "2026-08-21"], "ts_code": ["A"] * 2,
+        "raw_open": [10., 10.], "raw_high": [10., 10.], "raw_low": [10., 10.], "raw_close": [10., 10.],
+        "economic_open": [10., 10.], "economic_high": [10., 10.], "economic_low": [10., 10.],
+        "economic_close": [10., 10.], "adj_factor": [1., 1.],
+    }))
+    result = run_backtest(signals, prices, config=BacktestConfig(initial_cash=1000, hold_sessions=10))
+    assert result["trades"]["side"].tolist() == ["BUY"]
+    assert result["positions"].iloc[0].shares == 99
 
 
 def test_corporate_action_changes_shares_and_dividend_cash():
@@ -101,5 +154,5 @@ def test_corporate_action_changes_shares_and_dividend_cash():
                             "available_time": ["2026-08-22T01:00:00Z"]})
     result = run_backtest(signals, prices, corporate_actions=actions,
                           config=BacktestConfig(initial_cash=1000, hold_sessions=10))
-    assert result["corporate_actions"].iloc[0].cash_dividend == 24.5
+    assert result["corporate_actions"].iloc[0].cash_dividend == 49.5
     assert result["positions"].empty
