@@ -1,0 +1,19 @@
+id: execution.q70.v1
+signal_frequency: weekly
+entry: next_session_open
+selection_policy: selection.direct_topk.v1
+candidate_view: top20
+max_positions: 2
+hold_buffer_n: 5
+stop_loss_pct: -8.0
+take_profit_pct: 100.0
+training_label_stop_loss_pct: -8.0
+alpha_weight: true
+alpha_weight_power: 1.0
+sell_conditions: [yin_bao_yang]
+causal_limit_up_check: true
+market_breadth:
+  capture: true
+  used_for_selection: true
+  min_ratio: 0.40
+  low_breadth_top_n: 2

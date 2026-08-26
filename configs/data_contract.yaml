@@ -1,0 +1,15 @@
+version: "1.0"
+source_id: quant_db
+pit:
+  event_time: trade_date
+  available_time: available_time
+  ingested_time: ingested_time
+  decision_rule: available_time <= decision_time
+price:
+  economic: adjusted_ohlc
+  execution: raw_ohlc
+market_context:
+  capture: true
+  model_usage: false
+  selection_usage: false
+  risk_usage: false

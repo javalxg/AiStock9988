@@ -1,0 +1,13 @@
+profiles:
+  - id: label.endpoint_open_open_t5.v1
+    entry_delay_sessions: 1
+    horizon_sessions: 5
+    maturity_sessions: 6
+    entry_price: economic_open
+    exit_price: economic_open
+  - id: label.endpoint_open_open_t10.v1
+    entry_delay_sessions: 1
+    horizon_sessions: 10
+    maturity_sessions: 11
+    entry_price: economic_open
+    exit_price: economic_open
