@@ -9,6 +9,7 @@ from ..features.registry import FeatureSet
 from ..labeling.dataset import build_training_dataset
 from ..data.pit import assert_no_future
 from ..selection.ledger import build_prediction_ledger, freeze_candidates, write_ledger
+from ..time.session import session_close
 from .trainer import ModelArtifact, train_ranker
 
 
@@ -35,7 +36,7 @@ def train_and_rank(*, features: pd.DataFrame, labels: pd.DataFrame,
     if len(merged_keys) != len(X):
         raise ValueError("training key alignment mismatch")
     model = train_ranker(X, y, group_dates=merged_keys["event_time"],
-                         feature_set_id=feature_set.id, label_profile_id="configured",
+                         feature_set_id=feature_set.id, label_profile_id="label.endpoint_open_open_t10.v1",
                          training_cutoff=str(training_cutoff), model_id=model_id,
                          output_dir=output_dir / "models", params=params)
     required_pred = {"ts_code", "event_time", "available_time", *feature_set.columns}
@@ -46,11 +47,7 @@ def train_and_rank(*, features: pd.DataFrame, labels: pd.DataFrame,
     pred_source["event_time"] = pd.to_datetime(pred_source["event_time"], utc=True)
     pred_source["available_time"] = pd.to_datetime(pred_source["available_time"], utc=True)
     decision = pd.Timestamp(asof)
-    if decision.tzinfo is None:
-        decision = decision.tz_localize("UTC")
-    # A date-form asof denotes the end of that trading session, not midnight.
-    if decision == decision.normalize():
-        decision = decision + pd.Timedelta(days=1) - pd.Timedelta(nanoseconds=1)
+    decision = session_close(decision)
     assert_no_future(pred_source, decision_time=decision.to_pydatetime())
     if (pred_source["event_time"].dt.normalize() != decision.normalize()).any():
         raise ValueError("prediction snapshot contains rows outside the requested asof session")

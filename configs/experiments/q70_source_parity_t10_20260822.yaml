@@ -49,7 +49,8 @@ label:
   profile: label.endpoint_open_open_t10.v1
   signal_to_entry_sessions: 1
   entry_to_exit_sessions: 10
-  maturity_lag_sessions: 10
+  maturity_lag_sessions: 11
+  maturity_definition: "signal T -> entry T+1 -> exit T+11; entry_to_exit horizon is 10"
   training_stop_loss_pct: -0.08
 selection:
   candidate_pool: top20

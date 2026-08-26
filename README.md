@@ -24,7 +24,7 @@ PYTHONPATH=src python3 -m aistock9988.cli complete-run experiments/.running/<run
 
 ```bash
 PYTHONPATH=src python3 -m aistock9988.cli init-run q70_source_parity_rebuild
-PYTHONPATH=src python3 scripts/first_q70_experiment.py --run-dir experiments/.running/<run_id>
+PYTHONPATH=src python3 scripts/q70_source_parity_runner.py --run-dir experiments/.running/<run_id> --config configs/experiments/q70_source_parity_t10_20260822.yaml
 PYTHONPATH=src python3 -m aistock9988.cli verify-run experiments/.running/<run_id>
 PYTHONPATH=src python3 -m aistock9988.cli complete-run experiments/.running/<run_id>
 ```

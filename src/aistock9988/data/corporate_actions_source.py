@@ -10,6 +10,7 @@ import pandas as pd
 
 from ..execution.corporate_actions import CorporateAction
 from .quantdb import readonly_connection
+from ..time.session import parse_source_time
 
 
 def normalize_corporate_actions(frame: pd.DataFrame) -> pd.DataFrame:
@@ -38,10 +39,16 @@ def normalize_corporate_actions(frame: pd.DataFrame) -> pd.DataFrame:
     out["split_ratio"] = 1.0 + bonus
     if (out["cash_dividend"] < 0).any() or (out["split_ratio"] <= 0).any():
         raise ValueError("corporate action values are invalid")
-    out["action_type"] = out.get("div_proc", "completed")
-    out["available_time"] = pd.to_datetime(
-        out.get("update_time", out["ex_date"]), errors="coerce", utc=True
-    )
+    if "div_proc" not in out:
+        raise ValueError("corporate action source must include div_proc implementation status")
+    status = out["div_proc"].astype(str)
+    out = out[status.str.contains("实施", na=False)].copy()
+    if "update_time" not in out:
+        raise ValueError("corporate action source must include update_time for PIT")
+    out["action_type"] = out["div_proc"]
+    out["available_time"] = parse_source_time(out["update_time"])
+    if out["available_time"].isna().any():
+        raise ValueError("corporate action source has null update_time")
     cols = ["ts_code", "ex_date", "split_ratio", "cash_dividend", "available_time", "action_type"]
     return out[cols].sort_values(["ex_date", "ts_code"], kind="mergesort").reset_index(drop=True)
 

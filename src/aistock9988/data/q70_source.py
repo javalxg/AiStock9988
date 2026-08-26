@@ -8,6 +8,7 @@ import pandas as pd
 
 from .quantdb import readonly_connection
 from .industry_pit import resolve_industry_map
+from ..time.session import parse_source_time, session_close
 
 
 def load_f0_panel(start: str, end: str, *, return_audit: bool = False) -> pd.DataFrame | tuple[pd.DataFrame, dict]:
@@ -36,10 +37,10 @@ def load_f0_panel(start: str, end: str, *, return_audit: bool = False) -> pd.Dat
             "ORDER BY con_code, in_date DESC, index_code ASC",
             conn, params=(end, start))
     factor["event_time"] = pd.to_datetime(factor.pop("trade_date"), utc=True)
-    factor["source_ingested_time"] = pd.to_datetime(factor.pop("update_time"), utc=True)
-    factor["adj_source_ingested_time"] = pd.to_datetime(factor.pop("adj_update_time"), utc=True)
+    factor["source_ingested_time"] = parse_source_time(factor.pop("update_time"))
+    factor["adj_source_ingested_time"] = parse_source_time(factor.pop("adj_update_time"))
     basic["event_time"] = pd.to_datetime(basic.pop("trade_date"), utc=True)
-    basic["basic_source_ingested_time"] = pd.to_datetime(basic.pop("update_time"), utc=True)
+    basic["basic_source_ingested_time"] = parse_source_time(basic.pop("update_time"))
     merged = factor.merge(basic, on=["ts_code", "event_time"], how="inner", validate="one_to_one")
     merged["ts_code"] = merged["ts_code"].astype(str)
     membership["con_code"] = membership["con_code"].astype(str)
@@ -55,11 +56,18 @@ def load_f0_panel(start: str, end: str, *, return_audit: bool = False) -> pd.Dat
     merged["economic_close"] = merged["close"] * merged["adj_factor"]
     sector_cols = []
     resolved_industry = []
+    visible_groups = []
     for event_time, group in merged.groupby("event_time", sort=True):
-        decision_time = event_time + pd.Timedelta(hours=15)
-        mapping, audit = resolve_industry_map(membership, signal_date=event_time, decision_time=decision_time)
+        decision_time = session_close(event_time)
+        visible = group[group["available_time"] <= decision_time].copy()
+        mapping, audit = resolve_industry_map(
+            membership, signal_date=event_time, decision_time=decision_time,
+            universe_codes=visible["ts_code"].astype(str).tolist(),
+        )
         resolved_industry.append(asdict(audit))
-        merged.loc[group.index, "industry"] = merged.loc[group.index, "ts_code"].map(mapping)
+        visible["industry"] = visible["ts_code"].map(mapping)
+        visible_groups.append(visible)
+    merged = pd.concat(visible_groups, ignore_index=True) if visible_groups else merged.iloc[0:0].copy()
     # Securities without an as-of PIT industry cannot receive sector-relative features.
     merged = merged.dropna(subset=["industry"]).copy()
     for col in technical:

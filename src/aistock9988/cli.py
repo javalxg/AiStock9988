@@ -42,7 +42,8 @@ def init_run(name: str) -> Path:
     guard = git_guard()
     utc = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
     config_dir = ROOT / "configs"
-    config_hash = hashlib.sha256(b"".join(sorted(p.read_bytes() for p in config_dir.rglob("*.yaml")))).hexdigest()[:8]
+    config_paths = sorted([*config_dir.rglob("*.yaml"), *config_dir.rglob("*.yml"), *config_dir.rglob("*.json")])
+    config_hash = hashlib.sha256(b"".join(p.read_bytes() for p in config_paths)).hexdigest()[:8]
     run_id = f"{utc}_{name}_{config_hash}"
     running = ROOT / "experiments" / ".running" / run_id
     running.mkdir(parents=True, exist_ok=False)
@@ -56,12 +57,13 @@ def init_run(name: str) -> Path:
         "python": sys.version,
         "platform": platform.platform(),
         "thread_count": 1,
-        "config_files": {str(p.relative_to(ROOT)): sha256(p) for p in sorted(config_dir.rglob("*.yaml"))},
+        "config_files": {str(p.relative_to(ROOT)): sha256(p) for p in config_paths},
     }
     (running / "RUN_STATUS.json").write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + "\n")
     (running / "commands.sh").write_text(
         "#!/usr/bin/env bash\nset -euo pipefail\n"
-        f"PYTHONPATH=src python3 -m aistock9988.cli init-run {name}\n"
+        f"PYTHONPATH=src python3 scripts/q70_source_parity_runner.py --run-dir '{running}' "
+        "--config configs/experiments/q70_source_parity_t10_20260822.yaml\n"
     )
     return running
 

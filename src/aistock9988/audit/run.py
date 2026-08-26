@@ -7,6 +7,8 @@ import os
 import tempfile
 from pathlib import Path
 
+import pandas as pd
+
 
 class RunAuditError(RuntimeError):
     pass
@@ -43,6 +45,7 @@ def audit_run(run_dir: Path) -> dict:
         missing.append("diagnostics/<checks>")
     if missing:
         raise RunAuditError("missing required run evidence: " + ", ".join(missing))
+    _validate_ledgers(run_dir)
     try:
         status = json.loads((run_dir / "RUN_STATUS.json").read_text())
     except (OSError, json.JSONDecodeError) as exc:
@@ -55,10 +58,35 @@ def audit_run(run_dir: Path) -> dict:
     return {"run_id": status.get("run_id", run_dir.name), "artifact_count": len(artifacts), "artifacts": artifacts}
 
 
+def _validate_ledgers(run_dir: Path) -> None:
+    selection_files = sorted((run_dir / "selections").glob("*.csv"))
+    if selection_files:
+        selection = pd.read_csv(selection_files[0], nrows=1)
+        required = {"selected", "selection_decision_id", "policy_id", "candidate_rank"}
+        if not required <= set(selection.columns):
+            raise RunAuditError("selection ledger is not a SelectionDecision ledger")
+    fills_files = sorted((run_dir / "trades").glob("*fills*.csv"))
+    if fills_files:
+        fills = pd.read_csv(fills_files[0], nrows=1)
+        if not {"order_id", "side", "price", "shares"} <= set(fills.columns):
+            raise RunAuditError("fills ledger is missing accounting columns")
+    nav_files = sorted((run_dir / "trades").glob("nav*.csv"))
+    if nav_files:
+        nav = pd.read_csv(nav_files[0], nrows=1)
+        if not {"cash", "market_value", "nav"} <= set(nav.columns):
+            raise RunAuditError("NAV ledger is missing accounting identity columns")
+
+
 def write_audit_report(run_dir: Path, report: dict) -> Path:
     path = run_dir / "diagnostics" / "audit.json"
     if path.exists():
-        raise FileExistsError(f"audit report is immutable: {path}")
+        try:
+            existing = json.loads(path.read_text())
+        except (OSError, json.JSONDecodeError) as exc:
+            raise RunAuditError(f"invalid existing audit report: {path}") from exc
+        if existing != report:
+            raise RunAuditError(f"immutable audit report does not match current artifacts: {path}")
+        return path
     path.parent.mkdir(parents=True, exist_ok=True)
     fd, temp_name = tempfile.mkstemp(prefix=f".{path.name}.", dir=path.parent, text=True)
     try:

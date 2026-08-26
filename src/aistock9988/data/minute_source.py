@@ -7,6 +7,7 @@ import hashlib
 import pandas as pd
 
 from .quantdb import readonly_connection
+from ..time.session import parse_source_time
 
 
 _FREQ = re.compile(r"^(5min|15min|30min|60min)$")
@@ -14,12 +15,15 @@ _FREQ = re.compile(r"^(5min|15min|30min|60min)$")
 
 def normalize_minute_panel(frame: pd.DataFrame) -> pd.DataFrame:
     required = {"ts_code", "trade_time", "open", "high", "low", "close", "adj_factor",
-                "up_limit", "down_limit"}
+                "up_limit", "down_limit", "available_time"}
     missing = required - set(frame.columns)
     if missing:
         raise ValueError(f"minute source missing columns: {sorted(missing)}")
     out = frame.copy()
     out["trade_time"] = pd.to_datetime(out["trade_time"], errors="raise", utc=True)
+    out["available_time"] = pd.to_datetime(out["available_time"], errors="raise", utc=True)
+    if out["available_time"].isna().any():
+        raise ValueError("minute source available_time must be non-null")
     out["trade_date"] = out["trade_time"].dt.normalize()
     for col in ("open", "high", "low", "close", "adj_factor", "up_limit", "down_limit"):
         out[col] = pd.to_numeric(out[col], errors="raise")
@@ -65,7 +69,8 @@ def load_minute_execution_panel(start: str, end: str, *, freq: str = "5min",
             frame = pd.read_sql_query(
                 "SELECT m.ts_code, m.trade_time, m.open, m.high, m.low, m.close, "
                 "m.update_time AS minute_update_time, a.adj_factor, "
-                "a.update_time AS adj_update_time, l.up_limit, l.down_limit "
+                "a.update_time AS adj_update_time, l.up_limit, l.down_limit, "
+                "l.update_time AS limit_update_time "
                 f"FROM `{table}` m "
                 "JOIN adj_factor_ts a ON a.ts_code=m.ts_code AND a.trade_date=DATE(m.trade_time) "
                 "JOIN stk_limit_ts l ON l.ts_code=m.ts_code AND l.trade_date=DATE(m.trade_time) "
@@ -76,10 +81,13 @@ def load_minute_execution_panel(start: str, end: str, *, freq: str = "5min",
     if frame.empty:
         raise ValueError(f"no minute bars for freq={freq} and requested universe")
     availability = pd.concat([
-        pd.to_datetime(frame["minute_update_time"], errors="coerce", utc=True),
-        pd.to_datetime(frame["adj_update_time"], errors="coerce", utc=True),
+        parse_source_time(frame["minute_update_time"]),
+        parse_source_time(frame["adj_update_time"]),
+        parse_source_time(frame["limit_update_time"]),
     ], axis=1)
     frame["available_time"] = availability.max(axis=1)
+    if frame["available_time"].isna().any():
+        raise ValueError("minute source has null available_time")
     return normalize_minute_panel(frame)
 
 

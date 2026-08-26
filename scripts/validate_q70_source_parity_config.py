@@ -35,8 +35,8 @@ def validate(config_path: Path = CONFIG) -> dict[str, object]:
         errors.append("XGBoost ranker contract does not match the registered experiment")
     if config["selection"]["final_positions"] != 2 or config["selection"]["candidate_pool"] != "top20":
         errors.append("selection must be weekly Top20 -> Top2")
-    if config["label"]["maturity_lag_sessions"] != 10:
-        errors.append("label maturity lag must be 10 sessions")
+    if config["label"]["maturity_lag_sessions"] != 11 or config["label"]["entry_to_exit_sessions"] != 10:
+        errors.append("label maturity must be signal T -> entry T+1 -> exit T+11")
     if errors:
         raise ValueError("q70 source-parity config invalid: " + "; ".join(errors))
     return {"config": str(config_path.relative_to(ROOT)), "feature_count": len(feature.columns),
