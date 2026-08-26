@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
+import tempfile
 from dataclasses import asdict, dataclass
 from datetime import datetime
 from pathlib import Path
@@ -48,4 +50,14 @@ def build_snapshot_meta(frame: pd.DataFrame, *, source_id: str, query: dict[str,
 
 def write_snapshot_manifest(meta: SnapshotMeta, path: Path) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(asdict(meta), ensure_ascii=False, indent=2) + "\n")
+    if path.exists():
+        raise FileExistsError(f"immutable snapshot manifest already exists: {path}")
+    payload = json.dumps(asdict(meta), ensure_ascii=False, indent=2) + "\n"
+    fd, temp_name = tempfile.mkstemp(prefix=f".{path.name}.", dir=path.parent, text=True)
+    try:
+        with os.fdopen(fd, "w") as handle:
+            handle.write(payload)
+        os.replace(temp_name, path)
+    except Exception:
+        Path(temp_name).unlink(missing_ok=True)
+        raise

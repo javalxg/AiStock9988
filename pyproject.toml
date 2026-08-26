@@ -3,7 +3,7 @@ name = "aistock9988"
 version = "0.1.0"
 description = "Auditable point-in-time A-share selection platform"
 requires-python = ">=3.11,<3.13"
-dependencies = ["numpy", "pandas", "xgboost", "pyyaml"]
+dependencies = ["numpy==1.26.4", "pandas==2.1.4", "xgboost==3.2.0", "scikit-learn==1.8.0", "pyyaml==6.0.2", "pymysql==1.1.1", "pyarrow==18.1.0"]
 
 [tool.aistock9988]
 official_entrypoint = "python -m aistock9988.cli"

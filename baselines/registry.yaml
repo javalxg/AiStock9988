@@ -2,12 +2,12 @@ baselines:
   B0:
     purpose: engineering_correctness
     market_context: capture_only
-    label_profile: endpoint_open_open_v1
+    label_profile: label.endpoint_open_open_t5.v1
     selection_policy: direct_topk.v1
-    execution_profile: fixed_hold_raw_accounting.v1
+    execution_profile: execution.q70.v1
   B1:
     purpose: q70_contract_research
-    market_context: capture_only
+    market_context: used_by_selection
     label_profile: endpoint_open_open_t10.v1
     selection_policy: direct_topk.v1
     execution_profile: q70_execution.v1

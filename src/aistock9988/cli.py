@@ -9,6 +9,7 @@ import platform
 import shutil
 import subprocess
 import sys
+import re
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -33,6 +34,8 @@ def git_guard() -> dict:
 
 
 def init_run(name: str) -> Path:
+    if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_-]{2,63}", name):
+        raise ValueError("experiment name must be 3-64 safe ASCII characters")
     guard = git_guard()
     utc = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
     config_dir = ROOT / "configs"

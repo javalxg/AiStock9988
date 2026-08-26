@@ -13,6 +13,8 @@ def test_full_prediction_and_top20_are_deterministic(tmp_path):
     first = write_ledger(pred, tmp_path / "prediction.csv")
     second = write_ledger(pred, tmp_path / "prediction2.csv")
     assert first.content_hash == second.content_hash
+    with pytest.raises(FileExistsError):
+        write_ledger(pred, tmp_path / "prediction.csv")
 
 
 def test_duplicate_prediction_is_rejected():

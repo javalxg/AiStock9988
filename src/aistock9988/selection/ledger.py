@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import hashlib
+import os
+import tempfile
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -47,6 +49,15 @@ def freeze_candidates(predictions: pd.DataFrame, *, top_n: int = 20) -> pd.DataF
 
 def write_ledger(frame: pd.DataFrame, path: Path) -> LedgerArtifact:
     path.parent.mkdir(parents=True, exist_ok=True)
+    if path.exists():
+        raise FileExistsError(f"immutable ledger already exists: {path}")
     payload = frame.to_csv(index=False, lineterminator="\n").encode()
-    path.write_bytes(payload)
+    fd, temp_name = tempfile.mkstemp(prefix=f".{path.name}.", dir=path.parent)
+    try:
+        with os.fdopen(fd, "wb") as handle:
+            handle.write(payload)
+        os.replace(temp_name, path)
+    except Exception:
+        Path(temp_name).unlink(missing_ok=True)
+        raise
     return LedgerArtifact(path, len(frame), hashlib.sha256(payload).hexdigest())

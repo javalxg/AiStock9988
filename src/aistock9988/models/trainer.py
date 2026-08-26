@@ -48,6 +48,9 @@ def train_ranker(X: pd.DataFrame, y: pd.Series, *, group_dates: pd.Series,
     model.fit(X, y.to_numpy(dtype=float), qid=np.repeat(np.arange(len(groups)), groups))
     output_dir.mkdir(parents=True, exist_ok=True)
     model_path = output_dir / f"{model_id}.json"
+    metadata_path = output_dir / f"{model_id}.metadata.json"
+    if model_path.exists() or metadata_path.exists():
+        raise FileExistsError(f"immutable model artifact already exists: {model_id}")
     model.save_model(model_path)
     model_hash = hashlib.sha256(model_path.read_bytes()).hexdigest()
     metadata = {
@@ -56,7 +59,6 @@ def train_ranker(X: pd.DataFrame, y: pd.Series, *, group_dates: pd.Series,
         "feature_names": list(X.columns), "row_count": len(X), "group_count": len(groups),
         "params": defaults, "model_sha256": model_hash,
     }
-    metadata_path = output_dir / f"{model_id}.metadata.json"
     metadata_path.write_text(json.dumps(metadata, ensure_ascii=False, indent=2, sort_keys=True) + "\n")
     metadata_hash = hashlib.sha256(metadata_path.read_bytes()).hexdigest()
     return ModelArtifact(model_id, feature_set_id, label_profile_id, training_cutoff,
