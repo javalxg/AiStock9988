@@ -10,7 +10,7 @@ import pandas as pd
 
 from ..execution.corporate_actions import CorporateAction
 from .quantdb import readonly_connection
-from ..time.session import parse_source_time
+from ..time.session import parse_source_time, session_open, session_close
 
 
 def normalize_corporate_actions(frame: pd.DataFrame) -> pd.DataFrame:
@@ -44,11 +44,30 @@ def normalize_corporate_actions(frame: pd.DataFrame) -> pd.DataFrame:
     status = out["div_proc"].astype(str)
     out = out[status.str.contains("实施", na=False)].copy()
     if "update_time" not in out:
-        raise ValueError("corporate action source must include update_time for PIT")
+        raise ValueError("corporate action source must include update_time for provenance")
     out["action_type"] = out["div_proc"]
-    out["available_time"] = parse_source_time(out["update_time"])
+    # update_time is the local ingestion time of the current database
+    # snapshot, not the historical time at which the event became known.
+    # Prefer Tushare's implementation announcement date, then the initial
+    # announcement date.  Only legacy inputs without either date may use a
+    # pre-ex-date update_time, and the PIT check below still rejects a late
+    # snapshot.
+    announcement = pd.Series(pd.NaT, index=out.index, dtype="datetime64[ns, UTC]")
+    for column in ("imp_ann_date", "ann_date"):
+        if column in out:
+            candidate = pd.to_datetime(out[column], errors="coerce", utc=True)
+            announcement = announcement.fillna(candidate.dt.normalize())
+    announced = announcement.notna()
+    announcement_available = pd.to_datetime(
+        announcement.loc[announced].dt.date.map(session_close), errors="coerce", utc=True
+    ).reindex(out.index)
+    snapshot_available = parse_source_time(out["update_time"])
+    out["available_time"] = announcement_available.fillna(snapshot_available)
     if out["available_time"].isna().any():
         raise ValueError("corporate action source has null update_time")
+    ex_open = out["ex_date"].map(session_open)
+    if (out["available_time"] >= ex_open).any():
+        raise ValueError("corporate action is not PIT-visible before ex-date market open")
     # A provider may retain several revisions of the same implemented event.
     # Keep the latest PIT version once; applying every revision would multiply
     # dividends and split ratios in the accounting ledger.
@@ -88,7 +107,7 @@ def load_corporate_actions(start: str, end: str, *, ts_codes: list[str] | None =
             raise RuntimeError("information_schema response has no column_name column")
         columns = column_frame[column_name].tolist()
         wanted = ["ts_code", "ex_date", "div_cash", "stk_div", "stk_bo_rate", "stk_co_rate",
-                  "div_proc", "update_time"]
+                  "div_proc", "ann_date", "imp_ann_date", "update_time"]
         selected = [c for c in wanted if c in columns]
         if not {"ts_code", "ex_date"}.issubset(selected):
             raise RuntimeError(f"{table} lacks ts_code/ex_date required for PIT company actions")
