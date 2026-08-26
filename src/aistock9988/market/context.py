@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import asdict, dataclass
 from datetime import date
 
+import numpy as np
 import pandas as pd
 
 
@@ -34,15 +35,23 @@ def build_context(daily: pd.DataFrame, *, asof: date, index_close: float | None 
     """
     if "pct_chg" not in daily.columns:
         raise ValueError("market context requires pct_chg")
-    pct = pd.to_numeric(daily["pct_chg"], errors="coerce").dropna()
+    pct = pd.to_numeric(daily["pct_chg"], errors="coerce")
+    if pct.isna().any() or not np.isfinite(pct.to_numpy(dtype=float)).all():
+        raise ValueError("market context pct_chg must be finite and non-null")
     adv = int((pct > 0).sum())
     dec = int((pct < 0).sum())
     unchanged = int((pct == 0).sum())
     n = len(pct)
     breadth = adv / n if n else 0.0
-    limit_up = int(daily.get("is_limit_up", pd.Series(False, index=daily.index)).fillna(False).astype(bool).sum())
-    limit_down = int(daily.get("is_limit_down", pd.Series(False, index=daily.index)).fillna(False).astype(bool).sum())
+    limit_up_series = daily.get("is_limit_up", pd.Series(False, index=daily.index))
+    limit_down_series = daily.get("is_limit_down", pd.Series(False, index=daily.index))
+    if limit_up_series.isna().any() or limit_down_series.isna().any():
+        raise ValueError("market context limit states must be non-null")
+    limit_up = int(limit_up_series.astype(bool).sum())
+    limit_down = int(limit_down_series.astype(bool).sum())
     amount = pd.to_numeric(daily["amount"], errors="coerce") if "amount" in daily else pd.Series(dtype=float)
+    if not amount.empty and (amount.isna().any() or not np.isfinite(amount.to_numpy(dtype=float)).all()):
+        raise ValueError("market context amount must be finite and non-null")
     if index_close is not None and index_ma20 is not None and index_ma60 is not None:
         trend = "bull" if index_close > index_ma60 and index_ma20 > index_ma60 else "non_bull"
     else:
