@@ -61,13 +61,21 @@ class RuntimeConfig:
 
 
 _runtime: RuntimeConfig | None = None
+_runtime_env: tuple[str | None, ...] | None = None
 
 
 def get_runtime_config() -> RuntimeConfig:
     """Return the process-wide immutable configuration snapshot."""
-    global _runtime
-    if _runtime is None:
+    global _runtime, _runtime_env
+    names = (
+        "AISTOCK_DB_HOST", "AISTOCK_DB_PORT", "AISTOCK_DB_USER", "AISTOCK_DB_PASSWORD",
+        "AISTOCK_DB_NAME", "AISTOCK_REDIS_HOST", "AISTOCK_REDIS_PORT", "AISTOCK_REDIS_DB",
+        "AISTOCK_REDIS_PASSWORD", "TUSHARE_TOKEN", "TUSHARE_BASE_URL",
+    )
+    current_env = tuple(os.getenv(name) for name in names)
+    if _runtime is None or _runtime_env != current_env:
         _runtime = RuntimeConfig()
+        _runtime_env = current_env
     return _runtime
 
 
