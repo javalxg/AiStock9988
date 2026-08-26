@@ -145,8 +145,8 @@ def test_configured_runner_honors_formal_boundary_and_writes_immutable_bundle(tm
     assert observed["hold_sessions"] == 10
     assert observed["last_price_date"] == pd.Timestamp("2026-07-31", tz="UTC")
     assert observed["last_signal"] + pd.offsets.BDay(11) <= pd.Timestamp("2026-07-31", tz="UTC")
-    assert (run_dir / "data/f0_panel.parquet").is_file()
-    assert (run_dir / "data/execution_5min.parquet").is_file()
+    assert (run_dir / "data/f0_panel.csv").is_file()
+    assert (run_dir / "data/execution_5min.csv").is_file()
     manifest = json.loads((run_dir / "data_manifest.json").read_text())
     assert set(manifest["snapshots"]) == {
         "f0", "labels", "market_context", "execution_daily", "corporate_actions", "execution_5min",

@@ -41,20 +41,6 @@ def _write_frame_once(path: Path, frame: pd.DataFrame) -> None:
     _write_bytes_once(path, frame.to_csv(index=False, lineterminator="\n").encode())
 
 
-def _write_parquet_once(path: Path, frame: pd.DataFrame) -> None:
-    if path.exists():
-        raise FileExistsError(f"immutable artifact already exists: {path}")
-    path.parent.mkdir(parents=True, exist_ok=True)
-    fd, temp_name = tempfile.mkstemp(prefix=f".{path.name}.", dir=path.parent)
-    os.close(fd)
-    try:
-        frame.to_parquet(temp_name, index=False)
-        os.replace(temp_name, path)
-    except Exception:
-        Path(temp_name).unlink(missing_ok=True)
-        raise
-
-
 def _write_bytes_once(path: Path, payload: bytes) -> None:
     if path.exists():
         raise FileExistsError(f"immutable artifact already exists: {path}")
@@ -152,9 +138,9 @@ def run(*, run_dir: Path, config_path: Path) -> dict:
     )
     context_start = pd.Timestamp(data["oos_start"]) - pd.Timedelta(days=45)
     context = load_market_context_panel(context_start.strftime("%Y-%m-%d"), formal_end.strftime("%Y-%m-%d"))
-    _write_parquet_once(run_dir / "data" / "f0_panel.parquet", panel)
-    _write_parquet_once(run_dir / "data" / "labels.parquet", labels)
-    _write_parquet_once(run_dir / "data" / "market_context.parquet", context)
+    _write_frame_once(run_dir / "data" / "f0_panel.csv", panel)
+    _write_frame_once(run_dir / "data" / "labels.csv", labels)
+    _write_frame_once(run_dir / "data" / "market_context.csv", context)
     all_selected = []
     trained_models = 0
     params = {k: config["model"][k] for k in ("objective", "n_estimators", "max_depth", "learning_rate",
@@ -211,9 +197,9 @@ def run(*, run_dir: Path, config_path: Path) -> dict:
     actions = load_corporate_actions(data["oos_start"], str(formal_end.date()), ts_codes=codes)
     from aistock9988.data.minute_source import load_minute_execution_panel
     minutes = load_minute_execution_panel(data["oos_start"], str(formal_end.date()), freq="5min", ts_codes=codes)
-    _write_parquet_once(run_dir / "data" / "execution_daily.parquet", prices)
-    _write_parquet_once(run_dir / "data" / "corporate_actions.parquet", actions)
-    _write_parquet_once(run_dir / "data" / "execution_5min.parquet", minutes)
+    _write_frame_once(run_dir / "data" / "execution_daily.csv", prices)
+    _write_frame_once(run_dir / "data" / "corporate_actions.csv", actions)
+    _write_frame_once(run_dir / "data" / "execution_5min.csv", minutes)
     result = run_backtest(signals, prices, corporate_actions=actions, minute_prices=minutes,
                           config=BacktestConfig(max_positions=config["selection"]["max_positions"],
                                                 hold_sessions=config["label"]["entry_to_exit_sessions"],

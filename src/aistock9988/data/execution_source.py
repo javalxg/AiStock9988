@@ -61,7 +61,14 @@ def load_execution_panel(start: str, end: str, *, ts_codes: list[str] | None = N
         frame = pd.read_sql_query(
             "SELECT m.ts_code, m.trade_date, m.open, m.high, m.low, m.close, m.pct_chg, m.amount, "
             "m.update_time AS market_update_time, a.adj_factor, a.update_time AS adj_update_time, "
-            "l.up_limit, l.down_limit, l.update_time AS limit_update_time "
+            "l.up_limit, l.down_limit, l.update_time AS limit_update_time, "
+            "(SELECT MAX(s.update_time) FROM suspend_d_ts s "
+            "WHERE s.ts_code=m.ts_code AND s.suspend_date <= m.trade_date "
+            "AND (s.resume_date IS NULL OR s.resume_date > m.trade_date)) AS suspension_update_time, "
+            "CASE WHEN EXISTS (SELECT 1 FROM suspend_d_ts s "
+            "WHERE s.ts_code=m.ts_code AND s.suspend_date <= m.trade_date "
+            "AND (s.resume_date IS NULL OR s.resume_date > m.trade_date)) "
+            "THEN 1 ELSE 0 END AS is_suspended "
             "FROM market_daily_ts m "
             "JOIN adj_factor_ts a ON a.ts_code=m.ts_code AND a.trade_date=m.trade_date "
             "JOIN stk_limit_ts l ON l.ts_code=m.ts_code AND l.trade_date=m.trade_date "
@@ -69,7 +76,8 @@ def load_execution_panel(start: str, end: str, *, ts_codes: list[str] | None = N
             " ORDER BY m.trade_date, m.ts_code",
             conn, params=tuple(params),
         )
-    update_cols = [c for c in ("market_update_time", "adj_update_time", "limit_update_time") if c in frame]
+    update_cols = [c for c in ("market_update_time", "adj_update_time", "limit_update_time",
+                               "suspension_update_time") if c in frame]
     if frame.empty:
         raise ValueError("no execution rows for requested range")
     availability = pd.concat([parse_source_time(frame[c]) for c in update_cols], axis=1)
@@ -80,8 +88,9 @@ def load_execution_panel(start: str, end: str, *, ts_codes: list[str] | None = N
     # Raw open/limit/tradability fields are observable at the exchange open;
     # raw/economic close fields become observable at the exchange close.  Keep
     # ingestion time separately so the snapshot remains auditable.
-    frame["open_available_time"] = trade_days.map(session_open)
-    frame["close_available_time"] = trade_days.map(session_close)
+    source_time = frame["source_ingested_time"]
+    frame["open_available_time"] = pd.concat([trade_days.map(session_open), source_time], axis=1).max(axis=1)
+    frame["close_available_time"] = pd.concat([trade_days.map(session_close), source_time], axis=1).max(axis=1)
     frame["available_time"] = frame["close_available_time"]
     return normalize_execution_panel(frame)
 
