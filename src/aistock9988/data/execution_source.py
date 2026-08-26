@@ -89,8 +89,8 @@ def load_execution_panel(start: str, end: str, *, ts_codes: list[str] | None = N
     # raw/economic close fields become observable at the exchange close.  Keep
     # ingestion time separately so the snapshot remains auditable.
     source_time = frame["source_ingested_time"]
-    frame["open_available_time"] = pd.concat([trade_days.map(session_open), source_time], axis=1).max(axis=1)
-    frame["close_available_time"] = pd.concat([trade_days.map(session_close), source_time], axis=1).max(axis=1)
+    frame["open_available_time"] = trade_days.map(session_open)
+    frame["close_available_time"] = trade_days.map(session_close)
     frame["available_time"] = frame["close_available_time"]
     return normalize_execution_panel(frame)
 
@@ -117,12 +117,9 @@ def load_market_context_panel(start: str, end: str) -> pd.DataFrame:
     frame["raw_close"] = pd.to_numeric(frame["raw_close"], errors="raise")
     frame["pct_chg"] = pd.to_numeric(frame["pct_chg"], errors="raise")
     frame["amount"] = pd.to_numeric(frame["amount"], errors="coerce")
-    frame["available_time"] = pd.concat([
-        parse_source_time(frame["market_update_time"]),
-        parse_source_time(frame["limit_update_time"]),
-    ], axis=1).max(axis=1)
-    if frame["available_time"].isna().any():
-        raise ValueError("market context contains null available_time")
+    # The DB is a frozen historical snapshot; source update_time is batch
+    # ingestion metadata, not historical publication time.
+    frame["available_time"] = frame["trade_date"].map(session_close)
     frame["is_limit_up"] = frame["raw_close"] >= pd.to_numeric(frame["up_limit"], errors="raise")
     frame["is_limit_down"] = frame["raw_close"] <= pd.to_numeric(frame["down_limit"], errors="raise")
     return frame

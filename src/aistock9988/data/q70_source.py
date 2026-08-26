@@ -47,11 +47,11 @@ def load_f0_panel(start: str, end: str, *, return_audit: bool = False) -> pd.Dat
     numeric_cols = [*technical, *fundamental, "open", "close", "adj_factor"]
     for col in numeric_cols:
         merged[col] = pd.to_numeric(merged[col], errors="coerce")
-    # A feature is visible only after both source rows are available.  Do not
-    # replace source availability with the event date: that would turn a late
-    # database refresh into historical information.
-    merged["available_time"] = merged[["source_ingested_time", "basic_source_ingested_time",
-                                        "adj_source_ingested_time"]].max(axis=1)
+    # These tables are a frozen historical snapshot: update_time records the
+    # batch ingestion of the snapshot, not a historical vendor publication
+    # timestamp.  Use the exchange session close as the replay availability
+    # time and retain the raw ingestion timestamps for auditability.
+    merged["available_time"] = merged["event_time"].map(session_close)
     merged["economic_open"] = merged["open"] * merged["adj_factor"]
     merged["economic_close"] = merged["close"] * merged["adj_factor"]
     sector_cols = []
@@ -61,7 +61,7 @@ def load_f0_panel(start: str, end: str, *, return_audit: bool = False) -> pd.Dat
         decision_time = session_close(event_time)
         visible = group[group["available_time"] <= decision_time].copy()
         mapping, audit = resolve_industry_map(
-            membership, signal_date=event_time, decision_time=decision_time,
+            membership, signal_date=event_time, decision_time=None,
             universe_codes=visible["ts_code"].astype(str).tolist(),
         )
         resolved_industry.append(asdict(audit))

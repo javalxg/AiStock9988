@@ -151,6 +151,8 @@ def run(*, run_dir: Path, config_path: Path) -> dict:
     LOGGER.info("phase=f0_load start=%s end=%s", data["train_start"], data["raw_end"])
     panel, audit = load_f0_panel(data["train_start"], data["raw_end"], return_audit=True)
     _log_frame("f0_panel", panel)
+    if panel.empty:
+        raise RuntimeError("F0 panel is empty after PIT normalization; check source intersection and snapshot semantics")
     LOGGER.info("phase=f0_load elapsed_seconds=%.1f", time.monotonic() - started)
     sessions = pd.DatetimeIndex(sorted(panel["event_time"].drop_duplicates()))
     LOGGER.info("phase=labels start sessions=%d", len(sessions))
