@@ -36,6 +36,9 @@ def load_f0_panel(start: str, end: str) -> pd.DataFrame:
     # Securities without an as-of industry cannot receive the 57 sector-relative columns.
     # Exclude them deterministically; the caller records the dropped count in the snapshot audit.
     merged = merged.dropna(subset=["industry"]).copy()
+    numeric_cols = [*technical, *fundamental, "open", "close"]
+    for col in numeric_cols:
+        merged[col] = pd.to_numeric(merged[col], errors="coerce")
     # Fundamental data is visible only when both source rows are available.
     # Daily factors are treated as available at the signal session close, while ingestion times
     # remain separate audit fields and never determine historical visibility.
