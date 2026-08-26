@@ -28,17 +28,18 @@ def load_f0_panel(start: str, end: str) -> pd.DataFrame:
             "SELECT ts_code, industry FROM stock_basic_ts WHERE industry IS NOT NULL AND industry <> ''",
             conn)
     factor["event_time"] = pd.to_datetime(factor.pop("trade_date"), utc=True)
-    factor["available_time"] = pd.to_datetime(factor.pop("update_time"), utc=True)
+    factor["source_ingested_time"] = pd.to_datetime(factor.pop("update_time"), utc=True)
     basic["event_time"] = pd.to_datetime(basic.pop("trade_date"), utc=True)
-    basic["basic_available_time"] = pd.to_datetime(basic.pop("update_time"), utc=True)
+    basic["basic_source_ingested_time"] = pd.to_datetime(basic.pop("update_time"), utc=True)
     merged = factor.merge(basic, on=["ts_code", "event_time"], how="inner", validate="one_to_one")
     merged = merged.merge(industry, on="ts_code", how="left", validate="many_to_one")
     # Securities without an as-of industry cannot receive the 57 sector-relative columns.
     # Exclude them deterministically; the caller records the dropped count in the snapshot audit.
     merged = merged.dropna(subset=["industry"]).copy()
     # Fundamental data is visible only when both source rows are available.
-    merged["available_time"] = merged[["available_time", "basic_available_time"]].max(axis=1)
-    merged = merged.drop(columns=["basic_available_time"])
+    # Daily factors are treated as available at the signal session close, while ingestion times
+    # remain separate audit fields and never determine historical visibility.
+    merged["available_time"] = merged["event_time"] + pd.Timedelta(hours=15)
     sector_cols = []
     for col in technical:
         name = f"{col}_sector_rel"

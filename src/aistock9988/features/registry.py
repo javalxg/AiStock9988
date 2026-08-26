@@ -36,14 +36,15 @@ class FeatureSet:
         return result
 
 
-def assemble_matrix(frame: pd.DataFrame, feature_set: FeatureSet, *, key_columns=("ts_code", "event_time")) -> pd.DataFrame:
+def assemble_matrix(frame: pd.DataFrame, feature_set: FeatureSet, *, key_columns=("ts_code", "event_time"),
+                    allow_missing: bool = False) -> pd.DataFrame:
     missing = [c for c in (*key_columns, *feature_set.columns) if c not in frame.columns]
     if missing:
         raise ValueError(f"feature snapshot missing columns: {missing}")
     out = frame[[*key_columns, *feature_set.columns]].copy()
     if out[list(key_columns)].duplicated().any():
         raise ValueError("duplicate security/time key in feature snapshot")
-    if out[list(feature_set.columns)].isna().any().any():
+    if not allow_missing and out[list(feature_set.columns)].isna().any().any():
         bad = out[list(feature_set.columns)].columns[out[list(feature_set.columns)].isna().any()].tolist()
         raise ValueError(f"feature snapshot contains missing values: {bad}")
     for col in feature_set.columns:

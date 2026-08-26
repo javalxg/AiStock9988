@@ -24,7 +24,7 @@ def train_and_rank(*, features: pd.DataFrame, labels: pd.DataFrame,
                    training_cutoff: pd.Timestamp, asof: str, model_id: str,
                    output_dir: Path, params: dict | None = None, top_n: int = 20) -> TrainingRun:
     X, y = build_training_dataset(features, labels, feature_set=feature_set,
-                                  training_cutoff=training_cutoff)
+                                  training_cutoff=training_cutoff, allow_feature_missing=True)
     # Recover the date group from the already validated training feature keys.
     train_keys = features[["ts_code", "event_time"]].copy()
     train_keys["event_time"] = pd.to_datetime(train_keys["event_time"], utc=True)
