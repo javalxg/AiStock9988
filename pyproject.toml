@@ -1,0 +1,10 @@
+[project]
+name = "aistock9988"
+version = "0.1.0"
+description = "Auditable point-in-time A-share selection platform"
+requires-python = ">=3.11,<3.13"
+dependencies = ["numpy", "pandas", "xgboost", "pyyaml"]
+
+[tool.aistock9988]
+official_entrypoint = "python -m aistock9988.cli"
+thread_count = 1

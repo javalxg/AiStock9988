@@ -1,0 +1,16 @@
+baselines:
+  B0:
+    purpose: engineering_correctness
+    market_context: capture_only
+    label_profile: endpoint_open_open_v1
+    selection_policy: direct_topk.v1
+    execution_profile: fixed_hold_raw_accounting.v1
+  B1:
+    purpose: q70_contract_research
+    market_context: capture_only
+    label_profile: endpoint_open_open_t10.v1
+    selection_policy: direct_topk.v1
+    execution_profile: q70_execution.v1
+  B2:
+    purpose: optional_core_satellite
+    status: planned

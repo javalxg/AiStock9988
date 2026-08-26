@@ -1,0 +1,10 @@
+__pycache__/
+*.py[cod]
+.venv/
+experiments/.running/*
+experiments/completed/*
+experiments/failed/*
+*.parquet
+*.pkl
+*.model
+.DS_Store
