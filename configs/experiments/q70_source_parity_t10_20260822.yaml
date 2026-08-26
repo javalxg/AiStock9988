@@ -1,5 +1,6 @@
-id: experiment.q70_source_parity_t10_20260822
-name: q70_source_parity_t10_365p63_mature
+id: experiment.q70.f0_123.t10.source_parity.v1
+name: q70_f0_123_t10_source_parity
+branch: experiment/q70-f0-123-t10-source-parity
 description: "F0=123 q70 source-parity reproduction; mature boundary is 2026-07-31"
 historical_terminal_reference:
   name: q70_source_parity_terminal_386p02
