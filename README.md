@@ -33,4 +33,4 @@ PYTHONPATH=src python3 -m aistock9988.cli complete-run experiments/.running/<run
 
 ## 首个正式实验口径
 
-首个实验使用独立配置 `configs/experiments/q70_source_parity_t10_20260822.yaml`，绑定当前分支 `experiment/q70-f0-123-t10-source-parity`。正式统计边界为 `2026-07-31` 的完整成熟数据；历史 `2026-08-14` 的 `+386.02%` 只作为终端参考，不得混入正式结果。该实验固定 F0=123、T+10 成熟标签、月度重训、周频 Top2，并禁止读取旧 ledger、Stage2 和分钟数据。
+首个实验使用独立配置 `configs/experiments/q70_source_parity_t10_20260822.yaml`，绑定当前分支 `experiment/q70-f0-123-t10-source-parity`。正式统计边界为 `2026-07-31` 的完整成熟数据；历史 `2026-08-14` 的 `+386.02%` 只作为终端参考，不得混入正式结果。该实验固定 F0=123、T+10 成熟标签、月度重训、周频 Top2，并使用 5 分钟数据进行生产级止损执行；原始价格负责成交、现金和 NAV，复权经济价格负责风险触发。

@@ -5,7 +5,7 @@
 | `backend/core/alpha/ml/sector_features.py` | `src/aistock9988/features/sector_relative.py` + `src/aistock9988/data/industry_pit.py` | PIT 解析和数据接线已实现，生产库待验收 | 使用 `index_member_all_ts` 的信号日 PIT 行业映射；禁止读取当前 `stock_basic_ts.industry` |
 | `backend/core/alpha/ml/stock_xgb_walkforward.py` | `src/aistock9988/models/` | 部分实现 | 重新实现，不复制旧 runner；绑定冻结 F0 和标签契约 |
 | 旧数据加载器 | `src/aistock9988/data/` | 已有骨架 | 只读连接、查询哈希、PIT 审计、快照清单 |
-| 历史 q70 source-parity 高收益配置（仅配置契约） | `configs/experiments/q70_source_parity_t10_20260822.yaml` | 已登记，待专用 runner 验证 | 以 +365.63% 完整成熟边界为正式口径；+386.02% 仅历史终端参考；禁止旧 ledger、Stage2 和分钟数据 |
+| 历史 q70 source-parity 高收益配置（生产化参考契约） | `configs/experiments/q70_source_parity_t10_20260822.yaml` | 已登记，待专用 runner 验证 | 以 +365.63% 完整成熟边界为参考；+386.02% 仅历史终端参考；禁止旧 ledger、Stage2；使用 5 分钟生产级执行 |
 
 ## 行业相对特征迁移规则
 

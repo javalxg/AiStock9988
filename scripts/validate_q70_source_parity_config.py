@@ -27,8 +27,10 @@ def validate(config_path: Path = CONFIG) -> dict[str, object]:
         errors.append("historical raw end must be 2026-08-14")
     if data["forbid_old_ledger"] is not True or data["forbid_stage2"] is not True:
         errors.append("old ledger and Stage2 must both be forbidden")
-    if data["forbid_minute_data"] is not True or execution["minute_data"] != "forbidden":
-        errors.append("minute data must be forbidden for source parity")
+    if data["forbid_minute_data"] is not False or execution["minute_data"] != "5min":
+        errors.append("productionized reference must use 5min data for intraday execution")
+    if execution["accounting_price_basis"] != "raw" or execution["trigger_price_basis"] != "economic":
+        errors.append("accounting must use raw prices and risk triggers economic prices")
     if model["objective"] != "rank:pairwise" or model["max_depth"] != 6 or model["seed"] != 42:
         errors.append("XGBoost ranker contract does not match the registered experiment")
     if config["selection"]["final_positions"] != 2 or config["selection"]["candidate_pool"] != "top20":
