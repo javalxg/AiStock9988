@@ -1,5 +1,6 @@
 id: feature.f0_123.v1
 description: 57 technical + 57 sector-relative + 9 fundamental features
 columns_source: explicit_registry
-column_order_hash: TBD_BEFORE_TRAINING
+columns_file: configs/feature_sets/f0_123_columns.json
+expected_total: 123
 market_context_usage: capture_only

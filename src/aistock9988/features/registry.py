@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import json
 from dataclasses import dataclass
+from pathlib import Path
 
 import pandas as pd
 
@@ -20,6 +21,19 @@ class FeatureSet:
             raise ValueError("feature columns must be non-empty and unique")
         digest = hashlib.sha256(json.dumps(cols, ensure_ascii=False, separators=(",", ":")).encode()).hexdigest()
         return cls(id, cols, digest)
+
+    @classmethod
+    def from_f0_json(cls, path: str | Path) -> "FeatureSet":
+        spec = json.loads(Path(path).read_text())
+        technical = list(spec["technical"])
+        fundamental = list(spec["fundamental"])
+        suffix = spec["sector_relative_suffix"]
+        columns = technical + fundamental + [f"{name}{suffix}" for name in technical]
+        expected = int(spec["expected_counts"]["total"])
+        result = cls.create(spec["id"], columns)
+        if len(columns) != expected or result.order_hash != spec["column_order_hash"]:
+            raise ValueError("F0 feature manifest count or order hash mismatch")
+        return result
 
 
 def assemble_matrix(frame: pd.DataFrame, feature_set: FeatureSet, *, key_columns=("ts_code", "event_time")) -> pd.DataFrame:

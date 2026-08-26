@@ -1,0 +1,9 @@
+{
+  "id": "feature.f0_123.v1",
+  "source_note": "Explicit research-contract columns; no runtime code dependency",
+  "column_order_hash": "7f88c8912cd268a1bedd5034768ab73827bdce8f8d2f3870fe8fac3c26aa9e39",
+  "technical": ["asi_bfq", "asit_bfq", "atr_bfq", "bbi_bfq", "bias1_bfq", "bias2_bfq", "bias3_bfq", "boll_lower_bfq", "boll_mid_bfq", "boll_upper_bfq", "brar_ar_bfq", "brar_br_bfq", "cci_bfq", "cr_bfq", "dfma_dif_bfq", "dfma_difma_bfq", "dmi_adx_bfq", "dmi_adxr_bfq", "dmi_mdi_bfq", "dmi_pdi_bfq", "dpo_bfq", "madpo_bfq", "emv_bfq", "maemv_bfq", "expma_12_bfq", "expma_50_bfq", "kdj_bfq", "kdj_d_bfq", "kdj_k_bfq", "ktn_down_bfq", "ktn_mid_bfq", "ktn_upper_bfq", "macd_bfq", "macd_dea_bfq", "macd_dif_bfq", "mass_bfq", "ma_mass_bfq", "mfi_bfq", "mtm_bfq", "mtmma_bfq", "obv_bfq", "psy_bfq", "psyma_bfq", "roc_bfq", "maroc_bfq", "taq_down_bfq", "taq_mid_bfq", "taq_up_bfq", "trix_bfq", "trma_bfq", "vr_bfq", "wr_bfq", "wr1_bfq", "xsii_td1_bfq", "xsii_td2_bfq", "xsii_td3_bfq", "xsii_td4_bfq"],
+  "fundamental": ["pe_ttm", "pb", "ps_ttm", "dv_ttm", "total_mv", "circ_mv", "turnover_rate", "turnover_rate_f", "volume_ratio"],
+  "sector_relative_suffix": "_sector_rel",
+  "expected_counts": {"technical": 57, "fundamental": 9, "sector_relative": 57, "total": 123}
+}
