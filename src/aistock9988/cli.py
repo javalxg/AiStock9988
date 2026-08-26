@@ -10,8 +10,11 @@ import shutil
 import subprocess
 import sys
 import re
+import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
+
+from aistock9988.audit.run import RunAuditError, audit_run, write_audit_report
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -63,14 +66,62 @@ def init_run(name: str) -> Path:
     return running
 
 
+def verify_run(path: Path) -> dict:
+    report = audit_run(path)
+    write_audit_report(path, report)
+    return report
+
+
+def complete_run(path: Path) -> Path:
+    path = path.resolve()
+    report = audit_run(path)
+    write_audit_report(path, report)
+    status_path = path / "RUN_STATUS.json"
+    status = json.loads(status_path.read_text())
+    status.update({"status": "COMPLETED", "completed_at": datetime.now(timezone.utc).isoformat(),
+                   "audit_artifact_count": report["artifact_count"]})
+    fd, temp_name = tempfile.mkstemp(prefix=".RUN_STATUS.", dir=path, text=True)
+    try:
+        with os.fdopen(fd, "w") as handle:
+            json.dump(status, handle, ensure_ascii=False, indent=2)
+            handle.write("\n")
+        os.replace(temp_name, status_path)
+    except Exception:
+        Path(temp_name).unlink(missing_ok=True)
+        raise
+    destination = ROOT / "experiments" / "completed" / path.name
+    if destination.exists():
+        raise FileExistsError(f"completed run already exists: {destination}")
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    os.replace(path, destination)
+    return destination
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(prog="aistock9988")
     sub = parser.add_subparsers(dest="command", required=True)
     p = sub.add_parser("init-run")
     p.add_argument("name")
+    p = sub.add_parser("verify-run")
+    p.add_argument("run_dir", type=Path)
+    p = sub.add_parser("complete-run")
+    p.add_argument("run_dir", type=Path)
     args = parser.parse_args()
     if args.command == "init-run":
         print(init_run(args.name))
+        return 0
+    if args.command == "verify-run":
+        try:
+            report = verify_run(args.run_dir)
+        except RunAuditError as exc:
+            parser.error(str(exc))
+        print(json.dumps(report, ensure_ascii=False, indent=2))
+        return 0
+    if args.command == "complete-run":
+        try:
+            print(complete_run(args.run_dir))
+        except (RunAuditError, FileExistsError) as exc:
+            parser.error(str(exc))
         return 0
     return 2
 

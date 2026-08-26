@@ -2,7 +2,7 @@
 
 | 旧项目能力 | 新项目目标 | 状态 | 迁移要求 |
 |---|---|---|---|
-| `backend/core/alpha/ml/sector_features.py` | `src/aistock9988/features/sector_relative.py` | 计算逻辑已迁移，数据接线待完成 | 使用 `index_member_all_ts` 的信号日 PIT 行业映射；禁止读取当前 `stock_basic_ts.industry` |
+| `backend/core/alpha/ml/sector_features.py` | `src/aistock9988/features/sector_relative.py` + `src/aistock9988/data/industry_pit.py` | PIT 解析和数据接线已实现，生产库待验收 | 使用 `index_member_all_ts` 的信号日 PIT 行业映射；禁止读取当前 `stock_basic_ts.industry` |
 | `backend/core/alpha/ml/stock_xgb_walkforward.py` | `src/aistock9988/models/` | 部分实现 | 重新实现，不复制旧 runner；绑定冻结 F0 和标签契约 |
 | 旧数据加载器 | `src/aistock9988/data/` | 已有骨架 | 只读连接、查询哈希、PIT 审计、快照清单 |
 

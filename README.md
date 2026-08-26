@@ -10,7 +10,23 @@
 
 ```bash
 cd /Users/lxg/quant/AiStock9988
-PYTHONPATH=src python -m aistock9988.cli init-run q70_source_parity_rebuild
+PYTHONPATH=src python3 -m aistock9988.cli init-run q70_source_parity_rebuild
 ```
 
-正式运行要求 Git 工作区干净；每次运行拥有唯一 UTC ID，并先进入 `experiments/.running`。模型训练、全量预测账本、选择账本、订单/成交/NAV 和审计完成后，才允许标记 `COMPLETED` 并移动到 `experiments/completed`。
+正式运行要求 Git 工作区干净；每次运行拥有唯一 UTC ID，并先进入 `experiments/.running`。模型训练、全量预测账本、选择账本、订单/成交/NAV、数据 manifest 和审计完成后，必须执行：
+
+```bash
+PYTHONPATH=src python3 -m aistock9988.cli verify-run experiments/.running/<run_id>
+PYTHONPATH=src python3 -m aistock9988.cli complete-run experiments/.running/<run_id>
+```
+
+完整训练、执行、止损和 NAV 回放入口：
+
+```bash
+PYTHONPATH=src python3 -m aistock9988.cli init-run q70_source_parity_rebuild
+PYTHONPATH=src python3 scripts/first_q70_experiment.py --run-dir experiments/.running/<run_id>
+PYTHONPATH=src python3 -m aistock9988.cli verify-run experiments/.running/<run_id>
+PYTHONPATH=src python3 -m aistock9988.cli complete-run experiments/.running/<run_id>
+```
+
+审计未通过时不能完成或移动 run；系统不会用缺失产物生成“成功”结果。

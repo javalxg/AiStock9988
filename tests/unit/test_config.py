@@ -1,4 +1,6 @@
 from aistock9988.config import RuntimeConfig
+from aistock9988.backtest.engine import BacktestConfig, _validate_config
+import pytest
 
 
 def test_runtime_config_reads_mysql_env(monkeypatch):
@@ -14,3 +16,9 @@ def test_runtime_config_reads_mysql_env(monkeypatch):
     assert cfg.mysql.user == "alice"
     assert cfg.mysql.database == "quant_test"
     assert cfg.mysql.password == "secret"
+
+
+def test_stop_loss_config_uses_ratio_and_daily_mode():
+    _validate_config(BacktestConfig(stop_loss_pct=-0.08))
+    with pytest.raises(ValueError, match="ratio"):
+        _validate_config(BacktestConfig(stop_loss_pct=-8.0))
