@@ -61,7 +61,7 @@ def init_run(name: str) -> Path:
     (running / "RUN_STATUS.json").write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + "\n")
     (running / "commands.sh").write_text(
         "#!/usr/bin/env bash\nset -euo pipefail\n"
-        "PYTHONPATH=src python -m aistock9988.cli init-run q70_source_parity_rebuild\n"
+        f"PYTHONPATH=src python3 -m aistock9988.cli init-run {name}\n"
     )
     return running
 
