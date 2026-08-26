@@ -49,8 +49,12 @@ def build_endpoint_labels(prices: pd.DataFrame, *, profile: LabelProfile,
     The caller must provide only rows whose exit observation is already available; this function
     records that observation time explicitly instead of inferring maturity from trade_date.
     """
+    if session_dates is None:
+        raise ValueError("session_dates is required to enforce label horizon")
     entry_price_column = entry_price_column or price_column
-    exit_price_column = exit_price_column or price_column
+    exit_price_column = exit_price_column or None
+    if exit_price_column is None or exit_price_column == entry_price_column:
+        raise ValueError("entry_price_column and exit_price_column must be distinct")
     required = {"ts_code", signal_column, entry_column, exit_column, entry_price_column, exit_price_column}
     missing = sorted(required - set(prices.columns))
     if missing:

@@ -7,6 +7,7 @@ import pandas as pd
 
 from ..features.registry import FeatureSet
 from ..labeling.dataset import build_training_dataset
+from ..data.pit import assert_no_future
 from ..selection.ledger import build_prediction_ledger, freeze_candidates, write_ledger
 from .trainer import ModelArtifact, train_ranker
 
@@ -37,7 +38,25 @@ def train_and_rank(*, features: pd.DataFrame, labels: pd.DataFrame,
                          feature_set_id=feature_set.id, label_profile_id="configured",
                          training_cutoff=str(training_cutoff), model_id=model_id,
                          output_dir=output_dir / "models", params=params)
-    pred = prediction_features[["ts_code", *feature_set.columns]].copy()
+    required_pred = {"ts_code", "event_time", "available_time", *feature_set.columns}
+    missing_pred = required_pred - set(prediction_features.columns)
+    if missing_pred:
+        raise ValueError(f"prediction snapshot missing columns: {sorted(missing_pred)}")
+    pred_source = prediction_features.copy()
+    pred_source["event_time"] = pd.to_datetime(pred_source["event_time"], utc=True)
+    pred_source["available_time"] = pd.to_datetime(pred_source["available_time"], utc=True)
+    decision = pd.Timestamp(asof)
+    if decision.tzinfo is None:
+        decision = decision.tz_localize("UTC")
+    # A date-form asof denotes the end of that trading session, not midnight.
+    if decision == decision.normalize():
+        decision = decision + pd.Timedelta(days=1) - pd.Timedelta(nanoseconds=1)
+    assert_no_future(pred_source, decision_time=decision.to_pydatetime())
+    if (pred_source["event_time"].dt.normalize() != decision.normalize()).any():
+        raise ValueError("prediction snapshot contains rows outside the requested asof session")
+    if pred_source["ts_code"].duplicated().any():
+        raise ValueError("prediction snapshot has duplicate ts_code")
+    pred = pred_source[["ts_code", *feature_set.columns]].copy()
     scores = pd.Series(model_for_prediction(output_dir / "models" / f"{model_id}.json", pred[list(feature_set.columns)]), index=pred.index)
     predictions = build_prediction_ledger(pd.DataFrame({"ts_code": pred["ts_code"], "score": scores}),
                                           asof=asof, feature_set_id=feature_set.id, model_id=model_id)
