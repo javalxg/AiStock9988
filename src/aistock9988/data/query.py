@@ -27,9 +27,16 @@ def load_daily_panel(connection, *, table: str, columns: list[str], start: str, 
     cols = [_identifier(c) for c in columns]
     if not cols:
         raise ValueError("at least one column is required")
+    if decision_time is not None and "available_time" not in cols:
+        raise ValueError("available_time must be selected when decision_time is provided")
     selected = ", ".join(cols)
-    sql = f"SELECT {selected} FROM {table} WHERE trade_date >= ? AND trade_date <= ? ORDER BY trade_date, ts_code"
+    sql = f"SELECT {selected} FROM {table} WHERE trade_date >= ? AND trade_date <= ?"
+    params: tuple[object, ...] = (start, end)
+    if decision_time is not None:
+        sql += " AND available_time <= ?"
+        params += (decision_time,)
+    sql += " ORDER BY trade_date, ts_code"
     # sqlite uses '?'; production adapters can translate placeholders without changing the spec.
-    frame = pd.read_sql_query(sql, connection, params=(start, end))
+    frame = pd.read_sql_query(sql, connection, params=params)
     spec = {"table": table, "columns": cols, "start": start, "end": end, "decision_time": decision_time}
     return frame, {"query": spec, "query_hash": query_hash(spec), "row_count": len(frame)}

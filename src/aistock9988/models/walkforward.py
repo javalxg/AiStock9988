@@ -21,11 +21,10 @@ def monthly_windows(*, train_start: str, prediction_start: str, prediction_end: 
     pred_start = pd.Timestamp(prediction_start)
     pred_end = pd.Timestamp(prediction_end)
     dates = pd.date_range(pred_start, pred_end, freq="W-FRI")
-    # One model per calendar month; weekly predictions reuse the same monthly model.
-    model_dates = sorted(set(pd.Timestamp(d.year, d.month, 1) for d in dates))
+    # One model per calendar month; every Friday remains a prediction window.
     windows: list[ModelWindow] = []
-    for month in model_dates:
-        prediction = next(d for d in dates if d.year == month.year and d.month == month.month)
+    for prediction in dates:
+        month = pd.Timestamp(prediction.year, prediction.month, 1)
         train_end = month - pd.Timedelta(days=1)
         train_begin = max(start, train_end - pd.DateOffset(months=window_months))
         model_id = f"q70_{prediction.strftime('%Y%m')}_cutoff_{train_end.strftime('%Y%m%d')}"

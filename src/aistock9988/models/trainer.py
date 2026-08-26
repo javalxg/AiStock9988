@@ -32,7 +32,11 @@ def train_ranker(X: pd.DataFrame, y: pd.Series, *, group_dates: pd.Series,
         raise ValueError("duplicate feature names")
     if X.isna().any().any() or pd.isna(y).any():
         raise ValueError("training input contains null values")
-    groups = group_dates.astype(str).groupby(group_dates.astype(str), sort=False).size().tolist()
+    order = pd.Series(group_dates.astype(str).to_numpy(), index=X.index).sort_values(kind="mergesort").index
+    X = X.loc[order].reset_index(drop=True)
+    y = y.loc[order].reset_index(drop=True)
+    grouped_dates = group_dates.loc[order].reset_index(drop=True).astype(str)
+    groups = grouped_dates.groupby(grouped_dates, sort=False).size().tolist()
     if any(n < 2 for n in groups):
         raise ValueError("each ranking date group must contain at least two rows")
     defaults = dict(objective="rank:pairwise", n_estimators=200, max_depth=6,

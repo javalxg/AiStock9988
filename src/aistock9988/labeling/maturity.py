@@ -42,7 +42,8 @@ def build_endpoint_labels(prices: pd.DataFrame, *, profile: LabelProfile,
                           signal_column: str = "signal_time", entry_column: str = "entry_time",
                           exit_column: str = "exit_time", price_column: str = "economic_open",
                           entry_price_column: str | None = None,
-                          exit_price_column: str | None = None) -> pd.DataFrame:
+                          exit_price_column: str | None = None,
+                          session_dates: pd.DatetimeIndex | None = None) -> pd.DataFrame:
     """Build labels from a pre-joined causal price panel.
 
     The caller must provide only rows whose exit observation is already available; this function
@@ -59,6 +60,22 @@ def build_endpoint_labels(prices: pd.DataFrame, *, profile: LabelProfile,
     out[signal_column] = pd.to_datetime(out[signal_column], utc=True)
     out[entry_column] = pd.to_datetime(out[entry_column], utc=True)
     out[exit_column] = pd.to_datetime(out[exit_column], utc=True)
+    if session_dates is not None:
+        sessions = pd.DatetimeIndex(session_dates).tz_localize("UTC") if pd.DatetimeIndex(session_dates).tz is None else pd.DatetimeIndex(session_dates)
+        signal_days = out[signal_column].dt.normalize()
+        entry_days = out[entry_column].dt.normalize()
+        exit_days = out[exit_column].dt.normalize()
+        for i, signal in signal_days.items():
+            pos = sessions.searchsorted(signal, side="right") - 1
+            if pos < 0 or pos + profile.entry_delay_sessions >= len(sessions):
+                raise ValueError("signal date cannot resolve entry session")
+            expected_entry = sessions[pos + profile.entry_delay_sessions].normalize()
+            exit_pos = pos + profile.entry_delay_sessions + profile.horizon_sessions
+            if exit_pos >= len(sessions):
+                raise ValueError("signal date cannot resolve exit session")
+            expected_exit = sessions[exit_pos].normalize()
+            if entry_days.loc[i] != expected_entry or exit_days.loc[i] != expected_exit:
+                raise ValueError(f"label horizon mismatch at row {i}")
     out["available_time"] = out[exit_column]
     entry = pd.to_numeric(out[entry_price_column], errors="raise")
     exit_ = pd.to_numeric(out[exit_price_column], errors="raise")
