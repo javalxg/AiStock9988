@@ -203,11 +203,13 @@ def run(*, run_dir: Path, config_path: Path) -> dict:
     previous_codes: set[str] = set()
     selected_by_date = []
     gate_audit = []
+    trained_models = 0
     for index, model_date in enumerate(model_dates):
         prior = sessions[sessions <= model_date]
         if prior.empty:
             continue
         artifact, features, mature, gate = _train(panel, labels, spec, run_dir, prior[-1], profile, config)
+        trained_models += 1
         gate_audit.append({"model_id": artifact.model_id, "training_cutoff": str(prior[-1].date()), **asdict(gate)})
         next_date = model_dates[index + 1] if index + 1 < len(model_dates) else pd.Timestamp(data["mature_end"]) + pd.Timedelta(days=1)
         model_signal_dates = [x for x in signal_dates if model_date.date() <= x.date() < next_date.date()]
@@ -307,7 +309,7 @@ def run(*, run_dir: Path, config_path: Path) -> dict:
         repo_root=ROOT, config_path=config_path.resolve(), entrypoint=Path(__file__).resolve()))
     LOGGER.info("phase=runner_complete models=%d prediction_dates=%d trades=%d nav_rows=%d seconds=%.2f",
                 len(model_dates), len(selected_by_date), len(result["trades"]), len(result["nav"]), time.monotonic() - started)
-    return {"models": len(model_dates), "prediction_dates": len(selected_by_date), "status": "executed"}
+    return {"models": trained_models, "prediction_dates": len(selected_by_date), "status": "executed"}
 
 
 def main():

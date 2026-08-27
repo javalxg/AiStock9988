@@ -52,7 +52,11 @@ def test_delta_runner_writes_auditable_artifact_bundle(tmp_path, monkeypatch):
         (run_dir / "models").mkdir(exist_ok=True)
         (run_dir / "models" / f"{model_id}.json").write_text("{}\n")
         (run_dir / "models" / f"{model_id}.metadata.json").write_text(json.dumps({"model_id": model_id}) + "\n")
-        gate = DynamicGateResult("dmi_adx_bfq", 2, 0.3, 0.7, -0.1, 0.1, False, None, "insufficient_samples")
+        gate = DynamicGateResult(
+            factor="dmi_adx_bfq", threshold=None, active=False, sample_count=2,
+            lower_quantile=None, upper_quantile=None, lower_tail_mean=None,
+            upper_tail_mean=None, reason="insufficient_mature_samples",
+        )
         return SimpleNamespace(model_id=model_id), panel, pd.DataFrame(), gate
 
     monkeypatch.setattr(runner, "_train", fake_train)
