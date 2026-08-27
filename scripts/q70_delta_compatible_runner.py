@@ -185,8 +185,16 @@ def run(*, run_dir: Path, config_path: Path) -> dict:
     _log_frame("labels", labels)
     signal_dates = _mature(sessions, _weekly(sessions, data["oos_start"], data["raw_end"]),
                            label_cfg["maturity_lag_sessions"], data["mature_end"])
-    model_dates = [pd.Timestamp(x) for x in config["model"]["expected_monthly_models"]
-                   if pd.Timestamp(x) <= pd.Timestamp(data["mature_end"])]
+    mature_end = pd.Timestamp(data["mature_end"])
+    if mature_end.tzinfo is None:
+        mature_end = mature_end.tz_localize("UTC")
+    model_dates = []
+    for value in config["model"]["expected_monthly_models"]:
+        model_date = pd.Timestamp(value)
+        if model_date.tzinfo is None:
+            model_date = model_date.tz_localize("UTC")
+        if model_date <= mature_end:
+            model_dates.append(model_date)
     LOGGER.info("phase=timeline sessions=%d signal_dates=%d model_dates=%s mature_end=%s",
                 len(sessions), len(signal_dates), ",".join(str(x.date()) for x in model_dates), data["mature_end"])
     LOGGER.info("phase=data_load_start source=market_context start=%s end=%s", data["oos_start"], data["mature_end"])

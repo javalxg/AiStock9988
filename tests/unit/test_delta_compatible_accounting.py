@@ -53,6 +53,19 @@ def test_economic_accounting_rejects_explicit_action_application():
         raise AssertionError("economic accounting must reject explicit corporate-action application")
 
 
+def test_raw_accounting_can_explicitly_skip_actions():
+    signals = pd.DataFrame({"asof": ["2026-08-20"], "ts_code": ["A"], "candidate_rank": [1],
+                            "selected": [True], "selection_decision_id": ["d1"], "policy_id": ["p1"]})
+    actions = pd.DataFrame([{
+        "ts_code": "A", "ex_date": "2026-08-21", "split_ratio": 2.0,
+        "cash_dividend": 1.0, "available_time": "2026-08-20T08:00:00Z",
+    }])
+    result = run_backtest(signals, _prices(), corporate_actions=actions, config=BacktestConfig(
+        initial_cash=1000, hold_sessions=5, accounting_price_basis="raw", corporate_actions_mode="skip"))
+    assert result["corporate_actions"].empty
+    assert result["trades"].iloc[-1].shares == result["trades"].iloc[0].shares
+
+
 def test_gap_return_uses_matching_economic_reference_price():
     signals = pd.DataFrame({"asof": ["2026-08-20"], "ts_code": ["A"], "candidate_rank": [1],
                             "selected": [True], "selection_decision_id": ["d1"], "policy_id": ["p1"]})

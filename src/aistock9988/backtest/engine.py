@@ -69,8 +69,8 @@ def run_backtest(signals: pd.DataFrame, prices: pd.DataFrame, *, config: Backtes
         raise ValueError("intraday_5min stop-loss mode requires minute_prices")
     if config.stop_loss_mode == "close_next_session_open" and minute is not None:
         raise ValueError("close_next_session_open cannot receive minute_prices; choose intraday_5min explicitly")
-    action_mode = ("apply" if config.accounting_price_basis == "raw" else "skip"
-                   if config.corporate_actions_mode == "auto" else config.corporate_actions_mode)
+    action_mode = ("apply" if config.accounting_price_basis == "raw" else "skip") \
+        if config.corporate_actions_mode == "auto" else config.corporate_actions_mode
     if config.accounting_price_basis == "economic" and action_mode == "apply":
         raise ValueError("economic accounting cannot apply corporate actions twice")
     actions = _prepare_actions(corporate_actions) if action_mode == "apply" else {}
