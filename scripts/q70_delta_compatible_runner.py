@@ -176,7 +176,8 @@ def run(*, run_dir: Path, config_path: Path) -> dict:
     profile = LabelProfile(label_cfg["profile"], label_cfg["signal_to_entry_sessions"],
                            label_cfg["entry_to_exit_sessions"], label_cfg["maturity_lag_sessions"])
     LOGGER.info("phase=data_load_start source=q70_f0 start=%s end=%s", data["train_start"], data["raw_end"])
-    panel = load_f0_panel(data["train_start"], data["raw_end"])
+    panel = load_f0_panel(data["train_start"], data["raw_end"],
+                          sector_relative_statistic=data["sector_relative_statistic"])
     _log_frame("f0_panel_raw", panel)
     market_cap = data["market_cap_filter"]
     market_cap_minimum = market_cap["min_value"] if market_cap["enabled"] else None

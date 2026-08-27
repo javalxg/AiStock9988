@@ -11,8 +11,11 @@ from .industry_pit import resolve_industry_map
 from ..time.session import parse_source_time, session_close
 
 
-def load_f0_panel(start: str, end: str, *, return_audit: bool = False) -> pd.DataFrame | tuple[pd.DataFrame, dict]:
+def load_f0_panel(start: str, end: str, *, return_audit: bool = False,
+                  sector_relative_statistic: str = "mean") -> pd.DataFrame | tuple[pd.DataFrame, dict]:
     """Load the frozen F0 ingredients from quant_db without mutating it."""
+    if sector_relative_statistic not in {"mean", "median"}:
+        raise ValueError("sector_relative_statistic must be mean or median")
     spec = json.loads((Path(__file__).resolve().parents[3] / "configs/feature_sets/f0_123_columns.json").read_text())
     technical = spec["technical"]
     fundamental = spec["fundamental"]
@@ -72,7 +75,7 @@ def load_f0_panel(start: str, end: str, *, return_audit: bool = False) -> pd.Dat
     merged = merged.dropna(subset=["industry"]).copy()
     for col in technical:
         name = f"{col}_sector_rel"
-        merged[name] = merged[col] - merged.groupby(["event_time", "industry"], sort=False)[col].transform("mean")
+        merged[name] = merged[col] - merged.groupby(["event_time", "industry"], sort=False)[col].transform(sector_relative_statistic)
         sector_cols.append(name)
     merged = merged.drop(columns=["industry"])
     cols = ["ts_code", "event_time", "available_time", "economic_open", "economic_close",
@@ -81,5 +84,6 @@ def load_f0_panel(start: str, end: str, *, return_audit: bool = False) -> pd.Dat
     if return_audit:
         return result, {"industry_resolution": resolved_industry,
                         "membership_rows_loaded": int(len(membership)),
+                        "sector_relative_statistic": sector_relative_statistic,
                         "source_id": "quant_db"}
     return result

@@ -29,6 +29,8 @@ def validate(config_path: Path = CONFIG) -> dict[str, object]:
         errors.append("historical reference must remain the canonical source-parity experiment")
     if len(feature.columns) != 123 or data["feature_set"] != feature.id:
         errors.append("delta-compatible contract must use frozen F0=123")
+    if data.get("sector_relative_statistic") != "median":
+        errors.append("sector-relative diagnosis must use the delta-compatible median statistic")
     if data["forbid_old_ledger"] is not True or data["forbid_stage2"] is not True:
         errors.append("old ledger and Stage2 must both be forbidden")
     if market_cap["enabled"] is not False or market_cap["min_value"] is not None:
