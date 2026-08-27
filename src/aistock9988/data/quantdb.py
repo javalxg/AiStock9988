@@ -1,19 +1,20 @@
 from __future__ import annotations
 
-import os
 from contextlib import contextmanager
+
+from aistock9988.config import get_runtime_config
 
 
 def connection_kwargs() -> dict[str, object]:
     """Read connection settings without ever persisting the password."""
-    required = {"host": "AISTOCK_DB_HOST", "port": "AISTOCK_DB_PORT", "user": "AISTOCK_DB_USER",
-                "database": "AISTOCK_DB_NAME"}
-    missing = [env for env in required.values() if not os.getenv(env)]
+    mysql = get_runtime_config().mysql
+    required = {"AISTOCK_DB_HOST": mysql.host, "AISTOCK_DB_USER": mysql.user,
+                "AISTOCK_DB_NAME": mysql.database}
+    missing = [name for name, value in required.items() if not value]
     if missing:
-        raise RuntimeError(f"missing database environment variables: {missing}")
-    return {key: os.environ[env] for key, env in required.items()} | {
-        "port": int(os.environ[required["port"]]), "password": os.getenv("AISTOCK_DB_PASSWORD", "")
-    }
+        raise RuntimeError(f"missing database configuration: {missing}")
+    return {"host": mysql.host, "port": mysql.port, "user": mysql.user,
+            "database": mysql.database, "password": mysql.password}
 
 
 @contextmanager

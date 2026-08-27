@@ -27,6 +27,13 @@ def direct_topk(candidates: pd.DataFrame, context: MarketContext, *, max_positio
     missing = required - set(candidates.columns)
     if missing:
         raise ValueError(f"candidate ledger missing columns: {sorted(missing)}")
+    if str(context.asof) != str(candidates["asof"].iloc[0]):
+        raise ValueError("candidate and market context asof mismatch")
+    if candidates["asof"].nunique() != 1 or candidates["ts_code"].duplicated().any():
+        raise ValueError("candidate ledger must contain one unique cross-section")
+    ranks = sorted(candidates["candidate_rank"].tolist())
+    if ranks != list(range(1, len(ranks) + 1)):
+        raise ValueError("candidate_rank must be unique, positive and contiguous")
     ordered = candidates.sort_values(["candidate_rank", "ts_code"], kind="mergesort")
     requested = min(max_positions, low_breadth_top_n) if context.breadth_ratio < breadth_min else max_positions
     selected = tuple(ordered.head(requested)["ts_code"].tolist())

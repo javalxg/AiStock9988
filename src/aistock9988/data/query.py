@@ -21,7 +21,7 @@ def query_hash(spec: dict) -> str:
 
 
 def load_daily_panel(connection, *, table: str, columns: list[str], start: str, end: str,
-                     decision_time: str | None = None) -> tuple[pd.DataFrame, dict]:
+                     decision_time: str | None = None, dialect: str = "qmark") -> tuple[pd.DataFrame, dict]:
     """Read a bounded panel with parameterized dates; no writes and no SELECT *."""
     table = _identifier(table)
     cols = [_identifier(c) for c in columns]
@@ -29,11 +29,14 @@ def load_daily_panel(connection, *, table: str, columns: list[str], start: str, 
         raise ValueError("at least one column is required")
     if decision_time is not None and "available_time" not in cols:
         raise ValueError("available_time must be selected when decision_time is provided")
+    if dialect not in {"qmark", "pyformat"}:
+        raise ValueError("dialect must be qmark or pyformat")
+    placeholder = "?" if dialect == "qmark" else "%s"
     selected = ", ".join(cols)
-    sql = f"SELECT {selected} FROM {table} WHERE trade_date >= ? AND trade_date <= ?"
+    sql = f"SELECT {selected} FROM {table} WHERE trade_date >= {placeholder} AND trade_date <= {placeholder}"
     params: tuple[object, ...] = (start, end)
     if decision_time is not None:
-        sql += " AND available_time <= ?"
+        sql += f" AND available_time <= {placeholder}"
         params += (decision_time,)
     sql += " ORDER BY trade_date, ts_code"
     # sqlite uses '?'; production adapters can translate placeholders without changing the spec.

@@ -7,7 +7,9 @@ import pandas as pd
 
 from ..features.registry import FeatureSet
 from ..labeling.dataset import build_training_dataset
+from ..data.pit import assert_no_future
 from ..selection.ledger import build_prediction_ledger, freeze_candidates, write_ledger
+from ..time.session import session_close
 from .trainer import ModelArtifact, train_ranker
 
 
@@ -23,7 +25,7 @@ def train_and_rank(*, features: pd.DataFrame, labels: pd.DataFrame,
                    training_cutoff: pd.Timestamp, asof: str, model_id: str,
                    output_dir: Path, params: dict | None = None, top_n: int = 20) -> TrainingRun:
     X, y = build_training_dataset(features, labels, feature_set=feature_set,
-                                  training_cutoff=training_cutoff)
+                                  training_cutoff=training_cutoff, allow_feature_missing=True)
     # Recover the date group from the already validated training feature keys.
     train_keys = features[["ts_code", "event_time"]].copy()
     train_keys["event_time"] = pd.to_datetime(train_keys["event_time"], utc=True)
@@ -34,10 +36,24 @@ def train_and_rank(*, features: pd.DataFrame, labels: pd.DataFrame,
     if len(merged_keys) != len(X):
         raise ValueError("training key alignment mismatch")
     model = train_ranker(X, y, group_dates=merged_keys["event_time"],
-                         feature_set_id=feature_set.id, label_profile_id="configured",
+                         feature_set_id=feature_set.id, label_profile_id="label.endpoint_open_open_t10.v1",
                          training_cutoff=str(training_cutoff), model_id=model_id,
                          output_dir=output_dir / "models", params=params)
-    pred = prediction_features[["ts_code", *feature_set.columns]].copy()
+    required_pred = {"ts_code", "event_time", "available_time", *feature_set.columns}
+    missing_pred = required_pred - set(prediction_features.columns)
+    if missing_pred:
+        raise ValueError(f"prediction snapshot missing columns: {sorted(missing_pred)}")
+    pred_source = prediction_features.copy()
+    pred_source["event_time"] = pd.to_datetime(pred_source["event_time"], utc=True)
+    pred_source["available_time"] = pd.to_datetime(pred_source["available_time"], utc=True)
+    decision = pd.Timestamp(asof)
+    decision = session_close(decision)
+    assert_no_future(pred_source, decision_time=decision.to_pydatetime())
+    if (pred_source["event_time"].dt.normalize() != decision.normalize()).any():
+        raise ValueError("prediction snapshot contains rows outside the requested asof session")
+    if pred_source["ts_code"].duplicated().any():
+        raise ValueError("prediction snapshot has duplicate ts_code")
+    pred = pred_source[["ts_code", *feature_set.columns]].copy()
     scores = pd.Series(model_for_prediction(output_dir / "models" / f"{model_id}.json", pred[list(feature_set.columns)]), index=pred.index)
     predictions = build_prediction_ledger(pd.DataFrame({"ts_code": pred["ts_code"], "score": scores}),
                                           asof=asof, feature_set_id=feature_set.id, model_id=model_id)

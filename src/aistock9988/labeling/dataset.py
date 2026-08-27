@@ -8,13 +8,14 @@ from ..features.registry import FeatureSet, assemble_matrix
 
 
 def build_training_dataset(features: pd.DataFrame, labels: pd.DataFrame, *, feature_set: FeatureSet,
-                           training_cutoff: pd.Timestamp, signal_column: str = "event_time") -> tuple[pd.DataFrame, pd.Series]:
+                           training_cutoff: pd.Timestamp, signal_column: str = "event_time",
+                           allow_feature_missing: bool = False) -> tuple[pd.DataFrame, pd.Series]:
     """Join point-in-time features with labels; future data is a hard error."""
     assert_no_future(features, decision_time=training_cutoff.to_pydatetime())
     assert_labels_mature(labels, training_cutoff=training_cutoff)
     if signal_column not in labels.columns or "ts_code" not in labels.columns:
         raise ValueError("labels require ts_code and signal/event time")
-    feature_frame = assemble_matrix(features, feature_set)
+    feature_frame = assemble_matrix(features, feature_set, allow_missing=allow_feature_missing)
     left = feature_frame.rename(columns={"event_time": signal_column})
     right = labels[["ts_code", signal_column, "label_return"]].copy()
     left[signal_column] = pd.to_datetime(left[signal_column], utc=True)

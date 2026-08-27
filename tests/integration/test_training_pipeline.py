@@ -7,11 +7,12 @@ from aistock9988.models.pipeline import train_and_rank
 def test_training_pipeline_writes_model_full_ledger_and_top20(tmp_path):
     dates = ["2026-08-18", "2026-08-18", "2026-08-19", "2026-08-19"]
     features = pd.DataFrame({"ts_code": ["A", "B", "A", "B"], "event_time": dates,
-                             "available_time": [f"{d}T15:00:00Z" for d in dates], "f1": [1., 0., 2., 1.]})
+                             "available_time": [f"{d}T06:59:00Z" for d in dates], "f1": [1., 0., 2., 1.]})
     labels = pd.DataFrame({"ts_code": ["A", "B", "A", "B"], "event_time": dates,
                            "available_time": ["2026-08-20T15:00:00Z"] * 4,
                            "label_return": [1., 0., 1., 0.]})
-    pred = features.iloc[-2:].copy()
+    pred = pd.DataFrame({"ts_code": ["A", "B"], "event_time": ["2026-08-21"] * 2,
+                         "available_time": ["2026-08-21T06:59:00Z"] * 2, "f1": [2.5, 1.5]})
     run = train_and_rank(features=features, labels=labels, prediction_features=pred,
                          feature_set=FeatureSet.create("feature.test.v1", ["f1"]),
                          training_cutoff=pd.Timestamp("2026-08-21T16:00:00Z"), asof="2026-08-21",

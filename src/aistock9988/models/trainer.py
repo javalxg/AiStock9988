@@ -30,12 +30,13 @@ def train_ranker(X: pd.DataFrame, y: pd.Series, *, group_dates: pd.Series,
         raise ValueError("X, y and group_dates must be non-empty and aligned")
     if X.columns.duplicated().any():
         raise ValueError("duplicate feature names")
-    if X.isna().any().any() or pd.isna(y).any():
-        raise ValueError("training input contains null values")
-    order = pd.Series(group_dates.astype(str).to_numpy(), index=X.index).sort_values(kind="mergesort").index
-    X = X.loc[order].reset_index(drop=True)
-    y = y.loc[order].reset_index(drop=True)
-    grouped_dates = group_dates.loc[order].reset_index(drop=True).astype(str)
+    if np.isinf(X.to_numpy(dtype=float)).any() or pd.isna(y).any() or np.isinf(y.to_numpy(dtype=float)).any():
+        raise ValueError("training input contains non-finite values")
+    order_frame = pd.DataFrame({"group": group_dates.astype(str).to_numpy(), "position": range(len(X))})
+    order = order_frame.sort_values(["group", "position"], kind="mergesort")["position"].to_numpy()
+    X = X.iloc[order].reset_index(drop=True)
+    y = y.iloc[order].reset_index(drop=True)
+    grouped_dates = group_dates.iloc[order].reset_index(drop=True).astype(str)
     groups = grouped_dates.groupby(grouped_dates, sort=False).size().tolist()
     if any(n < 2 for n in groups):
         raise ValueError("each ranking date group must contain at least two rows")

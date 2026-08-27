@@ -1,0 +1,101 @@
+id: experiment.q70.f0_123.t10.source_parity.v1
+name: q70_f0_123_t10_source_parity
+branch: experiment/q70-f0-123-t10-source-parity
+description: "F0=123 q70 reference configuration with production-grade execution; mature boundary is 2026-07-31"
+historical_terminal_reference:
+  name: q70_source_parity_terminal_386p02
+  raw_end: 2026-08-14
+  status: reference_only
+  note: "386.02% includes terminal rows that were not fully mature; never use as the formal result."
+data:
+  train_start: 2025-01-01
+  oos_start: 2026-01-01
+  raw_end: 2026-08-14
+  mature_end: 2026-07-31
+  feature_set: feature.f0_123.v1
+  technical_source: stock_factor_pro_ts._bfq
+  fundamental_source: daily_basic_ts
+  label_price_basis: economic
+  forbid_old_ledger: true
+  forbid_stage2: true
+  allow_minute_execution_data: true
+model:
+  family: xgboost
+  objective: rank:pairwise
+  group_by_date: true
+  seed: 42
+  n_estimators: 200
+  max_depth: 6
+  learning_rate: 0.05
+  min_child_weight: 5
+  subsample: 0.8
+  colsample_bytree: 0.8
+  reg_alpha: 1.0
+  reg_lambda: 1.0
+  n_jobs: 1
+  train_window_months: 12
+  retrain_frequency: monthly
+  prediction_frequency: weekly
+  expected_monthly_models:
+    - 2026-01-09
+    - 2026-02-06
+    - 2026-03-06
+    - 2026-04-03
+    - 2026-05-08
+    - 2026-06-05
+    - 2026-07-03
+    - 2026-08-07
+label:
+  profile: label.endpoint_open_open_t10.v1
+  signal_to_entry_sessions: 1
+  entry_to_exit_sessions: 10
+  maturity_lag_sessions: 11
+  maturity_definition: "signal T -> entry T+1 -> exit T+11; entry_to_exit horizon is 10"
+  training_stop_loss_pct: -0.08
+selection:
+  candidate_pool: top20
+  final_positions: 2
+  max_positions: 2
+  breadth_min: 0.40
+  weak_breadth_positions: 2
+  weak_breadth_requires_factor_confirmation: true
+  factor_gate_rank_max: 20
+  factor_gate_fallback_positions: 2
+  sector_relative_floor: 0.8
+  sector_relative_gates:
+    - xsii_td3_bfq_sector_rel
+    - expma_12_bfq_sector_rel
+    - boll_mid_bfq_sector_rel
+  volatility_window_sessions: 20
+  volatility_max: 0.07
+  recent_limit_down_window_sessions: 20
+  recent_limit_down_threshold: -0.098
+  peak_drawdown_window_sessions: 5
+  peak_drawdown_threshold: -0.10
+  ranked_holdings: true
+  alpha_weight: true
+  alpha_power: 1.0
+  dynamic_top_n: false
+  exclude_beijing: true
+execution:
+  mode: productionized_reference
+  accounting_price_basis: raw
+  trigger_price_basis: economic
+  nav_price_basis: raw
+  entry: next_session_open
+  exit: next_tradable_raw_price
+  stop_loss_pct: -0.08
+  stop_loss_mode: intraday_5min
+  take_profit_pct: 1.0
+  limit_state_basis: raw
+  causal_limit_up_check: true
+  minute_data: 5min
+  minute_storage: auto_discover_shards
+  terminal_liquidation: mature_boundary
+reference_results:
+  formal_mature_boundary:
+    end: 2026-07-31
+    cumulative_return: 3.6563
+  historical_terminal_reference:
+    end: 2026-08-14
+    cumulative_return: 3.8602
