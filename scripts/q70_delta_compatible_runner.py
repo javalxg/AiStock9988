@@ -12,7 +12,6 @@ import time
 import traceback
 from dataclasses import asdict
 from pathlib import Path
-from types import SimpleNamespace
 
 import pandas as pd
 import yaml
@@ -23,7 +22,7 @@ from aistock9988.labeling.maturity import LabelProfile, mature_training_rows
 from aistock9988.labeling.q70 import build_q70_endpoint_labels
 from aistock9988.models.pipeline import model_for_prediction
 from aistock9988.models.trainer import train_ranker
-from aistock9988.selection.delta_compatible import (compute_dynamic_upper_gate, apply_dynamic_upper_gate,
+from aistock9988.selection.delta_compatible import (DynamicGateResult, compute_dynamic_upper_gate, apply_dynamic_upper_gate,
                                                      apply_market_cap_filter, select_rank_holdings,
                                                      weak_breadth_cash_fraction)
 from aistock9988.selection.ledger import build_prediction_ledger, freeze_candidates, write_ledger
@@ -241,7 +240,7 @@ def run(*, run_dir: Path, config_path: Path, reuse_models_dir: Path | None = Non
             if not source_model.is_file() or not source_metadata.is_file():
                 raise FileNotFoundError(f"reusable model artifacts missing for {model_id}")
             metadata = json.loads(source_metadata.read_text())
-            gate = SimpleNamespace(**metadata["dynamic_gate"])
+            gate = DynamicGateResult(**metadata["dynamic_gate"])
             for source_path in (source_model, source_metadata):
                 target_path = run_dir / "models" / source_path.name
                 source_bytes = source_path.read_bytes()
