@@ -234,8 +234,14 @@ def run(*, run_dir: Path, config_path: Path, reuse_models_dir: Path | None = Non
                 raise FileNotFoundError(f"reusable model artifacts missing for {model_id}")
             metadata = json.loads(source_metadata.read_text())
             gate = SimpleNamespace(**metadata["dynamic_gate"])
-            _write_bytes_once(run_dir / "models" / source_model.name, source_model.read_bytes())
-            _write_bytes_once(run_dir / "models" / source_metadata.name, source_metadata.read_bytes())
+            for source_path in (source_model, source_metadata):
+                target_path = run_dir / "models" / source_path.name
+                source_bytes = source_path.read_bytes()
+                if target_path.exists():
+                    if target_path.read_bytes() != source_bytes:
+                        raise ValueError(f"reusable model artifact differs: {target_path}")
+                else:
+                    _write_bytes_once(target_path, source_bytes)
             artifact = SimpleNamespace(model_id=model_id, model_sha256=metadata.get("model_sha256"))
             features, mature = panel, labels
             LOGGER.info("phase=model_reuse model_id=%s source=%s", model_id, reuse_models_dir)
