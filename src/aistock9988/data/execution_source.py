@@ -1,11 +1,16 @@
 """Production execution-price loader with explicit raw/economic separation."""
 from __future__ import annotations
 
+import logging
+
 import pandas as pd
 
 from ..execution.prices import validate_execution_panel
 from .quantdb import readonly_connection
 from ..time.session import parse_source_time, session_close, session_open
+
+
+LOGGER = logging.getLogger(__name__)
 
 
 def normalize_execution_panel(frame: pd.DataFrame) -> pd.DataFrame:
@@ -76,6 +81,16 @@ def load_execution_panel(start: str, end: str, *, ts_codes: list[str] | None = N
             " ORDER BY m.trade_date, m.ts_code",
             conn, params=tuple(params),
         )
+    invalid_price = frame[["open", "high", "low", "close", "adj_factor"]].le(0).any(axis=1)
+    if invalid_price.any():
+        # Some market snapshots encode a suspension/no-trade day as zero
+        # OHLC while the suspension table is incomplete.  Such a row cannot
+        # be executed or marked; omit it so the engine carries the prior mark,
+        # and retain an explicit warning for the run log.
+        bad = frame.loc[invalid_price, ["ts_code", "trade_date"]]
+        LOGGER.warning("dropping %d non-tradable execution rows with non-positive prices; examples=%s",
+                       len(bad), bad.head(5).to_dict("records"))
+        frame = frame.loc[~invalid_price].copy()
     update_cols = [c for c in ("market_update_time", "adj_update_time", "limit_update_time",
                                "suspension_update_time") if c in frame]
     if frame.empty:
