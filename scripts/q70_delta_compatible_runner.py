@@ -154,7 +154,10 @@ def run(*, run_dir: Path, config_path: Path) -> dict:
     started = time.monotonic()
     LOGGER.info("phase=runner_start run_dir=%s config=%s", run_dir, config_path.resolve())
     config = yaml.safe_load(config_path.read_text())
-    from scripts.validate_q70_delta_compatible_config import validate
+    try:
+        from scripts.validate_q70_delta_compatible_config import validate
+    except ModuleNotFoundError:
+        from validate_q70_delta_compatible_config import validate
     validate(config_path)
     LOGGER.info("phase=config_validated experiment_id=%s feature_set=%s", config["id"], config["data"]["feature_set"])
     if config.get("reference_only") is not True:

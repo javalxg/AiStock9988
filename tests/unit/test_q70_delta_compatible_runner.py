@@ -1,5 +1,7 @@
 import json
+import importlib.util
 from types import SimpleNamespace
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
@@ -7,7 +9,12 @@ import pandas as pd
 from aistock9988.audit.run import audit_run
 from aistock9988.features.registry import FeatureSet
 from aistock9988.selection.delta_compatible import DynamicGateResult
-from scripts import q70_delta_compatible_runner as runner
+SPEC = importlib.util.spec_from_file_location(
+    "q70_delta_compatible_runner", Path(__file__).resolve().parents[2] / "scripts/q70_delta_compatible_runner.py"
+)
+runner = importlib.util.module_from_spec(SPEC)
+assert SPEC.loader is not None
+SPEC.loader.exec_module(runner)
 
 
 def test_delta_runner_writes_auditable_artifact_bundle(tmp_path, monkeypatch):
