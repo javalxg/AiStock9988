@@ -48,8 +48,10 @@ def validate(config_path: Path = CONFIG) -> dict[str, object]:
         errors.append("weak breadth must require factor confirmation")
     if upper_gate["factor"] != "dmi_adx_bfq" or upper_gate["enabled"] is not True:
         errors.append("delta-compatible selection must enable the dynamic dmi_adx_bfq upper gate")
-    if upper_gate["fallback_upper_bound"] != 0.5 or upper_gate["threshold_source"] != "mature_training_70th_percentile":
-        errors.append("dynamic dmi_adx_bfq gate must record the 0.5 fallback and mature-training quantile source")
+    if (upper_gate["configured_upper_bound"] != 0.5 or
+            upper_gate["configured_upper_bound_behavior"] != "ignored_when_dynamic_enabled" or
+            upper_gate["threshold_source"] != "mature_training_70th_percentile"):
+        errors.append("dynamic dmi_adx_bfq gate must record that 0.5 is ignored and P70 is used")
     if (upper_gate["lower_tail_quantile"], upper_gate["upper_tail_quantile"], upper_gate["minimum_mature_samples"]) != (0.30, 0.70, 1000):
         errors.append("dynamic dmi_adx_bfq gate quantiles/sample floor are not the registered values")
     if upper_gate["activation"] != "lower_tail_mean_label_gt_upper_tail_mean_label" or upper_gate["insufficient_samples"] != "disable_gate":
