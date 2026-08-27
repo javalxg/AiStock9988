@@ -12,6 +12,7 @@ import time
 import traceback
 from dataclasses import asdict
 from pathlib import Path
+from types import SimpleNamespace
 
 import pandas as pd
 import yaml
@@ -159,7 +160,7 @@ def _train(panel, labels, spec, run_dir, cutoff, profile, config):
     return artifact, features, mature, gate
 
 
-def run(*, run_dir: Path, config_path: Path) -> dict:
+def run(*, run_dir: Path, config_path: Path, reuse_models_dir: Path | None = None) -> dict:
     run_dir = run_dir.resolve()
     _configure_logging(run_dir)
     started = time.monotonic()
@@ -223,7 +224,21 @@ def run(*, run_dir: Path, config_path: Path) -> dict:
         prior = sessions[sessions <= model_date]
         if prior.empty:
             continue
-        artifact, features, mature, gate = _train(panel, labels, spec, run_dir, prior[-1], profile, config)
+        if reuse_models_dir is None:
+            artifact, features, mature, gate = _train(panel, labels, spec, run_dir, prior[-1], profile, config)
+        else:
+            model_id = f"q70_delta_{model_date:%Y%m%d}"
+            source_model = reuse_models_dir / "models" / f"{model_id}.json"
+            source_metadata = reuse_models_dir / "models" / f"{model_id}.metadata.json"
+            if not source_model.is_file() or not source_metadata.is_file():
+                raise FileNotFoundError(f"reusable model artifacts missing for {model_id}")
+            metadata = json.loads(source_metadata.read_text())
+            gate = SimpleNamespace(**metadata["dynamic_gate"])
+            _write_bytes_once(run_dir / "models" / source_model.name, source_model.read_bytes())
+            _write_bytes_once(run_dir / "models" / source_metadata.name, source_metadata.read_bytes())
+            artifact = SimpleNamespace(model_id=model_id, model_sha256=metadata.get("model_sha256"))
+            features, mature = panel, labels
+            LOGGER.info("phase=model_reuse model_id=%s source=%s", model_id, reuse_models_dir)
         trained_models += 1
         gate_audit.append({"model_id": artifact.model_id, "training_cutoff": str(prior[-1].date()), **asdict(gate)})
         next_date = model_dates[index + 1] if index + 1 < len(model_dates) else pd.Timestamp(data["mature_end"]) + pd.Timedelta(days=1)
@@ -343,9 +358,11 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--run-dir", type=Path, required=True)
     parser.add_argument("--config", type=Path, required=True)
+    parser.add_argument("--reuse-models-dir", type=Path)
     args = parser.parse_args()
     try:
-        result = run(run_dir=args.run_dir, config_path=args.config.resolve())
+        result = run(run_dir=args.run_dir, config_path=args.config.resolve(),
+                     reuse_models_dir=args.reuse_models_dir.resolve() if args.reuse_models_dir else None)
     except Exception:
         LOGGER.exception("phase=runner_failed traceback=%s", traceback.format_exc())
         raise
