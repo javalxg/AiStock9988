@@ -7,14 +7,14 @@ from .maturity import LabelProfile, build_endpoint_labels
 from ..time.session import session_open
 
 
-def build_q70_t10_labels(panel: pd.DataFrame, *, profile: LabelProfile,
-                         session_dates: pd.DatetimeIndex) -> pd.DataFrame:
+def build_q70_endpoint_labels(panel: pd.DataFrame, *, profile: LabelProfile,
+                              session_dates: pd.DatetimeIndex) -> pd.DataFrame:
     required = {"ts_code", "event_time", "economic_open"}
     missing = required - set(panel.columns)
     if missing:
         raise ValueError(f"q70 label panel missing columns: {sorted(missing)}")
-    if profile.entry_delay_sessions != 1 or profile.horizon_sessions != 10:
-        raise ValueError("q70_t10 requires entry_delay_sessions=1 and horizon_sessions=10")
+    if profile.entry_delay_sessions <= 0 or profile.horizon_sessions <= 0:
+        raise ValueError("q70 endpoint labels require positive entry delay and horizon")
     ordered = panel.sort_values(["ts_code", "event_time"], kind="mergesort").copy()
     sessions = pd.DatetimeIndex(session_dates)
     if sessions.tz is None:
@@ -55,3 +55,11 @@ def build_q70_t10_labels(panel: pd.DataFrame, *, profile: LabelProfile,
     labels = labels.rename(columns={"signal_time": "event_time"})
     labels["available_time"] = labels["exit_time"].map(session_open)
     return labels.sort_values(["event_time", "ts_code"], kind="mergesort").reset_index(drop=True)
+
+
+def build_q70_t10_labels(panel: pd.DataFrame, *, profile: LabelProfile,
+                         session_dates: pd.DatetimeIndex) -> pd.DataFrame:
+    """Build the production q70 T+10 label profile."""
+    if profile.entry_delay_sessions != 1 or profile.horizon_sessions != 10:
+        raise ValueError("q70_t10 requires entry_delay_sessions=1 and horizon_sessions=10")
+    return build_q70_endpoint_labels(panel, profile=profile, session_dates=session_dates)

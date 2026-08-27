@@ -177,7 +177,7 @@ def run_backtest(signals: pd.DataFrame, prices: pd.DataFrame, *, config: Backtes
             if should_exit:
                 row = by_key.loc[(day, code)] if (day, code) in by_key.index else None
                 if row is not None and _visible_at(row, session_open(day), "open_available_time") and not bool(row.is_suspended) and not bool(row.is_limit_down):
-                    execute(day, code, "SELL", float(row.raw_open) * (1.0 - config.sell_slippage), pos["shares"],
+                    execute(day, code, "SELL", _accounting_price(row, config.accounting_price_basis, "open") * (1.0 - config.sell_slippage), pos["shares"],
                             "stop_loss_exit" if order.get("trigger_type") == "STOP_LOSS" else "scheduled_or_rule_exit", order,
                             economic_price=float(row.economic_open), entry_economic_price=pos["entry_economic_price"])
                     del positions[code]
@@ -212,8 +212,11 @@ def run_backtest(signals: pd.DataFrame, prices: pd.DataFrame, *, config: Backtes
                     order["status"] = "REJECTED"
                     order["last_attempt_reason"] = "not_pit_visible" if not _visible_at(row, session_open(day), "open_available_time") else "suspended" if bool(row.is_suspended) else "limit_up"
                     continue
-                price = float(row.raw_open) * (1.0 + config.buy_slippage)
-                budget = min(cash, entry_cash * float(weights.loc[entry_index]))
+                price = _accounting_price(row, config.accounting_price_basis, "open") * (1.0 + config.buy_slippage)
+                cash_fraction = float(signal.get("cash_fraction", 1.0))
+                if not 0 < cash_fraction <= 1:
+                    raise ValueError("signal cash_fraction must be in (0, 1]")
+                budget = min(cash, entry_cash * cash_fraction * float(weights.loc[entry_index]))
                 unit_cost = price * (1.0 + config.buy_commission)
                 shares = int((budget / unit_cost) // config.lot_size) * config.lot_size
                 if shares <= 0:
@@ -269,7 +272,7 @@ def run_backtest(signals: pd.DataFrame, prices: pd.DataFrame, *, config: Backtes
         mark = 0.0
         for code, pos in positions.items():
             row = by_key.loc[(day, code)] if (day, code) in by_key.index else None
-            mark_price = (float(row.raw_close)
+            mark_price = (_accounting_price(row, config.accounting_price_basis, "close")
                           if row is not None and _visible_at(row, session_close(day), "close_available_time")
                           else pos["last_close"])
             mark += pos["shares"] * mark_price
@@ -292,7 +295,7 @@ def run_backtest(signals: pd.DataFrame, prices: pd.DataFrame, *, config: Backtes
                 order = pos.get("exit_order") or new_order(final_day, code, "SELL", pos["shares"],
                                                             "end_of_test_liquidation", decision_session=final_day,
                                                             trigger_type="END_OF_TEST", reference_raw_close=pos["last_close"])
-                execute(final_day, code, "SELL", float(row.raw_close) * (1.0 - config.sell_slippage), pos["shares"], "end_of_test_liquidation", order,
+                execute(final_day, code, "SELL", _accounting_price(row, config.accounting_price_basis, "close") * (1.0 - config.sell_slippage), pos["shares"], "end_of_test_liquidation", order,
                         economic_price=float(row.economic_close), entry_economic_price=pos["entry_economic_price"])
                 del positions[code]
                 continue
@@ -300,7 +303,7 @@ def run_backtest(signals: pd.DataFrame, prices: pd.DataFrame, *, config: Backtes
             pos["exit_order"]["status"] = "EXPIRED"
             pos["exit_order"]["final_reason"] = "unclosed_non_tradable"
         residual.append({"trade_date": final_day, "ts_code": code, "shares": pos["shares"],
-                         "raw_mark_price": (float(by_key.loc[(final_day, code)].raw_close)
+                         "raw_mark_price": (_accounting_price(by_key.loc[(final_day, code)], config.accounting_price_basis, "close")
                                             if (final_day, code) in by_key.index and
                                             _visible_at(by_key.loc[(final_day, code)], session_close(final_day), "close_available_time")
                                             else pos["last_close"]),
@@ -311,7 +314,7 @@ def run_backtest(signals: pd.DataFrame, prices: pd.DataFrame, *, config: Backtes
         nav_rows[-1]["nav"] = cash
         nav_rows[-1]["open_positions"] = 0
     if nav_rows and positions:
-        mark = sum(pos["shares"] * (float(by_key.loc[(final_day, code)].raw_close)
+        mark = sum(pos["shares"] * (_accounting_price(by_key.loc[(final_day, code)], config.accounting_price_basis, "close")
                    if (final_day, code) in by_key.index and
                    _visible_at(by_key.loc[(final_day, code)], session_close(final_day), "close_available_time")
                    else pos["last_close"])
@@ -340,14 +343,23 @@ def _validate_config(config: BacktestConfig) -> None:
         raise ValueError("take_profit_pct must be positive and expressed as a ratio")
     if config.stop_loss_mode not in {"close_next_session_open", "intraday_5min"}:
         raise ValueError("stop_loss_mode must be close_next_session_open or intraday_5min")
-    if config.accounting_price_basis != "raw":
-        raise ValueError("accounting_price_basis must be raw")
+    if config.accounting_price_basis not in {"raw", "economic"}:
+        raise ValueError("accounting_price_basis must be raw or economic")
     if not config.order_id_prefix or any(ch not in "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_" for ch in config.order_id_prefix):
         raise ValueError("order_id_prefix must contain only safe ASCII characters")
 
 
 def previous_session(sessions: list[pd.Timestamp], index: int) -> pd.Timestamp | None:
     return sessions[index - 1] if index > 0 else None
+
+
+def _accounting_price(row: object, basis: str, field: str) -> float:
+    """Select the explicit accounting price; limit-state checks remain raw."""
+    column = f"{basis}_{field}"
+    value = float(getattr(row, column))
+    if not pd.notna(value) or value <= 0:
+        raise ValueError(f"{column} must be finite and positive")
+    return value
 
 
 def _visible_at(row: object, timestamp: pd.Timestamp, column: str = "available_time") -> bool:

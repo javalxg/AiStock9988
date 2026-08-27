@@ -1,7 +1,19 @@
 import pandas as pd
 
 from aistock9988.labeling.maturity import LabelProfile
-from aistock9988.labeling.q70 import build_q70_t10_labels
+from aistock9988.labeling.q70 import build_q70_endpoint_labels, build_q70_t10_labels
+
+
+def test_q70_endpoint_builder_supports_delta_t9():
+    sessions = pd.date_range("2026-01-01", periods=12, freq="D", tz="UTC")
+    panel = pd.DataFrame({"ts_code": ["A"] * 12, "event_time": sessions,
+                          "economic_open": list(range(100, 112))})
+    labels = build_q70_endpoint_labels(
+        panel, profile=LabelProfile("t9", entry_delay_sessions=1, horizon_sessions=9, maturity_sessions=10),
+        session_dates=sessions)
+    assert len(labels) == 2
+    assert labels.iloc[0].entry_time == sessions[1]
+    assert labels.iloc[0].exit_time == sessions[10]
 
 
 def test_q70_t10_uses_t_plus_1_entry_and_t_plus_11_exit():
