@@ -14,7 +14,9 @@ from aistock9988.labeling.maturity import LabelProfile, mature_training_rows
 from aistock9988.labeling.q70 import build_q70_endpoint_labels
 from aistock9988.models.pipeline import model_for_prediction
 from aistock9988.models.trainer import train_ranker
-from aistock9988.selection.delta_compatible import compute_dynamic_upper_gate, apply_dynamic_upper_gate, select_rank_holdings, weak_breadth_cash_fraction
+from aistock9988.selection.delta_compatible import (compute_dynamic_upper_gate, apply_dynamic_upper_gate,
+                                                     apply_market_cap_filter, select_rank_holdings,
+                                                     weak_breadth_cash_fraction)
 from aistock9988.selection.ledger import build_prediction_ledger, freeze_candidates, write_ledger
 from aistock9988.selection.q70_policy import build_q70_selection_ledger
 from aistock9988.data.execution_source import load_market_context_panel
@@ -80,6 +82,9 @@ def run(*, run_dir: Path, config_path: Path) -> dict:
     profile = LabelProfile(label_cfg["profile"], label_cfg["signal_to_entry_sessions"],
                            label_cfg["entry_to_exit_sessions"], label_cfg["maturity_lag_sessions"])
     panel = load_f0_panel(data["train_start"], data["raw_end"])
+    market_cap = data["market_cap_filter"]
+    market_cap_minimum = market_cap["min_value"] if market_cap["enabled"] else None
+    panel = apply_market_cap_filter(panel, field=market_cap["field"], minimum=market_cap_minimum)
     sessions = pd.DatetimeIndex(sorted(panel.event_time.drop_duplicates()))
     labels = build_q70_endpoint_labels(panel, profile=profile, session_dates=sessions)
     signal_dates = _mature(sessions, _weekly(sessions, data["oos_start"], data["raw_end"]),

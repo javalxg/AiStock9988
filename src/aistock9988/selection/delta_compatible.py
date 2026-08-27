@@ -95,3 +95,18 @@ def weak_breadth_cash_fraction(*, breadth: float, minimum: float,
     if not np.isfinite(breadth) or not 0 <= breadth <= 1:
         raise ValueError("breadth must be finite and in [0, 1]")
     return configured_fraction if breadth < minimum and candidate_count == 1 else 1.0
+
+
+def apply_market_cap_filter(frame: pd.DataFrame, *, field: str = "circ_mv",
+                            minimum: float | None = None) -> pd.DataFrame:
+    """Apply an optional PIT-visible market-cap universe filter.
+
+    ``minimum=None`` is an explicit no-op, which preserves the historical
+    delta contract where ``min_market_cap`` defaulted to None.
+    """
+    if minimum is None:
+        return frame.copy()
+    if minimum < 0 or field not in frame.columns:
+        raise ValueError("market-cap minimum must be non-negative and field must exist")
+    values = pd.to_numeric(frame[field], errors="coerce")
+    return frame[values.notna() & np.isfinite(values.to_numpy(dtype=float)) & (values >= minimum)].copy()

@@ -3,6 +3,7 @@ import pytest
 
 from aistock9988.selection.delta_compatible import (
     apply_dynamic_upper_gate,
+    apply_market_cap_filter,
     compute_dynamic_upper_gate,
     select_rank_holdings,
     weak_breadth_cash_fraction,
@@ -40,6 +41,16 @@ def test_weak_breadth_single_candidate_uses_half_cash_only():
                                        configured_fraction=.5) == .5
     assert weak_breadth_cash_fraction(breadth=.39, minimum=.40, candidate_count=2,
                                        configured_fraction=.5) == 1.0
+
+
+def test_market_cap_filter_is_noop_when_minimum_is_none():
+    frame = pd.DataFrame({"ts_code": ["A", "B"], "circ_mv": [1.0, 2.0]})
+    assert len(apply_market_cap_filter(frame, minimum=None)) == 2
+
+
+def test_market_cap_filter_applies_only_when_explicitly_enabled():
+    frame = pd.DataFrame({"ts_code": ["A", "B"], "circ_mv": [1.0, 2.0]})
+    assert apply_market_cap_filter(frame, minimum=1.5).ts_code.tolist() == ["B"]
 
 
 def test_dynamic_gate_rejects_missing_factor_column():

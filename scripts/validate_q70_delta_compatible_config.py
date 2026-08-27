@@ -20,6 +20,7 @@ def validate(config_path: Path = CONFIG) -> dict[str, object]:
     selection = config["selection"]
     execution = config["execution"]
     upper_gate = selection["dynamic_upper_gate"]
+    market_cap = data["market_cap_filter"]
     feature = FeatureSet.from_f0_json(ROOT / "configs/feature_sets/f0_123_columns.json")
     errors: list[str] = []
     if config.get("reference_only") is not True:
@@ -30,6 +31,10 @@ def validate(config_path: Path = CONFIG) -> dict[str, object]:
         errors.append("delta-compatible contract must use frozen F0=123")
     if data["forbid_old_ledger"] is not True or data["forbid_stage2"] is not True:
         errors.append("old ledger and Stage2 must both be forbidden")
+    if market_cap["enabled"] is not False or market_cap["min_value"] is not None:
+        errors.append("delta-compatible reference must keep market-cap filtering disabled by default")
+    if market_cap["field"] != "circ_mv" or market_cap["unit"] != "万元":
+        errors.append("market-cap filter must explicitly use circ_mv in 万元")
     if model["objective"] != "rank:pairwise" or model["max_depth"] != 6 or model["seed"] != 42:
         errors.append("model contract does not match the historical delta reference")
     if label["signal_to_entry_sessions"] != 1 or label["entry_to_exit_sessions"] != 9:

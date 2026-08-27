@@ -17,6 +17,11 @@ data:
   label_price_basis: economic
   forbid_old_ledger: true
   forbid_stage2: true
+  market_cap_filter:
+    enabled: false
+    field: circ_mv
+    min_value: null
+    unit: 万元
 model:
   family: xgboost
   objective: rank:pairwise
