@@ -109,6 +109,14 @@ def _write_bytes_once(path: Path, payload: bytes) -> None:
         raise
 
 
+def _write_bytes_if_same(path: Path, payload: bytes) -> None:
+    if path.exists():
+        if path.read_bytes() != payload:
+            raise ValueError(f"immutable artifact differs: {path}")
+        return
+    _write_bytes_once(path, payload)
+
+
 def _write_json_once(path: Path, payload: object) -> None:
     _write_bytes_once(path, (json.dumps(payload, ensure_ascii=False, indent=2, default=str) + "\n").encode())
 
@@ -179,7 +187,7 @@ def run(*, run_dir: Path, config_path: Path, reuse_models_dir: Path | None = Non
         raise ValueError("runner requires an initialized run directory with RUN_STATUS.json")
     for directory in ("data", "models", "predictions", "selections", "trades", "diagnostics", "logs"):
         (run_dir / directory).mkdir(parents=True, exist_ok=True)
-    _write_bytes_once(run_dir / "data" / "experiment_config.yaml", config_path.read_bytes())
+    _write_bytes_if_same(run_dir / "data" / "experiment_config.yaml", config_path.read_bytes())
     data, label_cfg = config["data"], config["label"]
     execution, selection = config["execution"], config["selection"]
     spec = FeatureSet.from_f0_json(ROOT / "configs/feature_sets/f0_123_columns.json")
