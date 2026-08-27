@@ -55,7 +55,7 @@ label:
   maturity_definition: "signal T -> entry T+1 -> exit T+10; delta-compatible horizon is 9"
   training_stop_loss_pct: -0.08
 selection:
-  candidate_pool: top20
+  candidate_pool: 20
   final_positions: 2
   max_positions: 2
   market_breadth_min: 0.40
@@ -67,6 +67,7 @@ selection:
     boll_mid_bfq_sector_rel: 0.8
   selection_factor_gate_rank_cap: 20
   selection_factor_gate_fallback_top_n: 2
+  sector_relative_floor: 0.8
   dynamic_upper_gate:
     factor: dmi_adx_bfq
     enabled: true
@@ -83,6 +84,13 @@ selection:
   alpha_weight: true
   alpha_power: 1.0
   weak_breadth_single_candidate_cash_fraction: 0.50
+  volatility_window_sessions: 20
+  volatility_max: 0.07
+  recent_limit_down_window_sessions: 20
+  recent_limit_down_threshold: -0.098
+  peak_drawdown_window_sessions: 5
+  peak_drawdown_threshold: -0.10
+  exclude_beijing: true
 execution:
   mode: delta_compatible_reference
   accounting_price_basis: economic
@@ -96,6 +104,7 @@ execution:
   causal_limit_up_check: true
   minute_data: none
   terminal_liquidation: terminal_boundary
+  corporate_actions_mode: auto
 notes:
   - "This contract is for controlled historical comparison only, not production baseline."
   - "It must not replace configs/experiments/q70_source_parity_t10_20260822.yaml."

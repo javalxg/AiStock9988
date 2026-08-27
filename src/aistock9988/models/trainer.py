@@ -25,7 +25,8 @@ class ModelArtifact:
 
 def train_ranker(X: pd.DataFrame, y: pd.Series, *, group_dates: pd.Series,
                  feature_set_id: str, label_profile_id: str, training_cutoff: str,
-                 model_id: str, output_dir: Path, params: dict | None = None) -> ModelArtifact:
+                 model_id: str, output_dir: Path, params: dict | None = None,
+                 metadata_extra: dict | None = None) -> ModelArtifact:
     if X.empty or len(X) != len(y) or len(X) != len(group_dates):
         raise ValueError("X, y and group_dates must be non-empty and aligned")
     if X.columns.duplicated().any():
@@ -60,6 +61,8 @@ def train_ranker(X: pd.DataFrame, y: pd.Series, *, group_dates: pd.Series,
         "feature_names": list(X.columns), "row_count": len(X), "group_count": len(groups),
         "params": defaults, "model_sha256": model_hash,
     }
+    if metadata_extra:
+        metadata.update(metadata_extra)
     metadata_path.write_text(json.dumps(metadata, ensure_ascii=False, indent=2, sort_keys=True) + "\n")
     metadata_hash = hashlib.sha256(metadata_path.read_bytes()).hexdigest()
     return ModelArtifact(model_id, feature_set_id, label_profile_id, training_cutoff,

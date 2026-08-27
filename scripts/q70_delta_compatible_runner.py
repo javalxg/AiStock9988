@@ -2,7 +2,10 @@
 from __future__ import annotations
 
 import argparse
+import os
 import json
+import tempfile
+from dataclasses import asdict
 from pathlib import Path
 
 import pandas as pd
@@ -22,6 +25,8 @@ from aistock9988.selection.q70_policy import build_q70_selection_ledger
 from aistock9988.data.execution_source import load_market_context_panel
 from aistock9988.data.execution_source import load_execution_panel
 from aistock9988.data.corporate_actions_source import load_corporate_actions
+from aistock9988.audit.code_manifest import build_code_manifest
+from aistock9988.data.snapshot import build_snapshot_meta
 from aistock9988.backtest.engine import BacktestConfig, run_backtest
 from aistock9988.reporting.metrics import summarize_backtest
 from aistock9988.time.session import session_close
@@ -47,6 +52,28 @@ def _mature(sessions, days, lag, end):
             and sessions[positions[day] + lag].date() <= terminal]
 
 
+def _write_bytes_once(path: Path, payload: bytes) -> None:
+    if path.exists():
+        raise FileExistsError(f"immutable artifact already exists: {path}")
+    path.parent.mkdir(parents=True, exist_ok=True)
+    fd, temp_name = tempfile.mkstemp(prefix=f".{path.name}.", dir=path.parent)
+    try:
+        with os.fdopen(fd, "wb") as handle:
+            handle.write(payload)
+        os.replace(temp_name, path)
+    except Exception:
+        Path(temp_name).unlink(missing_ok=True)
+        raise
+
+
+def _write_json_once(path: Path, payload: object) -> None:
+    _write_bytes_once(path, (json.dumps(payload, ensure_ascii=False, indent=2, default=str) + "\n").encode())
+
+
+def _write_frame_once(path: Path, frame: pd.DataFrame) -> None:
+    _write_bytes_once(path, frame.to_csv(index=False, lineterminator="\n").encode())
+
+
 def _train(panel, labels, spec, run_dir, cutoff, profile, config):
     from aistock9988.labeling.dataset import build_training_dataset
     cutoff = pd.Timestamp(cutoff)
@@ -67,15 +94,32 @@ def _train(panel, labels, spec, run_dir, cutoff, profile, config):
     params = {k: config["model"][k] for k in ("objective", "n_estimators", "max_depth", "learning_rate",
                                                "min_child_weight", "subsample", "colsample_bytree", "reg_alpha", "reg_lambda")}
     params.update(random_state=config["model"]["seed"], n_jobs=1)
-    return train_ranker(X, y, group_dates=keys.event_time, feature_set_id=spec.id,
+    gate_cfg = config["selection"]["dynamic_upper_gate"]
+    gate_input = features[["ts_code", "event_time", gate_cfg["factor"]]].merge(
+        mature[["ts_code", "event_time", "label_return"]], on=["ts_code", "event_time"], validate="one_to_one")
+    gate = compute_dynamic_upper_gate(gate_input, factor=gate_cfg["factor"],
+                                      minimum_samples=gate_cfg["minimum_mature_samples"],
+                                      lower_quantile=gate_cfg["lower_tail_quantile"],
+                                      upper_quantile=gate_cfg["upper_tail_quantile"])
+    artifact = train_ranker(X, y, group_dates=keys.event_time, feature_set_id=spec.id,
                         label_profile_id=profile.id, training_cutoff=str(cutoff_time),
-                        model_id=f"q70_delta_{cutoff:%Y%m%d}", output_dir=run_dir / "models", params=params), features, mature
+                        model_id=f"q70_delta_{cutoff:%Y%m%d}", output_dir=run_dir / "models", params=params,
+                        metadata_extra={"dynamic_gate": asdict(gate)})
+    return artifact, features, mature, gate
 
 
 def run(*, run_dir: Path, config_path: Path) -> dict:
     config = yaml.safe_load(config_path.read_text())
+    from scripts.validate_q70_delta_compatible_config import validate
+    validate(config_path)
     if config.get("reference_only") is not True:
         raise ValueError("delta-compatible runner requires reference_only=true")
+    status_path = run_dir / "RUN_STATUS.json"
+    if not status_path.is_file():
+        raise ValueError("runner requires an initialized run directory with RUN_STATUS.json")
+    for directory in ("data", "models", "predictions", "selections", "trades", "diagnostics", "logs"):
+        (run_dir / directory).mkdir(parents=True, exist_ok=True)
+    _write_bytes_once(run_dir / "data" / "experiment_config.yaml", config_path.read_bytes())
     data, label_cfg = config["data"], config["label"]
     execution, selection = config["execution"], config["selection"]
     spec = FeatureSet.from_f0_json(ROOT / "configs/feature_sets/f0_123_columns.json")
@@ -99,7 +143,8 @@ def run(*, run_dir: Path, config_path: Path) -> dict:
         prior = sessions[sessions <= model_date]
         if prior.empty:
             continue
-        artifact, features, mature = _train(panel, labels, spec, run_dir, prior[-1], profile, config)
+        artifact, features, mature, gate = _train(panel, labels, spec, run_dir, prior[-1], profile, config)
+        gate_audit.append({"model_id": artifact.model_id, "training_cutoff": str(prior[-1].date()), **asdict(gate)})
         next_date = model_dates[index + 1] if index + 1 < len(model_dates) else pd.Timestamp(data["mature_end"]) + pd.Timedelta(days=1)
         for asof in [x for x in signal_dates if model_date.date() <= x.date() < next_date.date()]:
             source = panel[panel.event_time == asof].copy()
@@ -108,55 +153,76 @@ def run(*, run_dir: Path, config_path: Path) -> dict:
             scores = model_for_prediction(run_dir / "models" / f"{artifact.model_id}.json", source[list(spec.columns)])
             pred = build_prediction_ledger(pd.DataFrame({"ts_code": source.ts_code, "score": scores}),
                                            asof=str(asof.date()), feature_set_id=spec.id, model_id=artifact.model_id)
-            top20 = freeze_candidates(pred, top_n=20).merge(source[["ts_code", "dmi_adx_bfq", "xsii_td3_bfq_sector_rel",
+            top20 = freeze_candidates(pred, top_n=selection["candidate_pool"]).merge(source[["ts_code", "dmi_adx_bfq", "xsii_td3_bfq_sector_rel",
                                                                        "expma_12_bfq_sector_rel", "boll_mid_bfq_sector_rel"]], on="ts_code", how="left")
-            training_gate = features[["ts_code", "event_time", "dmi_adx_bfq"]].merge(
-                mature[["ts_code", "event_time", "label_return"]], on=["ts_code", "event_time"], validate="one_to_one")
-            gate = compute_dynamic_upper_gate(training_gate, factor="dmi_adx_bfq",
-                                               minimum_samples=selection["dynamic_upper_gate"]["minimum_mature_samples"],
-                                               lower_quantile=selection["dynamic_upper_gate"]["lower_tail_quantile"],
-                                               upper_quantile=selection["dynamic_upper_gate"]["upper_tail_quantile"])
             top20 = apply_dynamic_upper_gate(top20, factor=gate.factor, threshold=gate.threshold)
             top20 = top20[top20.dynamic_gate_passed].copy()
-            chosen = build_q70_selection_ledger(top20, context, asof=str(asof.date()), max_positions=2,
-                                                breadth_min=selection["market_breadth_min"], factor_floor=0.8,
-                                                weak_breadth_positions=2, volatility_window_sessions=20,
-                                                volatility_max=0.07, recent_limit_down_window_sessions=20,
-                                                recent_limit_down_threshold=-0.098, peak_drawdown_window_sessions=5,
-                                                peak_drawdown_threshold=-0.10, exclude_beijing=True,
-                                                alpha_weight=True, alpha_power=1.0)
+            chosen = build_q70_selection_ledger(top20, context, asof=str(asof.date()),
+                                                max_positions=selection["max_positions"],
+                                                breadth_min=selection["market_breadth_min"], factor_floor=selection["sector_relative_floor"],
+                                                weak_breadth_positions=selection["low_breadth_top_n"], volatility_window_sessions=selection["volatility_window_sessions"],
+                                                volatility_max=selection["volatility_max"], recent_limit_down_window_sessions=selection["recent_limit_down_window_sessions"],
+                                                recent_limit_down_threshold=selection["recent_limit_down_threshold"], peak_drawdown_window_sessions=selection["peak_drawdown_window_sessions"],
+                                                peak_drawdown_threshold=selection["peak_drawdown_threshold"], exclude_beijing=selection["exclude_beijing"],
+                                                alpha_weight=selection["alpha_weight"], alpha_power=selection["alpha_power"])
             eligible = chosen[chosen.rejection_reason == ""].copy()
-            held = select_rank_holdings(eligible, previous_codes, max_positions=2, hold_buffer_n=5)
+            held = select_rank_holdings(eligible, previous_codes, max_positions=selection["max_positions"], hold_buffer_n=selection["hold_buffer_n"])
             selected = chosen.assign(selected=False, target_weight=0.0)
             selected.loc[selected.ts_code.astype(str).isin(held.ts_code.astype(str)), "selected"] = True
             selected.loc[selected.selected, "target_weight"] = 1.0 / max(1, int(selected.selected.sum()))
             breadth = float(selected.context_breadth_ratio.iloc[0]) if not selected.empty else 0.0
-            fraction = weak_breadth_cash_fraction(breadth=breadth, minimum=.40,
-                                                   candidate_count=len(held), configured_fraction=.50)
+            fraction = weak_breadth_cash_fraction(breadth=breadth, minimum=selection["market_breadth_min"],
+                                                   candidate_count=len(held), configured_fraction=selection["weak_breadth_single_candidate_cash_fraction"])
             selected["cash_fraction"] = fraction
             previous_codes = set(held.ts_code.astype(str))
             write_ledger(pred, run_dir / "predictions" / f"{asof.date()}_prediction.csv")
             write_ledger(selected, run_dir / "selections" / f"{asof.date()}_selection.csv")
             selected_by_date.append(selected)
-            gate_audit.append({"model_id": artifact.model_id, "asof": str(asof.date()), **gate.__dict__})
     if not selected_by_date:
         raise RuntimeError("delta-compatible runner produced no selections")
     signals = pd.concat(selected_by_date, ignore_index=True)
     codes = sorted(signals.loc[signals.selected, "ts_code"].astype(str).unique())
     prices = load_execution_panel(data["oos_start"], data["mature_end"], ts_codes=codes)
     actions = load_corporate_actions(data["oos_start"], data["mature_end"], ts_codes=codes)
+    _write_frame_once(run_dir / "data" / "f0_panel.csv", panel)
+    _write_frame_once(run_dir / "data" / "labels.csv", labels)
+    _write_frame_once(run_dir / "data" / "market_context.csv", context)
+    _write_frame_once(run_dir / "data" / "execution_daily.csv", prices)
+    _write_frame_once(run_dir / "data" / "corporate_actions.csv", actions)
     result = run_backtest(signals, prices, corporate_actions=actions,
-                          config=BacktestConfig(max_positions=2, hold_sessions=9,
+                          config=BacktestConfig(max_positions=selection["max_positions"],
+                                                hold_sessions=label_cfg["entry_to_exit_sessions"],
                                                 stop_loss_pct=execution["stop_loss_pct"],
-                                                stop_loss_mode="close_next_session_open",
-                                                accounting_price_basis="economic"))
-    (run_dir / "diagnostics").mkdir(parents=True, exist_ok=True)
-    (run_dir / "diagnostics" / "dynamic_gate_audit.json").write_text(json.dumps(gate_audit, indent=2, ensure_ascii=False))
-    (run_dir / "diagnostics" / "metrics.json").write_text(json.dumps(
-        {"metrics": summarize_backtest(result["nav"], result["trades"], initial_cash=1_000_000.0),
-         "contract": "delta-compatible economic accounting; raw limit-state checks; no minute execution"},
-        indent=2, ensure_ascii=False, default=str) + "\n")
-    return {"models": len(model_dates), "prediction_dates": len(selected_by_date), "status": "completed"}
+                                                take_profit_pct=execution["take_profit_pct"],
+                                                stop_loss_mode=execution["stop_loss_mode"],
+                                                accounting_price_basis=execution["accounting_price_basis"],
+                                                corporate_actions_mode=execution["corporate_actions_mode"]))
+    for key, filename in (("orders", "orders.csv"), ("trades", "fills.csv"), ("nav", "nav.csv"),
+                          ("positions", "positions.csv"), ("corporate_actions", "corporate_actions.csv")):
+        _write_frame_once(run_dir / "trades" / filename, result[key])
+    _write_json_once(run_dir / "diagnostics" / "dynamic_gate_audit.json", gate_audit)
+    _write_json_once(run_dir / "diagnostics" / "metrics.json", {
+        "metrics": summarize_backtest(result["nav"], result["trades"], initial_cash=1_000_000.0),
+        "contract": "delta-compatible economic accounting; economic prices include corporate actions; raw limit-state checks; no minute execution",
+        "corporate_actions_applied": False,
+    })
+    manifest = {
+        "snapshots": {
+            "f0": asdict(build_snapshot_meta(panel, source_id="quant_db.q70_f0", query=data)),
+            "labels": asdict(build_snapshot_meta(labels, source_id="derived.q70_endpoint_labels", query=label_cfg)),
+            "market_context": asdict(build_snapshot_meta(context, source_id="quant_db.market_context", query={"start": data["oos_start"], "end": data["mature_end"]}, event_column="trade_date")),
+            "execution_daily": asdict(build_snapshot_meta(prices, source_id="quant_db.execution_daily", query={"start": data["oos_start"], "end": data["mature_end"]}, event_column="trade_date")),
+            "corporate_actions": asdict(build_snapshot_meta(actions, source_id="quant_db.corporate_actions", query={"start": data["oos_start"], "end": data["mature_end"]}, event_column="ex_date")),
+        },
+        "config": str(config_path.resolve()),
+        "config_sha256": hashlib.sha256(config_path.read_bytes()).hexdigest(),
+        "contract": "economic execution/NAV prices already include company actions; company-action mutation skipped; raw limit-state checks",
+        "corporate_actions_applied": False,
+    }
+    _write_json_once(run_dir / "data_manifest.json", manifest)
+    _write_json_once(run_dir / "code_manifest.json", build_code_manifest(
+        repo_root=ROOT, config_path=config_path.resolve(), entrypoint=Path(__file__).resolve()))
+    return {"models": len(model_dates), "prediction_dates": len(selected_by_date), "status": "executed"}
 
 
 def main():

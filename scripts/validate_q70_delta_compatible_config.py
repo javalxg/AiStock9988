@@ -45,8 +45,14 @@ def validate(config_path: Path = CONFIG) -> dict[str, object]:
         errors.append("delta-compatible accounting and NAV must explicitly use economic prices")
     if execution["limit_state_basis"] != "raw" or execution["minute_data"] != "none":
         errors.append("delta-compatible limit state must remain raw and minute execution must be explicit none")
+    if execution["stop_loss_mode"] != "close_next_session_open" or execution["corporate_actions_mode"] != "auto":
+        errors.append("delta-compatible execution must use close/open stop handling and automatic action exclusion")
     if selection["hold_buffer_n"] != 5 or selection["ranked_holdings"] is not True:
         errors.append("delta-compatible selection must use rank holding with a Top5 buffer")
+    if selection["candidate_pool"] != 20 or selection["max_positions"] != 2:
+        errors.append("delta-compatible selection must use a Top20 pool and Top2 holdings")
+    if selection["sector_relative_floor"] != 0.8:
+        errors.append("delta-compatible sector-relative factor floor must be 0.8")
     if selection["market_breadth_min"] != 0.40 or selection["low_breadth_top_n"] != 2:
         errors.append("delta-compatible selection must use the 40% breadth gate and weak-breadth Top2")
     if selection["low_breadth_require_factor_confirmation"] is not True:

@@ -1,8 +1,8 @@
 """Small, deterministic event-driven backtest engine.
 
-The engine consumes frozen selection signals and a raw execution-price panel.
-It deliberately keeps research returns and accounting prices separate: only
-``raw_open``/``raw_close`` are used for orders and NAV.
+The engine consumes frozen selection signals and an explicit raw/economic
+execution-price panel. Limit-state checks always use raw prices; orders and
+NAV use the configured accounting basis.
 """
 from __future__ import annotations
 
@@ -27,6 +27,7 @@ class BacktestConfig:
     take_profit_pct: float | None = None
     stop_loss_mode: str = "close_next_session_open"
     accounting_price_basis: str = "raw"
+    corporate_actions_mode: str = "auto"
     order_id_prefix: str = "bt"
     buy_commission: float = 0.0003
     sell_commission: float = 0.0003
@@ -39,7 +40,7 @@ class BacktestConfig:
 def run_backtest(signals: pd.DataFrame, prices: pd.DataFrame, *, config: BacktestConfig = BacktestConfig(),
                  corporate_actions: pd.DataFrame | None = None,
                  minute_prices: pd.DataFrame | None = None) -> dict[str, pd.DataFrame]:
-    """Run a causal long-only backtest and return trades, positions and NAV.
+    """Run a causal long-only backtest and return auditable ledgers.
 
     ``signals`` must contain ``asof``, ``ts_code`` and ``candidate_rank``.
     ``prices`` must contain one raw OHLC row per security/session with
@@ -66,7 +67,11 @@ def run_backtest(signals: pd.DataFrame, prices: pd.DataFrame, *, config: Backtes
         raise ValueError("intraday_5min stop-loss mode requires minute_prices")
     if config.stop_loss_mode == "close_next_session_open" and minute is not None:
         raise ValueError("close_next_session_open cannot receive minute_prices; choose intraday_5min explicitly")
-    actions = _prepare_actions(corporate_actions)
+    action_mode = ("apply" if config.accounting_price_basis == "raw" else "skip"
+                   if config.corporate_actions_mode == "auto" else config.corporate_actions_mode)
+    if config.accounting_price_basis == "economic" and action_mode == "apply":
+        raise ValueError("economic accounting cannot apply corporate actions twice")
+    actions = _prepare_actions(corporate_actions) if action_mode == "apply" else {}
     sig["asof"] = _dates(sig["asof"])
     px["trade_date"] = _dates(px["trade_date"])
     for col in ("raw_open", "raw_close"):
@@ -90,7 +95,7 @@ def run_backtest(signals: pd.DataFrame, prices: pd.DataFrame, *, config: Backtes
 
     def new_order(day, code, side, shares, reason, *, decision_session=None,
                   trigger_price=None, trigger_return=None, trigger_type=None,
-                  reference_raw_close=None):
+                  reference_raw_close=None, reference_economic_close=None):
         nonlocal order_sequence
         order_sequence += 1
         order_id = f"{config.order_id_prefix}-{order_sequence:08d}"
@@ -101,6 +106,7 @@ def run_backtest(signals: pd.DataFrame, prices: pd.DataFrame, *, config: Backtes
             "trigger_type": trigger_type, "trigger_price": trigger_price,
             "trigger_return": trigger_return, "requested_shares": shares,
             "reference_raw_close": reference_raw_close,
+            "reference_economic_close": reference_economic_close,
             "status": "PENDING", "execution_session": None,
             "execution_price": None, "execution_economic_price": None,
             "gap_return": None, "filled_shares": 0,
@@ -109,7 +115,7 @@ def run_backtest(signals: pd.DataFrame, prices: pd.DataFrame, *, config: Backtes
         orders.append(order)
         return order
 
-    def execute(day, code, side, price, shares, reason, order, *, economic_price,
+    def execute(day, code, side, price, shares, reason, order, *, economic_price, raw_price,
                 entry_economic_price=None):
         nonlocal cash
         gross = price * shares
@@ -122,7 +128,11 @@ def run_backtest(signals: pd.DataFrame, prices: pd.DataFrame, *, config: Backtes
         order["execution_price"] = price
         order["execution_economic_price"] = economic_price
         if order.get("reference_raw_close") is not None:
-            order["gap_return"] = price / order["reference_raw_close"] - 1.0
+            order["gap_return_raw"] = raw_price / order["reference_raw_close"] - 1.0
+        if order.get("reference_economic_close") is not None:
+            order["gap_return_economic"] = economic_price / order["reference_economic_close"] - 1.0
+        order["gap_return"] = (order.get("gap_return_raw") if config.accounting_price_basis == "raw"
+                                else order.get("gap_return_economic"))
         order["filled_shares"] = shares
         order["final_reason"] = reason
         trades.append({"order_id": order["order_id"], "trade_date": day, "ts_code": code, "side": side, "price": price,
@@ -136,6 +146,8 @@ def run_backtest(signals: pd.DataFrame, prices: pd.DataFrame, *, config: Backtes
                        "economic_return": (economic_price / entry_economic_price - 1.0
                                            if entry_economic_price is not None else None),
                        "gap_return": order.get("gap_return"),
+                       "gap_return_raw": order.get("gap_return_raw"),
+                       "gap_return_economic": order.get("gap_return_economic"),
                        "gap_flag": bool(order.get("gap_return") is not None and abs(order["gap_return"]) > 1e-12)})
         return gross + commission if side == "BUY" else gross - commission - duty
 
@@ -172,6 +184,7 @@ def run_backtest(signals: pd.DataFrame, prices: pd.DataFrame, *, config: Backtes
                     decision_session=previous_session(sessions, i),
                     trigger_price=trigger_price, trigger_return=trigger_return,
                     trigger_type=trigger_type, reference_raw_close=pos["last_close"],
+                    reference_economic_close=pos["last_economic_close"],
                 )
             order = pos.get("exit_order")
             if should_exit:
@@ -179,7 +192,8 @@ def run_backtest(signals: pd.DataFrame, prices: pd.DataFrame, *, config: Backtes
                 if row is not None and _visible_at(row, session_open(day), "open_available_time") and not bool(row.is_suspended) and not bool(row.is_limit_down):
                     execute(day, code, "SELL", _accounting_price(row, config.accounting_price_basis, "open") * (1.0 - config.sell_slippage), pos["shares"],
                             "stop_loss_exit" if order.get("trigger_type") == "STOP_LOSS" else "scheduled_or_rule_exit", order,
-                            economic_price=float(row.economic_open), entry_economic_price=pos["entry_economic_price"])
+                            economic_price=float(row.economic_open) * (1.0 - config.sell_slippage),
+                            raw_price=float(row.raw_open) * (1.0 - config.sell_slippage), entry_economic_price=pos["entry_economic_price"])
                     del positions[code]
                 elif row is not None:
                     order["last_attempt_reason"] = "not_pit_visible" if not _visible_at(row, session_open(day), "open_available_time") else "suspended" if bool(row.is_suspended) else "limit_down"
@@ -223,7 +237,8 @@ def run_backtest(signals: pd.DataFrame, prices: pd.DataFrame, *, config: Backtes
                     continue
                 order = new_order(previous, code, "BUY", shares, "signal_entry", decision_session=previous)
                 execute(day, code, "BUY", price, shares, "signal_entry", order,
-                        economic_price=float(row.economic_open), entry_economic_price=None)
+                        economic_price=float(row.economic_open) * (1.0 + config.buy_slippage),
+                        raw_price=float(row.raw_open) * (1.0 + config.buy_slippage), entry_economic_price=None)
                 exit_idx = i + config.hold_sessions
                 positions[code] = {"shares": shares, "entry_price": price, "entry_economic_price": float(row.economic_open), "entry_date": day,
                                    "exit_due": sessions[exit_idx] if exit_idx < len(sessions) else None,
@@ -232,6 +247,7 @@ def run_backtest(signals: pd.DataFrame, prices: pd.DataFrame, *, config: Backtes
 
         for code, pos in positions.items():
             pos["prior_close_for_intraday"] = pos["last_close"]
+            pos["prior_economic_close_for_intraday"] = pos["last_economic_close"]
             if (day, code) in by_key.index:
                 row = by_key.loc[(day, code)]
                 if _visible_at(row, session_close(day), "close_available_time"):
@@ -258,12 +274,13 @@ def run_backtest(signals: pd.DataFrame, prices: pd.DataFrame, *, config: Backtes
                     decision_session=day, trigger_price=stop_result.trigger_economic_price,
                     trigger_return=config.stop_loss_pct, trigger_type="STOP_LOSS",
                     reference_raw_close=pos["prior_close_for_intraday"],
+                    reference_economic_close=pos["prior_economic_close_for_intraday"],
                 )
                 if stop_result.status == "FILLED":
                     fill_row = bars[bars["trade_time"] == stop_result.execution_time].iloc[0]
                     execute(day, code, "SELL", float(stop_result.execution_raw_price), pos["shares"],
                             "intraday_stop_loss", pos["exit_order"],
-                            economic_price=float(fill_row.economic_open),
+                            economic_price=float(fill_row.economic_open), raw_price=float(stop_result.execution_raw_price),
                             entry_economic_price=pos["entry_economic_price"])
                     del positions[code]
                 else:
@@ -294,20 +311,30 @@ def run_backtest(signals: pd.DataFrame, prices: pd.DataFrame, *, config: Backtes
             if close_visible and a_share_t1 and not bool(row.is_suspended) and not bool(row.is_limit_down):
                 order = pos.get("exit_order") or new_order(final_day, code, "SELL", pos["shares"],
                                                             "end_of_test_liquidation", decision_session=final_day,
-                                                            trigger_type="END_OF_TEST", reference_raw_close=pos["last_close"])
+                                                            trigger_type="END_OF_TEST", reference_raw_close=pos["last_close"],
+                                                            reference_economic_close=pos["last_economic_close"])
                 execute(final_day, code, "SELL", _accounting_price(row, config.accounting_price_basis, "close") * (1.0 - config.sell_slippage), pos["shares"], "end_of_test_liquidation", order,
-                        economic_price=float(row.economic_close), entry_economic_price=pos["entry_economic_price"])
+                        economic_price=float(row.economic_close) * (1.0 - config.sell_slippage),
+                        raw_price=float(row.raw_close) * (1.0 - config.sell_slippage), entry_economic_price=pos["entry_economic_price"])
                 del positions[code]
                 continue
         if pos.get("exit_order") is not None:
             pos["exit_order"]["status"] = "EXPIRED"
             pos["exit_order"]["final_reason"] = "unclosed_non_tradable"
-        residual.append({"trade_date": final_day, "ts_code": code, "shares": pos["shares"],
-                         "raw_mark_price": (_accounting_price(by_key.loc[(final_day, code)], config.accounting_price_basis, "close")
-                                            if (final_day, code) in by_key.index and
-                                            _visible_at(by_key.loc[(final_day, code)], session_close(final_day), "close_available_time")
-                                            else pos["last_close"]),
-                         "reason": "unclosed_non_tradable"})
+        residual_row = {"trade_date": final_day, "ts_code": code, "shares": pos["shares"],
+                        "raw_mark_price": pos["last_close"],
+                        "economic_mark_price": pos["last_economic_close"],
+                        "accounting_mark_price": (pos["last_economic_close"]
+                                                   if config.accounting_price_basis == "economic" else pos["last_close"]),
+                        "accounting_price_basis": config.accounting_price_basis,
+                        "reason": "unclosed_non_tradable"}
+        if ((final_day, code) in by_key.index and
+                _visible_at(by_key.loc[(final_day, code)], session_close(final_day), "close_available_time")):
+            final_row = by_key.loc[(final_day, code)]
+            residual_row.update(raw_mark_price=float(final_row.raw_close),
+                                economic_mark_price=float(final_row.economic_close),
+                                accounting_mark_price=float(_accounting_price(final_row, config.accounting_price_basis, "close")))
+        residual.append(residual_row)
     if nav_rows and trades and not positions:
         nav_rows[-1]["cash"] = cash
         nav_rows[-1]["market_value"] = 0.0
@@ -345,6 +372,10 @@ def _validate_config(config: BacktestConfig) -> None:
         raise ValueError("stop_loss_mode must be close_next_session_open or intraday_5min")
     if config.accounting_price_basis not in {"raw", "economic"}:
         raise ValueError("accounting_price_basis must be raw or economic")
+    if config.corporate_actions_mode not in {"auto", "apply", "skip"}:
+        raise ValueError("corporate_actions_mode must be auto, apply or skip")
+    if config.accounting_price_basis == "economic" and config.corporate_actions_mode == "apply":
+        raise ValueError("economic accounting cannot apply corporate actions twice")
     if not config.order_id_prefix or any(ch not in "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_" for ch in config.order_id_prefix):
         raise ValueError("order_id_prefix must contain only safe ASCII characters")
 
