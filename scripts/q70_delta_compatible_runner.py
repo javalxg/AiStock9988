@@ -2,12 +2,14 @@
 from __future__ import annotations
 
 import argparse
+import gc
 import hashlib
 import logging
 import os
 import json
 import tempfile
 import time
+import traceback
 from dataclasses import asdict
 from pathlib import Path
 
@@ -64,6 +66,15 @@ def _log_frame(name: str, frame: pd.DataFrame) -> None:
             ranges.append(f"{column}={values.min()}..{values.max()}")
             break
     LOGGER.info("data=%s rows=%d cols=%d %s", name, len(frame), len(frame.columns), " ".join(ranges))
+
+
+def _log_memory(phase: str) -> None:
+    try:
+        import resource
+        rss_mb = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / (1024 * 1024)
+        LOGGER.info("memory phase=%s max_rss_mb=%.1f", phase, rss_mb)
+    except (ImportError, OSError):
+        return
 
 
 def _weekly(sessions, start, end):
@@ -262,10 +273,22 @@ def run(*, run_dir: Path, config_path: Path) -> dict:
     codes = sorted(signals.loc[signals.selected, "ts_code"].astype(str).unique())
     LOGGER.info("phase=execution_data_load_start start=%s end=%s selected_signal_rows=%d codes=%d",
                 data["oos_start"], data["mature_end"], len(signals), len(codes))
+    # Training windows retain million-row feature/label frames in the loop
+    # variables. Release them before the second large database load so the
+    # runner cannot be killed at the train-to-execution boundary.
+    for name in ("features", "mature", "source", "pred", "top20", "chosen", "eligible", "selected"):
+        if name in locals():
+            del locals()[name]
+    gc.collect()
+    _log_memory("before_execution_load")
+    LOGGER.info("phase=execution_daily_load_start")
     prices = load_execution_panel(data["oos_start"], data["mature_end"], ts_codes=codes)
-    actions = load_corporate_actions(data["oos_start"], data["mature_end"], ts_codes=codes)
     _log_frame("execution_daily", prices)
+    _log_memory("after_execution_daily_load")
+    LOGGER.info("phase=corporate_actions_load_start")
+    actions = load_corporate_actions(data["oos_start"], data["mature_end"], ts_codes=codes)
     _log_frame("corporate_actions", actions)
+    _log_memory("after_corporate_actions_load")
     _write_frame_once(run_dir / "data" / "f0_panel.csv", panel)
     _write_frame_once(run_dir / "data" / "labels.csv", labels)
     _write_frame_once(run_dir / "data" / "market_context.csv", context)
@@ -312,7 +335,7 @@ def run(*, run_dir: Path, config_path: Path) -> dict:
     _write_json_once(run_dir / "code_manifest.json", build_code_manifest(
         repo_root=ROOT, config_path=config_path.resolve(), entrypoint=Path(__file__).resolve()))
     LOGGER.info("phase=runner_complete models=%d prediction_dates=%d trades=%d nav_rows=%d seconds=%.2f",
-                len(model_dates), len(selected_by_date), len(result["trades"]), len(result["nav"]), time.monotonic() - started)
+                trained_models, len(selected_by_date), len(result["trades"]), len(result["nav"]), time.monotonic() - started)
     return {"models": trained_models, "prediction_dates": len(selected_by_date), "status": "executed"}
 
 
@@ -321,7 +344,12 @@ def main():
     parser.add_argument("--run-dir", type=Path, required=True)
     parser.add_argument("--config", type=Path, required=True)
     args = parser.parse_args()
-    print(json.dumps(run(run_dir=args.run_dir, config_path=args.config.resolve()), ensure_ascii=False))
+    try:
+        result = run(run_dir=args.run_dir, config_path=args.config.resolve())
+    except Exception:
+        LOGGER.exception("phase=runner_failed traceback=%s", traceback.format_exc())
+        raise
+    print(json.dumps(result, ensure_ascii=False))
 
 
 if __name__ == "__main__":
