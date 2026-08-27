@@ -1,0 +1,84 @@
+id: experiment.q70.f0_123.delta_compatible.v1
+name: q70_delta_compatible_v1
+branch: experiment/q70-delta-compatible-v1
+description: "Explicit delta +386 DMI/ADX historical-contract compatibility experiment; reference only"
+historical_reference:
+  experiment_id: cleanroom_history_contract_t10_q70_source_parity_20260822
+  result: 386.02
+  canonical_directory: cleanroom_history_contract_t10_q70_source_parity_20260822
+  note: "The canonical source-parity run.py injects the dynamic ADX gate at runtime; the separate dmi_adx-named directory is not a second experiment."
+reference_only: true
+data:
+  train_start: 2025-01-01
+  oos_start: 2026-01-01
+  raw_end: 2026-08-14
+  mature_end: 2026-08-14
+  feature_set: feature.f0_123.v1
+  label_price_basis: economic
+  forbid_old_ledger: true
+  forbid_stage2: true
+model:
+  family: xgboost
+  objective: rank:pairwise
+  group_by_date: true
+  seed: 42
+  n_estimators: 200
+  max_depth: 6
+  learning_rate: 0.05
+  min_child_weight: 5
+  subsample: 0.8
+  colsample_bytree: 0.8
+  reg_alpha: 1.0
+  reg_lambda: 1.0
+  train_window_months: 12
+  retrain_frequency: monthly
+  prediction_frequency: weekly
+label:
+  profile: label.endpoint_open_open_t9.delta_compat.v1
+  signal_to_entry_sessions: 1
+  entry_to_exit_sessions: 9
+  maturity_lag_sessions: 10
+  maturity_definition: "signal T -> entry T+1 -> exit T+10; delta-compatible horizon is 9"
+  training_stop_loss_pct: -0.08
+selection:
+  candidate_pool: top20
+  final_positions: 2
+  max_positions: 2
+  market_breadth_min: 0.40
+  low_breadth_top_n: 2
+  low_breadth_require_factor_confirmation: true
+  selection_factor_gates:
+    xsii_td3_bfq_sector_rel: 0.8
+    expma_12_bfq_sector_rel: 0.8
+    boll_mid_bfq_sector_rel: 0.8
+  selection_factor_gate_rank_cap: 20
+  selection_factor_gate_fallback_top_n: 2
+  dynamic_upper_gate:
+    factor: dmi_adx_bfq
+    enabled: true
+    fixed_upper_bound: 0.5
+    threshold_source: mature_training_70th_percentile
+  hold_buffer_n: 5
+  ranked_holdings: true
+  alpha_weight: true
+  alpha_power: 1.0
+  weak_breadth_single_candidate_cash_fraction: 0.50
+execution:
+  mode: delta_compatible_reference
+  accounting_price_basis: economic
+  trigger_price_basis: economic
+  nav_price_basis: economic
+  entry: next_session_open
+  stop_loss_pct: -0.08
+  stop_loss_mode: close_next_session_open
+  take_profit_pct: 1.0
+  limit_state_basis: raw
+  causal_limit_up_check: true
+  minute_data: none
+  terminal_liquidation: terminal_boundary
+notes:
+  - "This contract is for controlled historical comparison only, not production baseline."
+  - "It must not replace configs/experiments/q70_source_parity_t10_20260822.yaml."
+  - "Market breadth is a causal entry gate; weak breadth retains Top2 only with factor confirmation."
+  - "The DMI/ADX upper gate is activated only from mature training data and is not a future-outcome gate."
+  - "The runner for this contract must preserve raw limit-state checks and separately audit economic accounting."
