@@ -7,6 +7,7 @@ NAV use the configured accounting basis.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import Callable
 
 import pandas as pd
 
@@ -28,6 +29,7 @@ class BacktestConfig:
     stop_loss_mode: str = "close_next_session_open"
     accounting_price_basis: str = "raw"
     corporate_actions_mode: str = "auto"
+    progress_callback: Callable[[int, int, pd.Timestamp], None] | None = None
     order_id_prefix: str = "bt"
     buy_commission: float = 0.0003
     sell_commission: float = 0.0003
@@ -299,6 +301,8 @@ def run_backtest(signals: pd.DataFrame, prices: pd.DataFrame, *, config: Backtes
             raise AssertionError(f"accounting invariant violated: negative cash on {day}: {cash}")
         if abs(nav_rows[-1]["nav"] - nav_rows[-1]["cash"] - nav_rows[-1]["market_value"]) > 1e-8:
             raise AssertionError(f"accounting invariant violated: NAV identity on {day}")
+        if config.progress_callback is not None:
+            config.progress_callback(i + 1, len(sessions), day)
 
     # Final liquidation is explicitly marked and uses the last available close.
     final_day = sessions[-1]
