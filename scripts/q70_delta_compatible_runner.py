@@ -2,14 +2,17 @@
 from __future__ import annotations
 
 import argparse
+import gc
 import hashlib
 import logging
 import os
 import json
 import tempfile
 import time
+import traceback
 from dataclasses import asdict
 from pathlib import Path
+from types import SimpleNamespace
 
 import pandas as pd
 import yaml
@@ -20,7 +23,7 @@ from aistock9988.labeling.maturity import LabelProfile, mature_training_rows
 from aistock9988.labeling.q70 import build_q70_endpoint_labels
 from aistock9988.models.pipeline import model_for_prediction
 from aistock9988.models.trainer import train_ranker
-from aistock9988.selection.delta_compatible import (compute_dynamic_upper_gate, apply_dynamic_upper_gate,
+from aistock9988.selection.delta_compatible import (DynamicGateResult, compute_dynamic_upper_gate, apply_dynamic_upper_gate,
                                                      apply_market_cap_filter, select_rank_holdings,
                                                      weak_breadth_cash_fraction)
 from aistock9988.selection.ledger import build_prediction_ledger, freeze_candidates, write_ledger
@@ -66,6 +69,15 @@ def _log_frame(name: str, frame: pd.DataFrame) -> None:
     LOGGER.info("data=%s rows=%d cols=%d %s", name, len(frame), len(frame.columns), " ".join(ranges))
 
 
+def _log_memory(phase: str) -> None:
+    try:
+        import resource
+        rss_mb = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / (1024 * 1024)
+        LOGGER.info("memory phase=%s max_rss_mb=%.1f", phase, rss_mb)
+    except (ImportError, OSError):
+        return
+
+
 def _weekly(sessions, start, end):
     out = {}
     for value in sorted(pd.Timestamp(x) for x in sessions):
@@ -95,6 +107,14 @@ def _write_bytes_once(path: Path, payload: bytes) -> None:
     except Exception:
         Path(temp_name).unlink(missing_ok=True)
         raise
+
+
+def _write_bytes_if_same(path: Path, payload: bytes) -> None:
+    if path.exists():
+        if path.read_bytes() != payload:
+            raise ValueError(f"immutable artifact differs: {path}")
+        return
+    _write_bytes_once(path, payload)
 
 
 def _write_json_once(path: Path, payload: object) -> None:
@@ -148,7 +168,7 @@ def _train(panel, labels, spec, run_dir, cutoff, profile, config):
     return artifact, features, mature, gate
 
 
-def run(*, run_dir: Path, config_path: Path) -> dict:
+def run(*, run_dir: Path, config_path: Path, reuse_models_dir: Path | None = None) -> dict:
     run_dir = run_dir.resolve()
     _configure_logging(run_dir)
     started = time.monotonic()
@@ -167,7 +187,7 @@ def run(*, run_dir: Path, config_path: Path) -> dict:
         raise ValueError("runner requires an initialized run directory with RUN_STATUS.json")
     for directory in ("data", "models", "predictions", "selections", "trades", "diagnostics", "logs"):
         (run_dir / directory).mkdir(parents=True, exist_ok=True)
-    _write_bytes_once(run_dir / "data" / "experiment_config.yaml", config_path.read_bytes())
+    _write_bytes_if_same(run_dir / "data" / "experiment_config.yaml", config_path.read_bytes())
     data, label_cfg = config["data"], config["label"]
     execution, selection = config["execution"], config["selection"]
     spec = FeatureSet.from_f0_json(ROOT / "configs/feature_sets/f0_123_columns.json")
@@ -176,7 +196,8 @@ def run(*, run_dir: Path, config_path: Path) -> dict:
     profile = LabelProfile(label_cfg["profile"], label_cfg["signal_to_entry_sessions"],
                            label_cfg["entry_to_exit_sessions"], label_cfg["maturity_lag_sessions"])
     LOGGER.info("phase=data_load_start source=q70_f0 start=%s end=%s", data["train_start"], data["raw_end"])
-    panel = load_f0_panel(data["train_start"], data["raw_end"])
+    panel = load_f0_panel(data["train_start"], data["raw_end"],
+                          sector_relative_statistic=data["sector_relative_statistic"])
     _log_frame("f0_panel_raw", panel)
     market_cap = data["market_cap_filter"]
     market_cap_minimum = market_cap["min_value"] if market_cap["enabled"] else None
@@ -211,7 +232,27 @@ def run(*, run_dir: Path, config_path: Path) -> dict:
         prior = sessions[sessions <= model_date]
         if prior.empty:
             continue
-        artifact, features, mature, gate = _train(panel, labels, spec, run_dir, prior[-1], profile, config)
+        if reuse_models_dir is None:
+            artifact, features, mature, gate = _train(panel, labels, spec, run_dir, prior[-1], profile, config)
+        else:
+            model_id = f"q70_delta_{model_date:%Y%m%d}"
+            source_model = reuse_models_dir / "models" / f"{model_id}.json"
+            source_metadata = reuse_models_dir / "models" / f"{model_id}.metadata.json"
+            if not source_model.is_file() or not source_metadata.is_file():
+                raise FileNotFoundError(f"reusable model artifacts missing for {model_id}")
+            metadata = json.loads(source_metadata.read_text())
+            gate = DynamicGateResult(**metadata["dynamic_gate"])
+            for source_path in (source_model, source_metadata):
+                target_path = run_dir / "models" / source_path.name
+                source_bytes = source_path.read_bytes()
+                if target_path.exists():
+                    if target_path.read_bytes() != source_bytes:
+                        raise ValueError(f"reusable model artifact differs: {target_path}")
+                else:
+                    _write_bytes_once(target_path, source_bytes)
+            artifact = SimpleNamespace(model_id=model_id, model_sha256=metadata.get("model_sha256"))
+            features, mature = panel, labels
+            LOGGER.info("phase=model_reuse model_id=%s source=%s", model_id, reuse_models_dir)
         trained_models += 1
         gate_audit.append({"model_id": artifact.model_id, "training_cutoff": str(prior[-1].date()), **asdict(gate)})
         next_date = model_dates[index + 1] if index + 1 < len(model_dates) else pd.Timestamp(data["mature_end"]) + pd.Timedelta(days=1)
@@ -261,10 +302,22 @@ def run(*, run_dir: Path, config_path: Path) -> dict:
     codes = sorted(signals.loc[signals.selected, "ts_code"].astype(str).unique())
     LOGGER.info("phase=execution_data_load_start start=%s end=%s selected_signal_rows=%d codes=%d",
                 data["oos_start"], data["mature_end"], len(signals), len(codes))
+    # Training windows retain million-row feature/label frames in the loop
+    # variables. Release them before the second large database load so the
+    # runner cannot be killed at the train-to-execution boundary.
+    for name in ("features", "mature", "source", "pred", "top20", "chosen", "eligible", "selected"):
+        if name in locals():
+            del locals()[name]
+    gc.collect()
+    _log_memory("before_execution_load")
+    LOGGER.info("phase=execution_daily_load_start")
     prices = load_execution_panel(data["oos_start"], data["mature_end"], ts_codes=codes)
-    actions = load_corporate_actions(data["oos_start"], data["mature_end"], ts_codes=codes)
     _log_frame("execution_daily", prices)
+    _log_memory("after_execution_daily_load")
+    LOGGER.info("phase=corporate_actions_load_start")
+    actions = load_corporate_actions(data["oos_start"], data["mature_end"], ts_codes=codes)
     _log_frame("corporate_actions", actions)
+    _log_memory("after_corporate_actions_load")
     _write_frame_once(run_dir / "data" / "f0_panel.csv", panel)
     _write_frame_once(run_dir / "data" / "labels.csv", labels)
     _write_frame_once(run_dir / "data" / "market_context.csv", context)
@@ -311,7 +364,7 @@ def run(*, run_dir: Path, config_path: Path) -> dict:
     _write_json_once(run_dir / "code_manifest.json", build_code_manifest(
         repo_root=ROOT, config_path=config_path.resolve(), entrypoint=Path(__file__).resolve()))
     LOGGER.info("phase=runner_complete models=%d prediction_dates=%d trades=%d nav_rows=%d seconds=%.2f",
-                len(model_dates), len(selected_by_date), len(result["trades"]), len(result["nav"]), time.monotonic() - started)
+                trained_models, len(selected_by_date), len(result["trades"]), len(result["nav"]), time.monotonic() - started)
     return {"models": trained_models, "prediction_dates": len(selected_by_date), "status": "executed"}
 
 
@@ -319,8 +372,15 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--run-dir", type=Path, required=True)
     parser.add_argument("--config", type=Path, required=True)
+    parser.add_argument("--reuse-models-dir", type=Path)
     args = parser.parse_args()
-    print(json.dumps(run(run_dir=args.run_dir, config_path=args.config.resolve()), ensure_ascii=False))
+    try:
+        result = run(run_dir=args.run_dir, config_path=args.config.resolve(),
+                     reuse_models_dir=args.reuse_models_dir.resolve() if args.reuse_models_dir else None)
+    except Exception:
+        LOGGER.exception("phase=runner_failed traceback=%s", traceback.format_exc())
+        raise
+    print(json.dumps(result, ensure_ascii=False))
 
 
 if __name__ == "__main__":

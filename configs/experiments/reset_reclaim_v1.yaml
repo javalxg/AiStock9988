@@ -1,0 +1,56 @@
+experiment_id: reset_reclaim_v1
+status: preregistered
+model_training: false
+parameter_sweep: false
+
+candidate_contract:
+  shock_lookback_sessions: 5
+  shock_definition:
+    - ret1 <= -0.03
+    - volume_ratio_20 >= 1.5
+  reclaim_definition:
+    - close >= ma5
+    - close >= previous_3_day_high
+    - ret1 > 0
+  position_definition:
+    - dist_ma60 >= -0.05
+    - dist_ma60 <= 0.15
+    - dd20 >= -0.15
+  pit_rule: available_time <= T_close; exclude exact PIT ST keys
+
+selection:
+  policy_id: selection.reset_reclaim.v1
+  max_positions: 4
+  target_weight: 0.12
+  ranking_score: "0.55 * low_overheat + 0.45 * low_volatility"
+
+execution:
+  decision: T_close
+  entry: T_plus_1_open
+  exit: T_plus_11_open
+  hold_sessions: 10
+  stop_loss_pct: -0.08
+  stop_loss_mode: close_next_session_open
+  lot_size: 100
+  accounting_price_basis: raw
+  max_order_to_adv20: null
+  slippage_each_side: [0.001, 0.003]
+
+diagnostics:
+  required_outputs:
+    - score_ledger
+    - candidate_ledger
+    - selection_ledger
+    - mature_candidate_ledger
+    - winner_loser_feature_comparison
+    - backtests_base
+    - backtests_stress
+
+acceptance:
+  portfolio_profit_factor_min: 2.0
+  portfolio_max_drawdown_max: 0.15
+  portfolio_return_ex_best_week_positive: true
+
+notes:
+  - "Fixed-rule reset/reclaim only; no moneyflow, no holder, no XGBoost."
+  - "Do not scan thresholds."

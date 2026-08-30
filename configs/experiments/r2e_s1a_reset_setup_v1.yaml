@@ -1,0 +1,33 @@
+schema_version: 1
+experiment_id: r2e_s1a_reset_setup_v1
+frozen: true
+hypothesis: Reset setup alone has cross-period positive expectancy before right confirmation.
+
+selection:
+  require_right_confirmation: false
+  reset_slots: 4
+  quiet_slots: 0
+  single_weight_cap: 0.15
+  sector_weight_cap: 0.30
+  equity_cap: 0.80
+
+execution:
+  hold_sessions: 10
+  max_positions: 4
+  stop_loss_pct: -0.08
+  trailing: false
+  max_order_to_adv20: 0.02
+  slippage_each_side: 0.001
+
+acceptance:
+  portfolio_profit_factor_min: 2.0
+  max_drawdown_max: 0.15
+  return_excluding_best_week_positive: true
+  stress_slippage_each_side: 0.003
+
+forbidden:
+  - right_confirmation
+  - quiet_trend_sleeve
+  - event_factor_overlay
+  - conditional_h20
+  - threshold_or_gate_sweep

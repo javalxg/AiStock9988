@@ -1,0 +1,53 @@
+experiment_id: static_family_benchmark_v1
+status: preregistered
+model_training: false
+parameter_sweep: false
+
+family:
+  name: trend_continuation_b
+  description: "Right-side trend continuation with MACD, relative strength, and moderate volume"
+
+selection:
+  policy_id: selection.static_family_b.trend_continuation.v1
+  max_positions: 4
+  target_weight: 0.12
+  dist_ma60_band: [0.00, 0.15]
+  ret20_band: [0.00, 0.25]
+  ret60_band: [0.00, 0.35]
+  dd20_min: -0.10
+  volume_ratio_band: [0.80, 2.00]
+  right_confirmation: true
+  macd_bullish: true
+  market_excess_ret_positive: true
+  industry_excess_ret_positive: true
+
+execution:
+  decision: T_close
+  entry: T_plus_1_open
+  exit: T_plus_11_open
+  hold_sessions: 10
+  stop_loss_pct: -0.08
+  stop_loss_mode: close_next_session_open
+  lot_size: 100
+  accounting_price_basis: raw
+  max_order_to_adv20: 0.02
+  slippage_each_side: [0.001, 0.003]
+
+diagnostics:
+  required_outputs:
+    - pit_audit
+    - score_ledger
+    - candidate_ledger
+    - selection_ledger
+    - winner_loser_feature_comparison
+    - backtests_base
+    - backtests_stress
+
+acceptance:
+  portfolio_profit_factor_min: 2.0
+  portfolio_max_drawdown_max: 0.15
+  portfolio_return_ex_best_week_positive: true
+
+notes:
+  - "Trend-continuation only; no XGBoost."
+  - "Do not scan thresholds or mix with reset/quiet families."

@@ -1,0 +1,118 @@
+identity:
+  strategy_id: breadth_relative_turnover_full_universe_v1
+  version: 1
+  mode: rules
+  hypothesis_id: stage1.breadth_conditioned_relative_strength
+
+universe:
+  source: fixed_codes_file
+  codes_file: docs/council_20260828/FULL_UNIVERSE_2026_START.csv
+  exclude_suffixes: [.BJ]
+  exclude_pit_st: true
+  require_listed_on_signal: true
+
+data_policy:
+  dense_required:
+    selection: [market_daily_ts, adj_factor_ts, daily_basic_ts, index_daily_ts]
+    training: [market_daily_ts, adj_factor_ts, daily_basic_ts, index_daily_ts]
+    execution: [market_daily_ts, adj_factor_ts, stk_limit_ts]
+  sparse_event: [stock_st_ts, suspend_d_ts, stk_auction_o_ts, corporate_actions]
+  optional_enrichment: []
+  forward_min_coverage: 0.90
+  missing_action:
+    selection: exclude_stock_session
+    training: exclude_sample
+    entry: skip_and_ranked_fallback
+    held_position: carry_last_mark_and_retry
+  source_availability:
+    daily_basic_ts: eod_trade_date_close
+    index_daily_ts: eod_trade_date_close
+
+decision:
+  frequency: daily
+  session_selector: all
+  decision_time: "15:00:00 Asia/Shanghai"
+  entry_delay_sessions: 1
+
+features:
+  ma5: {provider: sma, source: economic_close, window_sessions: 5}
+  ma60: {provider: sma, source: economic_close, window_sessions: 60}
+  ret1: {provider: return, source: economic_close, window_sessions: 1}
+  ret20: {provider: return, source: economic_close, window_sessions: 20}
+  ret60: {provider: return, source: economic_close, window_sessions: 60}
+  dd20: {provider: rolling_drawdown, source: economic_high, window_sessions: 20}
+  vol20: {provider: realized_volatility, source: ret1, window_sessions: 20}
+  liq20: {provider: rolling_median, source: amount, window_sessions: 20}
+  volume_ratio_20: {provider: ratio, numerator: amount, denominator: liq20}
+  prev3_high: {provider: prior_rolling_max, source: economic_close, window_sessions: 3}
+  dist_ma60: {provider: ratio_minus_one, numerator: economic_close, denominator: ma60}
+  dist_ma60_abs_005: {provider: absolute_distance, source: dist_ma60, center: 0.05}
+  turnover_rate_f: {provider: source, source: daily_basic_ts}
+  turnover_ratio_20: {provider: ratio, source: daily_basic_ts, window_sessions: 20}
+  turnover_stability20: {provider: absolute_distance, source: turnover_ratio_20, center: 1.0}
+  ret10: {provider: return, source: economic_close, window_sessions: 10}
+  index_ret10: {provider: return, source: index_daily_ts, window_sessions: 10}
+  relative_strength10: {provider: relative_return, source: market_daily_ts/index_daily_ts, window_sessions: 10}
+  market_breadth_ma20: {provider: cross_sectional_fraction, source: economic_close/ma20, window_sessions: 20}
+  market_breadth_delta5: {provider: change, source: market_breadth_ma20, window_sessions: 5}
+  breadth_adjusted_strength10: {provider: state_conditioned_sum, source: relative_strength10/ret1}
+
+stage1:
+  expression:
+    all:
+      - {left: ret20, op: gt, value: 0.0}
+      - {left: ret20, op: le, value: 0.25}
+      - {left: ret60, op: gt, value: 0.0}
+      - {left: ret60, op: le, value: 0.35}
+      - {left: dist_ma60, op: gt, value: 0.0}
+      - {left: dist_ma60, op: le, value: 0.15}
+      - {left: dd20, op: ge, value: -0.10}
+      - {left: economic_close, op: ge, right: ma5}
+      - {left: economic_close, op: ge, right: prev3_high}
+      - {left: ret1, op: ge, value: -0.02}
+      - {left: volume_ratio_20, op: between, lower: 0.70, upper: 2.50}
+
+ranking:
+  method: weighted_cross_sectional_rank
+  terms:
+    - {feature: breadth_adjusted_strength10, direction: desc, weight: 0.35}
+    - {feature: turnover_stability20, direction: asc, weight: 0.25}
+    - {feature: vol20, direction: asc, weight: 0.15}
+    - {feature: dd20, direction: desc, weight: 0.15}
+    - {feature: dist_ma60_abs_005, direction: asc, weight: 0.10}
+  tie_breakers: [final_score_desc, ts_code_asc]
+
+portfolio:
+  candidate_view_size: 20
+  entries_per_decision: 4
+  max_open_positions: 4
+  target_gross_exposure_cap: 0.48
+  sizing: {method: fixed_fraction_of_decision_nav, value: 0.12}
+  duplicate_symbol: skip
+  exit_pending_occupies_slot: true
+
+execution:
+  initial_cash: 1000000.0
+  entry_price: next_session_raw_open
+  hold_sessions_from_fill: 10
+  exit_price: next_tradable_raw_open
+  stop:
+    trigger: close
+    threshold_pct: -0.08
+    execute: next_tradable_open
+  buy_untradable: same_decision_ranked_replacement
+  sell_untradable: retain_and_retry
+  lot_size: 100
+  accounting_basis: raw_with_corporate_actions
+  adv20_max_participation: 0.02
+  amount_unit_multiplier: 1000.0
+  end_policy: mark_open_positions
+  cost_scenarios:
+    base: {slippage_each_side: 0.001, buy_commission: 0.0003, sell_commission: 0.0003, stamp_duty: 0.0005}
+    stress: {slippage_each_side: 0.003, buy_commission: 0.0003, sell_commission: 0.0003, stamp_duty: 0.0005}
+
+acceptance:
+  portfolio_profit_factor_min: 2.0
+  max_drawdown_abs_max: 0.15
+  return_excluding_best_week_min_exclusive: 0.0
+  parameter_sweep: false

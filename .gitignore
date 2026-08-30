@@ -4,6 +4,8 @@ __pycache__/
 experiments/.running/*
 experiments/completed/*
 experiments/failed/*
+experiments/.cache/
+*.link-tmp
 *.parquet
 *.pkl
 *.model

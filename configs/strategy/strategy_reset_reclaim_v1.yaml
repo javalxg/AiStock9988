@@ -1,0 +1,45 @@
+strategy_id: strategy.reset_reclaim.v1
+strategy_type: rules
+feature_set_id: feature.f0_123.v1
+
+universe:
+  source: quant_db
+  exclude_board: [BJ]
+  exclude_st: true
+  pit_membership: true
+
+candidate:
+  filters:
+    - "ret1 <= -0.03 within prior 5 sessions"
+    - "volume_ratio_20 >= 1.5 on shock session"
+    - "close >= ma5"
+    - "close >= prev3_high"
+    - "ret1 > 0"
+    - "dist_ma60 between -0.05 and 0.15"
+    - "dd20 >= -0.15"
+  ranking:
+    score: "0.55 * rank(-dist_ma60) + 0.45 * rank(-vol20)"
+
+selection:
+  max_positions: 4
+  candidate_view_size: 20
+  target_weight: 0.12
+  fallback_policy: same_day_ranked
+
+execution:
+  entry: next_session_open
+  hold_sessions: 10
+  stop_loss_pct: -0.08
+  stop_loss_mode: close_next_session_open
+  accounting_price_basis: raw
+  lot_size: 100
+  max_order_to_adv20: null
+  slippage_each_side: [0.001, 0.003]
+  buy_commission: 0.0003
+  sell_commission: 0.0003
+  stamp_duty: 0.0005
+
+acceptance:
+  portfolio_profit_factor_min: 2.0
+  max_drawdown_abs_max: 0.15
+  return_excluding_best_week_positive: true

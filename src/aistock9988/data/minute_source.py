@@ -21,7 +21,10 @@ def normalize_minute_panel(frame: pd.DataFrame) -> pd.DataFrame:
     if missing:
         raise ValueError(f"minute source missing columns: {sorted(missing)}")
     out = frame.copy()
-    out["trade_time"] = pd.to_datetime(out["trade_time"], errors="raise", utc=True)
+    # MySQL DATETIME values are exchange-local when timezone-naive; keep
+    # timezone-aware inputs unchanged and normalize both through the shared
+    # source-time contract.
+    out["trade_time"] = parse_source_time(out["trade_time"])
     out["available_time"] = pd.to_datetime(out["available_time"], errors="raise", utc=True)
     if out["available_time"].isna().any():
         raise ValueError("minute source available_time must be non-null")
@@ -34,6 +37,13 @@ def normalize_minute_panel(frame: pd.DataFrame) -> pd.DataFrame:
         raise ValueError("minute source contains non-finite prices, adjustment factors or limits")
     if (out[["open", "high", "low", "close", "adj_factor", "up_limit", "down_limit"]] <= 0).any().any():
         raise ValueError("minute source prices, adjustment factors and limits must be positive")
+    for col in ("vol", "amount"):
+        if col in out:
+            out[col] = pd.to_numeric(out[col], errors="raise")
+            if out[col].isna().any() or not np.isfinite(out[col].to_numpy(dtype=float)).all():
+                raise ValueError(f"minute source {col} contains null or non-finite values")
+            if (out[col] < 0).any():
+                raise ValueError(f"minute source {col} must be non-negative")
     if out.duplicated(["ts_code", "trade_time"]).any():
         raise ValueError("minute source contains duplicate ts_code/trade_time")
     for raw, economic in (("open", "economic_open"), ("high", "economic_high"),
@@ -70,30 +80,29 @@ def load_minute_execution_panel(start: str, end: str, *, freq: str = "5min",
                 code_filter = " AND m.ts_code IN (" + ",".join(["%s"] * len(codes)) + ")"
                 params.extend(codes)
             frame = pd.read_sql_query(
-                "SELECT m.ts_code, m.trade_time, m.open, m.high, m.low, m.close, "
+                "SELECT m.ts_code, m.trade_time, m.open, m.high, m.low, m.close, m.vol, m.amount, "
                 "m.update_time AS minute_update_time, a.adj_factor, "
                 "a.update_time AS adj_update_time, l.up_limit, l.down_limit, "
                 "l.update_time AS limit_update_time "
                 f"FROM `{table}` m "
-                "JOIN market_daily_ts d ON d.ts_code=m.ts_code AND d.trade_date=DATE(m.trade_time) "
-                "JOIN adj_factor_ts a ON a.ts_code=m.ts_code AND a.trade_date=DATE(m.trade_time) "
-                "JOIN stk_limit_ts l ON l.ts_code=m.ts_code AND l.trade_date=DATE(m.trade_time) "
+                "LEFT JOIN adj_factor_ts a ON a.ts_code=m.ts_code AND a.trade_date=DATE(m.trade_time) "
+                "LEFT JOIN stk_limit_ts l ON l.ts_code=m.ts_code AND l.trade_date=DATE(m.trade_time) "
                 "WHERE m.trade_time >= %s AND m.trade_time < %s "
-                "AND d.open > 0 AND d.high > 0 AND d.low > 0 AND d.close > 0 "
-                "AND COALESCE(d.amount, 0) > 0" + code_filter +
+                "AND m.open > 0 AND m.high > 0 AND m.low > 0 AND m.close > 0 "
+                "AND COALESCE(m.vol, 0) >= 0 AND COALESCE(m.amount, 0) >= 0" + code_filter +
                 " ORDER BY m.trade_time, m.ts_code", conn, params=tuple(params))
             frames.append(frame)
     frame = pd.concat(frames, ignore_index=True) if frames else pd.DataFrame()
     if frame.empty:
         raise ValueError(f"no minute bars for freq={freq} and requested universe")
-    availability = pd.concat([
-        parse_source_time(frame["minute_update_time"]),
-        parse_source_time(frame["adj_update_time"]),
-        parse_source_time(frame["limit_update_time"]),
-    ], axis=1)
-    frame["available_time"] = availability.max(axis=1)
-    if frame["available_time"].isna().any():
-        raise ValueError("minute source has null available_time")
+    # Source update timestamps describe batch ingestion, not when a market
+    # bar was observable.  The bar close is the auditable availability time;
+    # update columns remain provenance for later drift audits.
+    frame["trade_time"] = parse_source_time(frame["trade_time"])
+    frame["available_time"] = frame["trade_time"]
+    required_data = frame[["adj_factor", "up_limit", "down_limit"]]
+    if required_data.isna().any().any():
+        raise ValueError("minute source missing required adj_factor or limit data")
     return normalize_minute_panel(frame)
 
 

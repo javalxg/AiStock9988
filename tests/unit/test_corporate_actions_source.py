@@ -11,7 +11,8 @@ def test_tushare_per_ten_fields_become_explicit_per_share_action():
         "update_time": "2026-08-20T10:00:00Z", "div_proc": "实施",
     }]))
     assert out.loc[0, "cash_dividend"] == pytest.approx(0.3)
-    assert out.loc[0, "split_ratio"] == pytest.approx(1.3)
+    # Legacy div_cash fixtures use the component rates quoted per ten shares.
+    assert out.loc[0, "split_ratio"] == pytest.approx(1.1)
     assert out.loc[0, "action_type"] == "实施"
 
 

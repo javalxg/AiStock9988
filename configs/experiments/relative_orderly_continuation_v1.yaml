@@ -1,0 +1,54 @@
+experiment_id: relative_orderly_continuation_v1
+status: preregistered
+model_training: false
+parameter_sweep: false
+
+periods:
+  discovery:
+    start: 2024-01-01
+    end: 2024-12-31
+    purpose: direction_confirmation_only
+  validation:
+    start: 2025-01-01
+    end: 2025-12-31
+    purpose: single_formal_validation
+  forward:
+    start: 2026-08-22
+    mode: append_only
+
+candidate_control: quiet_eligible AND right_confirmed AND NOT PIT_ST
+candidate_challenger:
+  required:
+    - right_confirmed
+    - market_excess_ret20 > 0
+    - market_excess_ret60 > 0
+    - industry_excess_ret20 > 0
+    - industry_excess_ret60 > 0
+    - dist_ma60 > 0
+    - dist_ma60 <= 0.15
+    - dd20 >= -0.10
+    - ret20 <= 0.25
+    - ret60 <= 0.35
+  score: frozen quiet_score
+
+execution:
+  decision: T_close
+  entry: T_plus_1_open
+  exit: T_plus_11_open
+  hold_sessions: 10
+  max_positions: 4
+  target_weight: 0.12
+  stop_loss_pct: -0.08
+  stop_loss_mode: close_trigger_next_open
+  slippage_each_side: [0.001, 0.003]
+
+acceptance:
+  candidate_profit_factor_min: 1.20
+  candidate_mean_lift_vs_universe_positive: true
+  candidate_down8_change_vs_universe_negative: true
+  majority_complete_months_profit_factor_above_one: true
+  portfolio_profit_factor_min: 2.0
+  portfolio_max_drawdown_max: 0.15
+  portfolio_return_excluding_best_week_positive: true
+
+abandonment: fail_any_validation_acceptance_without_threshold_changes

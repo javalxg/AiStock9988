@@ -1,0 +1,54 @@
+experiment_id: relative_acceleration_confirmation_v2
+status: preregistered
+model_training: false
+parameter_sweep: false
+
+periods:
+  historical_diagnostic:
+    start: 2024-01-01
+    end: 2025-12-31
+    purpose: non_lockbox_direction_diagnostic
+  forward:
+    start: 2026-08-22
+    mode: append_only
+
+candidate_contract:
+  required:
+    - right_confirmed
+    - market_excess_ret5_acceleration > 0
+    - industry_excess_ret5_acceleration > 0
+    - market_excess_ret20 > 0
+    - industry_excess_ret20 > 0
+    - close >= ma5
+    - close >= previous_3_day_high
+    - dist_ma60 > 0
+    - dist_ma60 <= 0.15
+    - dd20 >= -0.10
+    - ret20 <= 0.25
+    - ret60 <= 0.35
+    - 0.70 <= volume_ratio_20 <= 2.50
+  score: frozen quiet_score
+  pit_rule: available_time <= T_close; exclude exact PIT ST keys
+
+execution:
+  decision: T_close
+  entry: T_plus_1_open
+  exit: T_plus_11_open
+  hold_sessions: 10
+  max_positions: 4
+  target_weight: 0.12
+  stop_loss_pct: -0.08
+  stop_loss_mode: close_next_session_open
+  slippage_each_side: [0.001, 0.003]
+
+acceptance:
+  candidate_profit_factor_min: 1.20
+  candidate_mean_lift_vs_universe_positive: true
+  candidate_down8_change_vs_universe_negative: true
+  portfolio_profit_factor_min: 2.0
+  portfolio_max_drawdown_max: 0.15
+  portfolio_return_ex_best_week_positive: true
+  minimum_forward_mature_trades: 60
+  minimum_forward_signal_weeks: 12
+
+abandonment: fail_any_formal_acceptance_without_threshold_changes

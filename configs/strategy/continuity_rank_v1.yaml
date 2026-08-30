@@ -1,0 +1,95 @@
+identity:
+  strategy_id: s9_continuity_rank_v1
+  version: 1
+  mode: rules
+  hypothesis_id: stage1.continuity_winner_profile
+
+universe:
+  source: full_pit_universe
+  codes_file: docs/council_20260828/FULL_UNIVERSE_2026_START.csv
+  exclude_suffixes: [.BJ]
+  exclude_pit_st: true
+  require_listed_on_signal: true
+  min_median_amount_20_stored: 100000.0
+
+data_policy:
+  dense_required:
+    selection: [market_daily_ts, adj_factor_ts]
+    training: [market_daily_ts, adj_factor_ts]
+    execution: [market_daily_ts, adj_factor_ts, stk_limit_ts]
+  sparse_event: [stock_st_ts, suspend_d_ts, corporate_actions]
+  optional_enrichment: []
+  missing_action:
+    selection: exclude_stock_session
+    training: exclude_sample
+    entry: skip_and_ranked_fallback
+    held_position: carry_last_mark_and_retry
+
+decision:
+  frequency: daily
+  session_selector: all
+  decision_time: "15:00:00 Asia/Shanghai"
+  entry_delay_sessions: 1
+
+features:
+  ma5: {provider: sma, source: economic_close, window_sessions: 5}
+  ma60: {provider: sma, source: economic_close, window_sessions: 60}
+  ret1: {provider: return, source: economic_close, window_sessions: 1}
+  ret20: {provider: return, source: economic_close, window_sessions: 20}
+  ret60: {provider: return, source: economic_close, window_sessions: 60}
+  dd20: {provider: rolling_drawdown, source: economic_high, window_sessions: 20}
+  vol20: {provider: realized_volatility, source: ret1, window_sessions: 20}
+  liq20: {provider: rolling_median, source: amount, window_sessions: 20}
+  volume_ratio_20: {provider: ratio, numerator: amount, denominator: liq20}
+  prev3_high: {provider: prior_rolling_max, source: economic_close, window_sessions: 3}
+  dist_ma60: {provider: ratio_minus_one, numerator: economic_close, denominator: ma60}
+  confirmation_strength: {provider: rcqt_frozen_formula}
+
+stage1:
+  expression:
+    all:
+      - {left: liq20, op: gt, value: 0.0}
+
+ranking:
+  method: continuous_cross_sectional_proximity
+  terms:
+    - {feature: volume_ratio_20, center: 1.45, direction: nearest, weight: 0.20}
+    - {feature: dist_ma60, center: 0.06, direction: nearest, weight: 0.20}
+    - {feature: ret20, center: 0.05, direction: nearest, weight: 0.20}
+    - {feature: vol20, direction: asc, weight: 0.20}
+    - {feature: confirmation_strength, direction: desc, weight: 0.20}
+  tie_breakers: [final_score_desc, ts_code_asc]
+
+portfolio:
+  candidate_view_size: 20
+  entries_per_decision: 5
+  max_open_positions: 5
+  target_gross_exposure_cap: 0.50
+  sizing: {method: fixed_fraction_of_decision_nav, value: 0.10}
+  duplicate_symbol: skip
+  exit_pending_occupies_slot: true
+  candidate_min_daily_view_ratio: 1.0
+
+execution:
+  initial_cash: 1000000.0
+  entry_price: next_session_raw_open
+  hold_sessions_from_fill: 10
+  exit_price: next_tradable_raw_open
+  stop:
+    trigger: close
+    threshold_pct: -0.08
+    execute: next_tradable_open
+  lot_size: 100
+  accounting_basis: raw_with_corporate_actions
+  adv20_max_participation: 0.02
+  amount_unit_multiplier: 1000.0
+  end_policy: mark_open_positions
+  cost_scenarios:
+    base: {slippage_each_side: 0.001, buy_commission: 0.0003, sell_commission: 0.0003, stamp_duty: 0.0005}
+    stress: {slippage_each_side: 0.003, buy_commission: 0.0003, sell_commission: 0.0003, stamp_duty: 0.0005}
+
+acceptance:
+  portfolio_profit_factor_min: 2.0
+  max_drawdown_abs_max: 0.15
+  return_excluding_best_week_min_exclusive: 0.0
+  parameter_sweep: false

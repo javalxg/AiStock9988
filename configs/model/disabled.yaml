@@ -1,0 +1,12 @@
+identity:
+  model_id: model_disabled_v1
+  version: 1
+  enabled: false
+  algorithm: disabled
+
+scope: {}
+features: {}
+label: {}
+walk_forward: {}
+params: {}
+prediction: {}

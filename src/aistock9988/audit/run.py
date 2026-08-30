@@ -17,6 +17,7 @@ class RunAuditError(RuntimeError):
 
 REQUIRED_FILES = ("RUN_STATUS.json", "data_manifest.json")
 REQUIRED_DIRS = ("data", "models", "predictions", "selections", "trades", "diagnostics", "logs")
+_STATUS_MUTABLE_KEYS = {"status", "created_at", "completed_at", "audit_artifact_count", "completion_seal"}
 
 
 def _sha256(path: Path) -> str:
@@ -32,6 +33,45 @@ def audit_run(run_dir: Path) -> dict:
     run_dir = run_dir.resolve()
     if run_dir.parent.name != ".running" or run_dir.parent.parent.name != "experiments":
         raise RunAuditError("run must be audited from experiments/.running/<run_id>")
+    return _build_report(run_dir, allowed_statuses={"CREATED", "RUNNING", "VERIFIED"})
+
+
+def reverify_run(run_dir: Path) -> dict:
+    """Recompute the seal of a completed run without writing into it."""
+    run_dir = run_dir.resolve()
+    if run_dir.parent.name != "completed" or run_dir.parent.parent.name != "experiments":
+        raise RunAuditError("completed run must live under experiments/completed/<run_id>")
+    audit_path = run_dir / "diagnostics" / "audit.json"
+    # Keep all completed-bundle tampering failures inside the audit contract.
+    # Without this guard a deleted seal report leaked FileNotFoundError from
+    # build_completion_seal, making callers handle a filesystem exception
+    # instead of the lifecycle's fail-closed RunAuditError.
+    if not audit_path.is_file():
+        raise RunAuditError("completed audit report is missing")
+    try:
+        status = json.loads((run_dir / "RUN_STATUS.json").read_text())
+        recorded = json.loads(audit_path.read_text())
+    except (OSError, json.JSONDecodeError) as exc:
+        raise RunAuditError("invalid completed status or audit report") from exc
+    if status.get("completion_seal") != build_completion_seal(status, audit_path):
+        raise RunAuditError("completed RUN_STATUS.json no longer matches its completion seal")
+    report = _build_report(run_dir, allowed_statuses={"COMPLETED"})
+    if recorded != report:
+        raise RunAuditError("completed run artifacts no longer match the sealed audit report")
+    return report
+
+
+def build_completion_seal(status: dict, audit_path: Path) -> str:
+    """Bind the final lifecycle status to the immutable artifact audit."""
+    payload = {
+        "status": {key: value for key, value in status.items() if key != "completion_seal"},
+        "audit_sha256": _sha256(audit_path),
+    }
+    canonical = json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode()
+    return hashlib.sha256(canonical).hexdigest()
+
+
+def _build_report(run_dir: Path, *, allowed_statuses: set[str]) -> dict:
     missing = [name for name in REQUIRED_FILES if not (run_dir / name).is_file()]
     missing += [name + "/" for name in REQUIRED_DIRS if not (run_dir / name).is_dir()]
     if not (run_dir / "trades").is_dir() or not any((run_dir / "trades").iterdir()):
@@ -40,7 +80,14 @@ def audit_run(run_dir: Path) -> dict:
         missing.append("data/<snapshot>")
     if not (run_dir / "predictions").is_dir() or not any((run_dir / "predictions").iterdir()):
         missing.append("predictions/<ledger>")
-    if not (run_dir / "models").is_dir() or not any((run_dir / "models").iterdir()):
+    # Rule-only experiments intentionally have no model artifact.  They must
+    # provide a frozen score ledger instead; model runs retain the old gate.
+    status_payload = {}
+    try:
+        status_payload = json.loads((run_dir / "RUN_STATUS.json").read_text())
+    except (OSError, json.JSONDecodeError):
+        pass
+    if status_payload.get("strategy_type") != "rules" and (not (run_dir / "models").is_dir() or not any((run_dir / "models").iterdir())):
         missing.append("models/<artifact>")
     if not (run_dir / "selections").is_dir() or not any((run_dir / "selections").iterdir()):
         missing.append("selections/<ledger>")
@@ -53,16 +100,26 @@ def audit_run(run_dir: Path) -> dict:
         status = json.loads((run_dir / "RUN_STATUS.json").read_text())
     except (OSError, json.JSONDecodeError) as exc:
         raise RunAuditError("invalid RUN_STATUS.json") from exc
-    if status.get("status") not in {"CREATED", "RUNNING", "VERIFIED"}:
+    if status.get("status") not in allowed_statuses:
         raise RunAuditError(f"run status cannot be completed: {status.get('status')!r}")
     artifacts = {}
     excluded = {run_dir / "RUN_STATUS.json", run_dir / "diagnostics" / "audit.json"}
     for path in sorted(p for p in run_dir.rglob("*") if p.is_file() and p not in excluded):
         artifacts[str(path.relative_to(run_dir))] = {"sha256": _sha256(path), "bytes": path.stat().st_size}
-    return {"run_id": status.get("run_id", run_dir.name), "artifact_count": len(artifacts), "artifacts": artifacts}
+    run_contract = {key: value for key, value in status.items() if key not in _STATUS_MUTABLE_KEYS}
+    return {
+        "run_id": status.get("run_id", run_dir.name),
+        "run_contract": run_contract,
+        "artifact_count": len(artifacts),
+        "artifacts": artifacts,
+    }
 
 
 def _validate_ledgers(run_dir: Path) -> None:
+    try:
+        status_payload = json.loads((run_dir / "RUN_STATUS.json").read_text())
+    except (OSError, json.JSONDecodeError):
+        status_payload = {}
     selection_files = sorted((run_dir / "selections").glob("*.csv"))
     for selection_file in selection_files:
         selection = pd.read_csv(selection_file)
@@ -79,12 +136,21 @@ def _validate_ledgers(run_dir: Path) -> None:
                 not np.isfinite(weights.to_numpy(dtype=float)).all() or
                 not np.isfinite(ranks.to_numpy(dtype=float)).all() or (weights < 0).any()):
             raise RunAuditError(f"selection ledger has invalid selected/weight values: {selection_file.name}")
-        if selected.any() and abs(float(weights[selected].sum()) - 1.0) > 1e-8:
-            raise RunAuditError(f"selection weights do not sum to one: {selection_file.name}")
+        if selected.any() and not (0.0 < float(weights[selected].sum()) <= 1.0 + 1e-8):
+            raise RunAuditError(f"selection weights must sum to (0,1]: {selection_file.name}")
         if (weights[~selected] != 0).any():
             raise RunAuditError(f"rejected candidates carry target weight: {selection_file.name}")
+        chosen = selection.loc[selected]
+        if status_payload.get("strategy_type") == "rules" and not chosen.empty and (weights[selected] > 0.150000001).any():
+            raise RunAuditError(f"selection exceeds single-name 15% cap: {selection_file.name}")
+        if status_payload.get("strategy_type") == "rules" and not chosen.empty and "industry" in chosen.columns:
+            sector_totals = chosen.assign(_w=weights[selected].to_numpy()).groupby("industry")['_w'].sum()
+            if (sector_totals > 0.300000001).any():
+                raise RunAuditError(f"selection exceeds industry 30% cap: {selection_file.name}")
     for prediction_file in sorted((run_dir / "predictions").glob("*.csv")):
         predictions = pd.read_csv(prediction_file)
+        if status_payload.get("strategy_type") == "rules" and "score" not in predictions.columns:
+            raise RunAuditError(f"rule prediction ledger must contain frozen score column: {prediction_file.name}")
         if {"asof", "ts_code"} <= set(predictions.columns) and predictions.duplicated(["asof", "ts_code"]).any():
             raise RunAuditError(f"prediction ledger has duplicate asof/ts_code keys: {prediction_file.name}")
         if "score" in predictions:

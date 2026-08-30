@@ -14,6 +14,7 @@ data:
   raw_end: 2026-08-14
   mature_end: 2026-08-14
   feature_set: feature.f0_123.v1
+  sector_relative_statistic: median
   label_price_basis: economic
   forbid_old_ledger: true
   forbid_stage2: true

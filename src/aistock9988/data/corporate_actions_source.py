@@ -25,6 +25,9 @@ def normalize_corporate_actions(frame: pd.DataFrame) -> pd.DataFrame:
     if missing:
         raise ValueError(f"corporate action source missing columns: {sorted(missing)}")
     out = frame.copy()
+    source_id_present = "id" in out
+    if not source_id_present:
+        out["id"] = range(len(out))
     out["ex_date"] = pd.to_datetime(out["ex_date"], errors="coerce", utc=True).dt.normalize()
     if out["ex_date"].isna().any():
         raise ValueError("corporate action source contains invalid ex_date")
@@ -39,9 +42,31 @@ def normalize_corporate_actions(frame: pd.DataFrame) -> pd.DataFrame:
             raise ValueError(f"corporate action field {name} contains non-numeric values")
         return converted.fillna(0.0)
 
-    # Tushare dividend fields are normally quoted per 10 shares.
-    cash = numeric("div_cash") / 10.0
-    bonus = (numeric("stk_div") + numeric("stk_bo_rate") + numeric("stk_co_rate")) / 10.0
+    # quant_db stores cash_div/stk_div as per-share values. Keep the
+    # legacy div_cash-only adapter for old per-10-share fixtures.
+    legacy_per_ten = "cash_div" not in out and "div_cash" in out
+    if "cash_div" in out:
+        cash = numeric("cash_div")
+        if "div_cash" in out:
+            legacy_cash = numeric("div_cash") / 10.0
+            cash = cash.where(out["cash_div"].notna(), legacy_cash)
+    else:
+        cash = numeric("div_cash") / 10.0
+    components = numeric("stk_bo_rate") + numeric("stk_co_rate")
+    if "stk_div" in out:
+        reported_total = numeric("stk_div")
+        total_present = out["stk_div"].notna()
+        component_present = pd.Series(False, index=out.index)
+        for column in ("stk_bo_rate", "stk_co_rate"):
+            if column in out:
+                component_present |= out[column].notna()
+        mismatch = total_present & component_present & ~reported_total.sub(components).abs().le(1e-8)
+        if mismatch.any() and not legacy_per_ten:
+            raise ValueError("stk_div conflicts with stk_bo_rate + stk_co_rate")
+        bonus_total = components if legacy_per_ten else reported_total.where(total_present, components)
+    else:
+        bonus_total = components
+    bonus = bonus_total / 10.0 if legacy_per_ten else bonus_total
     out["cash_dividend"] = cash
     out["split_ratio"] = 1.0 + bonus
     if (out["cash_dividend"] < 0).any() or (out["split_ratio"] <= 0).any():
@@ -75,18 +100,43 @@ def normalize_corporate_actions(frame: pd.DataFrame) -> pd.DataFrame:
     ex_open = out["ex_date"].map(session_open)
     if (out["available_time"] >= ex_open).any():
         raise ValueError("corporate action is not PIT-visible before ex-date market open")
-    # A provider may retain several revisions of the same implemented event.
-    # Identical revisions are safe to collapse.  Conflicting economic terms
-    # are not safe to resolve by recency, so fail and preserve the evidence
-    # for an explicit data-quality decision instead of silently changing NAV.
-    economic_terms = out.groupby(["ts_code", "ex_date"], sort=False)[["split_ratio", "cash_dividend"]].nunique()
+    # The provider retains older proposals and marks each row as implemented.
+    # Resolve to the latest implementation announcement, then the latest
+    # underlying proposal announcement, both of which must precede ex-date.
+    def normalized_date(name: str) -> pd.Series:
+        if name not in out:
+            return pd.Series(pd.NaT, index=out.index, dtype="datetime64[ns, UTC]")
+        return pd.to_datetime(out[name], errors="coerce", utc=True).dt.normalize()
+
+    out["implementation_ann_date"] = normalized_date("imp_ann_date")
+    out["source_ann_date"] = normalized_date("ann_date")
+    out["revision_count"] = out.groupby(["ts_code", "ex_date"])["ts_code"].transform("size")
+    floor = pd.Timestamp("1900-01-01", tz="UTC")
+    out["_implementation_order"] = out["implementation_ann_date"].fillna(out["source_ann_date"]).fillna(floor)
+    out["_source_order"] = out["source_ann_date"].fillna(out["_implementation_order"])
+    max_implementation = out.groupby(["ts_code", "ex_date"])["_implementation_order"].transform("max")
+    latest = out[out["_implementation_order"].eq(max_implementation)].copy()
+    max_source = latest.groupby(["ts_code", "ex_date"])["_source_order"].transform("max")
+    latest = latest[latest["_source_order"].eq(max_source)].copy()
+    # Some provider revisions share the same announcement dates.  Resolve
+    # those by the immutable source row/update order before fail-closed.
+    if source_id_present:
+        latest = latest.sort_values(
+            ["ts_code", "ex_date", "update_time", "id"], kind="mergesort", na_position="first"
+        ).drop_duplicates(["ts_code", "ex_date"], keep="last")
+    economic_terms = latest.groupby(["ts_code", "ex_date"], sort=False)[["split_ratio", "cash_dividend"]].nunique()
     if (economic_terms > 1).any(axis=None):
-        raise ValueError("corporate action revisions contain conflicting economic terms")
-    # Keep the latest PIT version once; applying every revision would multiply
-    # dividends and split ratios in the accounting ledger.
-    out = out.sort_values(["ts_code", "ex_date", "available_time"], kind="mergesort")
+        raise ValueError("latest PIT corporate action revision still has conflicting economic terms")
+    out = latest
+    out = out.sort_values(
+        ["ts_code", "ex_date", "_implementation_order", "_source_order", "available_time"],
+        kind="mergesort", na_position="first",
+    )
     out = out.drop_duplicates(["ts_code", "ex_date"], keep="last")
-    cols = ["ts_code", "ex_date", "split_ratio", "cash_dividend", "available_time", "action_type"]
+    cols = [
+        "ts_code", "ex_date", "split_ratio", "cash_dividend", "available_time", "action_type",
+        "source_ann_date", "implementation_ann_date", "revision_count",
+    ]
     return out[cols].sort_values(["ex_date", "ts_code"], kind="mergesort").reset_index(drop=True)
 
 
@@ -110,26 +160,30 @@ def load_corporate_actions(start: str, end: str, *, ts_codes: list[str] | None =
         tables = table_frame[table_column].tolist()
         if not tables:
             raise RuntimeError("no dividend table found; company actions are required for accounting backtests")
-        table = str(tables[0])
-        column_frame = pd.read_sql_query(
-            "SELECT column_name FROM information_schema.columns "
-            "WHERE table_schema=DATABASE() AND table_name=%s", conn, params=(table,)
-        )
-        column_name = next((column for column in column_frame.columns if column.lower() == "column_name"), None)
-        if column_name is None:
-            raise RuntimeError("information_schema response has no column_name column")
-        columns = column_frame[column_name].tolist()
-        wanted = ["ts_code", "ex_date", "div_cash", "stk_div", "stk_bo_rate", "stk_co_rate",
+        wanted = ["id", "ts_code", "ex_date", "cash_div", "div_cash", "stk_div", "stk_bo_rate", "stk_co_rate",
                   "div_proc", "ann_date", "imp_ann_date", "update_time"]
-        selected = [c for c in wanted if c in columns]
-        if not {"ts_code", "ex_date"}.issubset(selected):
-            raise RuntimeError(f"{table} lacks ts_code/ex_date required for PIT company actions")
-        params: list[object] = [start, end]
-        code_filter = ""
-        if ts_codes:
-            code_filter = " AND ts_code IN (" + ",".join(["%s"] * len(ts_codes)) + ")"
-            params.extend(ts_codes)
-        query = ("SELECT " + ", ".join(selected) + " FROM `" + table + "` "
-                 "WHERE ex_date >= %s AND ex_date <= %s" + code_filter)
-        frame = pd.read_sql_query(query, conn, params=tuple(params))
+        frames = []
+        for table in tables:
+            column_frame = pd.read_sql_query(
+                "SELECT column_name FROM information_schema.columns "
+                "WHERE table_schema=DATABASE() AND table_name=%s", conn, params=(table,)
+            )
+            column_name = next((column for column in column_frame.columns if column.lower() == "column_name"), None)
+            columns = column_frame[column_name].tolist() if column_name else []
+            selected = [c for c in wanted if c in columns]
+            if not {"ts_code", "ex_date"}.issubset(selected):
+                continue
+            params: list[object] = [start, end]
+            code_filter = ""
+            if ts_codes:
+                code_filter = " AND ts_code IN (" + ",".join(["%s"] * len(ts_codes)) + ")"
+                params.extend(ts_codes)
+            query = ("SELECT " + ", ".join(selected) + " FROM `" + str(table) + "` "
+                     "WHERE ex_date >= %s AND ex_date <= %s" + code_filter)
+            part = pd.read_sql_query(query, conn, params=tuple(params))
+            part["_source_table"] = str(table)
+            frames.append(part)
+        if not frames:
+            raise RuntimeError("dividend tables lack ts_code/ex_date required for PIT company actions")
+        frame = pd.concat(frames, ignore_index=True, sort=False)
     return normalize_corporate_actions(frame)

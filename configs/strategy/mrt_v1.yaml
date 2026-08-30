@@ -1,0 +1,113 @@
+identity:
+  strategy_id: mrt_v1
+  version: 1
+  mode: rules
+  hypothesis_id: state_sequence.mild_rebound_trend_v1
+  research_status: historical
+
+universe:
+  source: full_pit_universe
+  codes_file: docs/council_20260828/FULL_UNIVERSE_2026_START.csv
+  exclude_suffixes: [.BJ]
+  exclude_pit_st: true
+  require_listed_on_signal: true
+  min_median_amount_20_stored: 0.0
+
+data_policy:
+  dense_required:
+    selection: [market_daily_ts, adj_factor_ts, stk_limit_ts, index_daily_ts]
+    training: [market_daily_ts, adj_factor_ts, stk_limit_ts, index_daily_ts]
+    execution: [market_daily_ts, adj_factor_ts, stk_limit_ts]
+  sparse_event: [stock_st_ts, suspend_d_ts, stk_auction_o_ts, corporate_actions, index_member_all_ts]
+  optional_enrichment: []
+  source_availability:
+    index_daily_ts: eod_trade_date_close
+    index_member_all_ts: pit_membership_by_in_date_out_date
+  missing_action:
+    selection: exclude_stock_session
+    training: exclude_sample
+    entry: skip_and_ranked_fallback
+    held_position: carry_last_mark_and_retry
+
+decision:
+  frequency: daily
+  session_selector: all
+  decision_time: "15:00:00 Asia/Shanghai"
+  entry_delay_sessions: 1
+
+features:
+  ma60: {provider: sma, source: economic_close, window_sessions: 60}
+  ret1: {provider: return, source: economic_close, window_sessions: 1}
+  ret10: {provider: return, source: economic_close, window_sessions: 10}
+  ret20: {provider: return, source: economic_close, window_sessions: 20}
+  ret60: {provider: return, source: economic_close, window_sessions: 60}
+  vol20: {provider: realized_volatility, source: ret1, window_sessions: 20}
+  liq20: {provider: rolling_median, source: amount, window_sessions: 20}
+  dist_ma60: {provider: ratio_minus_one, numerator: economic_close, denominator: ma60}
+  adv20_prior: {provider: prior_rolling_median, source: amount, window_sessions: 20}
+  market_excess_ret10: {provider: cross_sectional_excess, source: ret10, statistic: median}
+  industry_excess_ret10: {provider: pit_industry_excess, source: ret10, statistic: median}
+
+stage1:
+  expression:
+    all:
+      - {left: market_excess_ret10, op: gt, value: 0.0}
+      - {left: industry_excess_ret10, op: gt, value: 0.0}
+      - {left: ret60, op: gt, value: 0.0}
+      - {left: ret20, op: le, value: 0.25}
+      - {left: dist_ma60, op: gt, value: 0.0}
+      - {left: dist_ma60, op: le, value: 0.15}
+      - {left: vol20_pct, op: le, value: 0.85}
+      - {left: shock_close_lt_open, op: ge, value: 1.0}
+      # market_daily_ts.pct_chg is stored in percentage points (-5 means -5%).
+      - {left: pct_chg, op: le, value: -5.0}
+      - {left: shock_amount_ratio, op: ge, value: 1.5}
+      - {left: shock_open_ok, op: ge, value: 1.0}
+      - {left: shock_close_ok, op: ge, value: 1.0}
+      - {left: pit_st, op: le, value: 0.0}
+      - {left: list_age_sessions, op: ge, value: 60.0}
+      - {left: execution_data_eligible, op: ge, value: 1.0}
+      - {left: shock_tradable, op: ge, value: 1.0}
+
+ranking:
+  method: amount_to_adv20_prior_desc
+  terms:
+    - {feature: shock_amount_ratio, direction: desc, weight: 1.0}
+  tie_breakers: [final_score_desc, ts_code_asc]
+
+portfolio:
+  candidate_view_size: 20
+  entries_per_decision: 5
+  max_open_positions: 5
+  target_gross_exposure_cap: 0.50
+  sizing: {method: fixed_fraction_of_decision_nav, value: 0.10}
+  duplicate_symbol: skip
+  exit_pending_occupies_slot: true
+  candidate_min_daily_view_ratio: 0.0
+
+execution:
+  initial_cash: 1000000.0
+  entry_price: next_session_raw_open
+  hold_sessions_from_fill: 10
+  exit_price: next_tradable_raw_open
+  buy_untradable: same_decision_ranked_replacement
+  sell_untradable: retain_and_retry
+  stop:
+    trigger: close
+    threshold_pct: -0.08
+    execute: next_tradable_open
+  lot_size: 100
+  accounting_basis: raw_with_corporate_actions
+  amount_unit: thousand_rmb
+  amount_unit_multiplier: 1000.0
+  adv20_max_participation: 0.02
+  end_policy: mark_open_positions
+  cost_scenarios:
+    base: {slippage_each_side: 0.001, buy_commission: 0.0003, sell_commission: 0.0003, stamp_duty: 0.0005}
+    stress: {slippage_each_side: 0.003, buy_commission: 0.0003, sell_commission: 0.0003, stamp_duty: 0.0005}
+
+acceptance:
+  portfolio_profit_factor_min: 2.0
+  max_drawdown_abs_max: 0.15
+  return_excluding_best_week_min_exclusive: 0.0
+  parameter_sweep: false

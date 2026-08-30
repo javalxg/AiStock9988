@@ -1,0 +1,54 @@
+experiment_id: flow_chip_confirm_v1
+status: preregistered
+model_training: false
+parameter_sweep: false
+
+design:
+  control_universe: "(quiet_eligible OR reset_eligible) AND right_confirmed AND NOT PIT_ST"
+  challenger_overlay: "moneyflow trade_date<=T 5-session confirmation AND latest_two_holdernumber_announcements_known_by_T with latest_holder_num <= previous_holder_num"
+  moneyflow_rule:
+    - exact moneyflow_ts row on T is required
+    - full rolling 5-session history is required
+    - rolling_5d_lg_elg_net_amount > 0
+    - rolling_5d_md_net_amount > 0
+    - rolling_5d_sm_net_amount <= 0
+    - rolling_5d_total_net_mf_amount > 0
+  blocked_sources:
+    - chip_structure_ts
+  missing_policy: "moneyflow missing days are dropped, never filled as zero"
+
+selection:
+  ranking_score: "max(reset_score, quiet_score)"
+  max_positions: 4
+  target_weight: 0.12
+
+execution:
+  decision: T_close
+  entry: T_plus_1_open
+  exit: T_plus_11_open
+  hold_sessions: 10
+  stop_loss_pct: -0.08
+  stop_loss_mode: close_next_session_open
+  lot_size: 100
+  accounting_price_basis: raw
+  max_order_to_adv20: null
+  slippage_each_side: [0.001, 0.003]
+
+diagnostics:
+  required_outputs:
+    - pit_audit
+    - candidate_control
+    - candidate_challenger
+    - selection_control
+    - selection_challenger
+    - win_loss_control
+    - win_loss_challenger
+    - backtests_control
+    - backtests_challenger
+
+acceptance:
+  portfolio_profit_factor_min: 2.0
+  portfolio_max_drawdown_max: 0.15
+  portfolio_return_ex_best_week_positive: true
+
+abandonment: "if challenger does not beat control on PF/return without PIT-safe additional sources, stop"

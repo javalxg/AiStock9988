@@ -4,6 +4,7 @@ import pytest
 
 from aistock9988.audit.run import RunAuditError, audit_run, write_audit_report
 from aistock9988 import cli
+from scripts.rcqt_formal_runner import _assert_untouched_run_dir, _resolve_run_dir
 
 
 def _run_dir(tmp_path):
@@ -46,12 +47,108 @@ def test_verify_then_complete_reuses_same_audit_report(tmp_path, monkeypatch):
     run_dir = _run_dir(tmp_path)
     monkeypatch.setattr(cli, "ROOT", tmp_path)
     verified = cli.verify_run(run_dir)
+    assert json.loads((run_dir / "RUN_STATUS.json").read_text())["status"] == "VERIFIED"
     completed = cli.complete_run(run_dir)
     assert completed == tmp_path / "experiments" / "completed" / "run-1"
     assert completed.is_dir()
     status = json.loads((completed / "RUN_STATUS.json").read_text())
     assert status["status"] == "COMPLETED"
     assert status["audit_artifact_count"] == verified["artifact_count"]
+    assert cli.reverify_run(completed) == verified
+
+
+def test_complete_requires_explicit_verify(tmp_path, monkeypatch):
+    run_dir = _run_dir(tmp_path)
+    monkeypatch.setattr(cli, "ROOT", tmp_path)
+    with pytest.raises(RunAuditError, match="verify-run"):
+        cli.complete_run(run_dir)
+
+
+def test_reverify_rejects_completed_artifact_tampering(tmp_path, monkeypatch):
+    run_dir = _run_dir(tmp_path)
+    monkeypatch.setattr(cli, "ROOT", tmp_path)
+    cli.verify_run(run_dir)
+    completed = cli.complete_run(run_dir)
+    (completed / "data" / "snapshot.parquet").write_bytes(b"tampered")
+    with pytest.raises(RunAuditError, match="no longer match"):
+        cli.reverify_run(completed)
+
+
+def test_reverify_rejects_stable_status_contract_tampering(tmp_path, monkeypatch):
+    run_dir = _run_dir(tmp_path)
+    status_path = run_dir / "RUN_STATUS.json"
+    status = json.loads(status_path.read_text())
+    status["source_mode"] = "frozen_snapshot"
+    status_path.write_text(json.dumps(status))
+    monkeypatch.setattr(cli, "ROOT", tmp_path)
+    cli.verify_run(run_dir)
+    completed = cli.complete_run(run_dir)
+    status_path = completed / "RUN_STATUS.json"
+    status = json.loads(status_path.read_text())
+    status["source_mode"] = "mutated"
+    status_path.write_text(json.dumps(status))
+    with pytest.raises(RunAuditError, match="no longer match"):
+        cli.reverify_run(completed)
+
+
+def test_reverify_missing_audit_report_is_audit_error(tmp_path, monkeypatch):
+    run_dir = _run_dir(tmp_path)
+    monkeypatch.setattr(cli, "ROOT", tmp_path)
+    cli.verify_run(run_dir)
+    completed = cli.complete_run(run_dir)
+    (completed / "diagnostics" / "audit.json").unlink()
+    with pytest.raises(RunAuditError, match="audit report is missing"):
+        cli.reverify_run(completed)
+
+
+def test_formal_runner_rejects_preseeded_evidence(tmp_path):
+    run_dir = tmp_path / "experiments" / ".running" / "run-preseeded"
+    for name in ("data", "models", "predictions", "selections", "trades", "diagnostics", "logs"):
+        (run_dir / name).mkdir(parents=True)
+    (run_dir / "RUN_STATUS.json").write_text(json.dumps({"run_id": run_dir.name, "status": "CREATED"}))
+    (run_dir / "predictions" / "old.csv").write_text("asof,ts_code,score\n2026-01-01,A,1\n")
+    with pytest.raises(SystemExit, match="predictions/ is not empty"):
+        _assert_untouched_run_dir(run_dir)
+
+
+def test_formal_runner_rejects_unexpected_root_entry(tmp_path):
+    run_dir = tmp_path / "experiments" / ".running" / "run-extra"
+    for name in ("data", "models", "predictions", "selections", "trades", "diagnostics", "logs"):
+        (run_dir / name).mkdir(parents=True)
+    (run_dir / "RUN_STATUS.json").write_text(json.dumps({"run_id": run_dir.name, "status": "CREATED"}))
+    (run_dir / "injected_manifest.json").write_text("{}")
+    with pytest.raises(SystemExit, match="unexpected entries: injected_manifest.json"):
+        _assert_untouched_run_dir(run_dir)
+
+
+def test_formal_runner_rejects_commands_directory(tmp_path):
+    run_dir = tmp_path / "experiments" / ".running" / "run-commands-dir"
+    for name in ("data", "models", "predictions", "selections", "trades", "diagnostics", "logs"):
+        (run_dir / name).mkdir(parents=True)
+    (run_dir / "RUN_STATUS.json").write_text(json.dumps({"run_id": run_dir.name, "status": "CREATED"}))
+    (run_dir / "commands.sh").mkdir()
+    with pytest.raises(SystemExit, match="commands.sh to be a regular file"):
+        _assert_untouched_run_dir(run_dir)
+
+
+def test_formal_runner_rejects_symlinked_run_path(tmp_path):
+    target = tmp_path / "experiments" / ".running" / "real-run"
+    target.mkdir(parents=True)
+    link = tmp_path / "experiments" / ".running" / "link-run"
+    link.symlink_to(target, target_is_directory=True)
+    with pytest.raises(SystemExit, match="symlinked --run-dir"):
+        _resolve_run_dir(link)
+
+
+def test_formal_runner_rejects_run_outside_project_root(tmp_path, monkeypatch):
+    import scripts.rcqt_formal_runner as formal
+
+    project = tmp_path / "project"
+    outside = tmp_path / "outside" / "experiments" / ".running" / "run"
+    outside.mkdir(parents=True)
+    monkeypatch.setattr(formal, "ROOT", project)
+    with pytest.raises(SystemExit, match="under ROOT/experiments/.running"):
+        _resolve_run_dir(outside)
 
 
 def test_run_audit_rejects_non_finite_nav(tmp_path):

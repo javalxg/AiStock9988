@@ -1,0 +1,49 @@
+identity:
+  model_id: xgb_quiet_candidate_ranker_v1
+  version: 1
+  enabled: true
+  algorithm: xgboost_ranker
+  feature_set_id: quiet_candidate_price_volume_9_v1
+  label_profile_id: economic_open_t1_to_h10_v1
+
+scope:
+  training_population: strategy_stage1_candidates
+  prediction_population: strategy_stage1_candidates
+  require_stage1_contract_match: true
+
+features:
+  ids: [ret1, ret20, ret60, dd20, vol20, liq20, volume_ratio_20, dist_ma60, dist_ma60_abs_005]
+  missing_policy: reject_row
+
+label:
+  entry_delay_sessions: 1
+  horizon_sessions: 10
+  entry_price: economic_open
+  exit_price: economic_open
+  require_entry_and_exit_tradable: true
+  target: within_session_date_relevance_quintile
+
+walk_forward:
+  training_window_months: 12
+  retrain_frequency: monthly
+  prediction_frequency: strategy_schedule
+  minimum_training_rows: 10000
+  purge_overlapping_labels: true
+
+params:
+  objective: rank:pairwise
+  n_estimators: 300
+  max_depth: 3
+  learning_rate: 0.03
+  min_child_weight: 20.0
+  subsample: 0.8
+  colsample_bytree: 0.8
+  reg_alpha: 1.0
+  reg_lambda: 5.0
+  random_state: 20260830
+  n_jobs: 1
+  tree_method: hist
+
+prediction:
+  save_all_scored_rows: true
+  tie_breakers: [model_score_desc, rule_score_desc, ts_code_asc]

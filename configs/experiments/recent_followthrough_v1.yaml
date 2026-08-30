@@ -1,0 +1,32 @@
+experiment_id: recent_followthrough_v1
+status: preregistered
+model_training: false
+parameter_sweep: false
+
+candidate_contract:
+  base: quiet_eligible AND right_confirmed AND NOT PIT_ST
+  added_condition: ret5 > 0
+  ret5_definition: economic_close(T) / economic_close(T_minus_5_exchange_session) - 1
+  score: frozen quiet_score
+  pit_rule: available_time <= T_close
+
+execution:
+  decision: T_close
+  entry: T_plus_1_open
+  exit: T_plus_11_open
+  hold_sessions: 10
+  stop_loss_pct: -0.08
+  stop_loss_mode: close_next_session_open
+  max_positions: 4
+  slippage_each_side: [0.001, 0.003]
+
+acceptance:
+  candidate_profit_factor_min: 1.20
+  candidate_mean_lift_vs_universe_positive: true
+  candidate_down8_change_vs_universe_negative: true
+  portfolio_profit_factor_min: 2.0
+  portfolio_max_drawdown_max: 0.15
+  portfolio_return_ex_best_week_positive: true
+  portfolio_return_ex_top3_positive: true
+
+abandonment: fail_any_formal_acceptance_without_threshold_changes

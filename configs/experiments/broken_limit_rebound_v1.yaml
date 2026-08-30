@@ -1,0 +1,73 @@
+experiment_id: broken_limit_rebound_v1
+status: preregistered
+model_training: false
+parameter_sweep: false
+
+design:
+  source: team_joint_quantization_v1_2
+  note: "Preserve probe -> washout -> support -> reclaim logic, but only encode auditable price/amount ratios."
+  video_reference: "Narrative inspiration only; no subjective hot-money or main-force tags are hard-coded."
+
+candidate_contract:
+  t0:
+    required:
+      - raw_close >= up_limit
+      - prior_10_session_limit_up_count == 0
+    recorded_covariates:
+      - t0_amount_vs_prior20_median
+      - t0_dist_ma60
+  t1:
+    required:
+      - next_session_raw_close < next_session_raw_open
+      - next_session_raw_close / t0_raw_close - 1 <= -0.05
+      - next_session_amount / t0_amount >= 1.5
+      - next_session_raw_close > next_session_down_limit
+  t2:
+    window_sessions_after_t1: 3
+    support_definition: max(t0_raw_open, t1_raw_low)
+    invalidation:
+      - two_consecutive_raw_closes_below_support_before_reclaim
+    trigger:
+      - first_raw_close >= t0_raw_close
+      - amount / prior20_median_amount >= 1.2
+  score:
+    formula: "0.50 * reclaim_vs_t0_close + 0.30 * support_buffer + 0.20 * washout_ratio"
+    fields:
+      - reclaim_vs_t0_close
+      - support_buffer
+      - washout_ratio
+  pit_rule: "decision at T2 close; exclude exact PIT ST keys on T2"
+
+selection:
+  max_positions: 4
+  target_weight: 0.12
+  ranking: descending selection_score, then ts_code
+
+execution:
+  decision: T2_close
+  entry: T3_open
+  exit: T_plus_11_open
+  hold_sessions: 10
+  stop_loss_pct: -0.08
+  stop_loss_mode: close_next_session_open
+  lot_size: 100
+  accounting_price_basis: raw
+  slippage_each_side: [0.001, 0.003]
+  max_order_to_adv20: null
+  failed_entry_policy: record_unfilled_do_not_retry
+
+diagnostics:
+  required_outputs:
+    - event_ledger
+    - candidate_ledger
+    - selection_ledger
+    - mature_event_ledger
+    - win_loss_covariates
+    - backtest_metrics
+
+acceptance:
+  portfolio_profit_factor_min: 2.0
+  portfolio_max_drawdown_max: 0.15
+  portfolio_return_ex_best_week_positive: true
+
+abandonment: fail_formal_acceptance_without_contract_changes

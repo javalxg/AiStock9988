@@ -1,0 +1,85 @@
+identity:
+  strategy_id: m5_confirmed_entry_v1
+  version: 1
+  mode: rules
+  hypothesis_id: stage1.quiet_confirmed_m5_entry
+
+universe:
+  source: frozen_candidate_ledger
+  exclude_suffixes: [.BJ]
+  exclude_pit_st: true
+  require_listed_on_signal: true
+
+data_policy:
+  dense_required:
+    selection: [market_daily_ts, adj_factor_ts]
+    training: [market_daily_ts, adj_factor_ts]
+    execution: [market_daily_ts, adj_factor_ts, stk_limit_ts, execution_5min]
+  sparse_event: [stock_st_ts, suspend_d_ts, corporate_actions]
+  optional_enrichment: []
+  forward_min_coverage: 0.90
+  missing_action:
+    selection: exclude_stock_session
+    training: exclude_sample
+    entry: skip_and_ranked_fallback
+    held_position: carry_last_mark_and_retry
+
+decision:
+  frequency: daily
+  session_selector: all
+  decision_time: "15:00:00 Asia/Shanghai"
+  entry_delay_sessions: 1
+
+features:
+  source: frozen_quiet_confirmed_candidate_view
+
+stage1:
+  expression:
+    all:
+      - {left: candidate_rank, op: gt, value: 0}
+
+ranking:
+  method: frozen_candidate_rank
+  terms:
+    - {feature: candidate_rank, direction: asc, weight: 1.0}
+
+portfolio:
+  candidate_view_size: 20
+  entries_per_decision: 5
+  max_open_positions: 5
+  target_gross_exposure_cap: 0.50
+  sizing: {method: fixed_fraction_of_decision_nav, value: 0.10}
+  duplicate_symbol: skip
+  exit_pending_occupies_slot: true
+
+execution:
+  initial_cash: 1000000.0
+  entry_price: next_session_5min_confirmed_open
+  hold_sessions_from_fill: 10
+  exit_price: next_tradable_raw_open
+  stop:
+    trigger: intraday_low
+    threshold_pct: -0.08
+    execute: next_tradable_5min_price
+  confirmation:
+    bars_local: ["09:35", "09:40", "09:45", "09:50", "09:55", "10:00"]
+    close_gt_open: true
+    close_ge_signal_close: true
+    fill_bar_local: "10:05"
+  h5_gate:
+    non_positive_exit: next_session_open
+    positive_exit: h10
+  lot_size: 100
+  accounting_basis: raw_with_corporate_actions
+  adv20_max_participation: 0.02
+  amount_unit_multiplier: 1000.0
+  end_policy: mark_open_positions
+  cost_scenarios:
+    base: {slippage_each_side: 0.001, buy_commission: 0.0003, sell_commission: 0.0003, stamp_duty: 0.0005}
+    stress: {slippage_each_side: 0.003, buy_commission: 0.0003, sell_commission: 0.0003, stamp_duty: 0.0005}
+
+acceptance:
+  portfolio_profit_factor_min: 2.0
+  max_drawdown_abs_max: 0.15
+  return_excluding_best_week_min_exclusive: 0.0
+  parameter_sweep: false

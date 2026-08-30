@@ -1,11 +1,16 @@
 """Production execution-price loader with explicit raw/economic separation."""
 from __future__ import annotations
 
+import logging
+
 import pandas as pd
 
 from ..execution.prices import validate_execution_panel
 from .quantdb import readonly_connection
 from ..time.session import parse_source_time, session_close, session_open
+
+
+LOGGER = logging.getLogger(__name__)
 
 
 def normalize_execution_panel(frame: pd.DataFrame) -> pd.DataFrame:
@@ -25,8 +30,22 @@ def normalize_execution_panel(frame: pd.DataFrame) -> pd.DataFrame:
     if "up_limit" in out and "down_limit" in out:
         out["up_limit"] = pd.to_numeric(out["up_limit"], errors="coerce")
         out["down_limit"] = pd.to_numeric(out["down_limit"], errors="coerce")
-        if out[["up_limit", "down_limit"]].isna().any().any():
-            raise ValueError("execution source has missing daily limit prices")
+        invalid_limit = (
+            out["up_limit"].isna()
+            | out["down_limit"].isna()
+            | (out["up_limit"] >= 99999.0)
+            | (out["down_limit"] >= 99999.0)
+        )
+        if invalid_limit.any():
+            bad = out.loc[invalid_limit, ["ts_code", "trade_date"]]
+            LOGGER.warning(
+                "dropping %d execution rows with missing or sentinel daily limit prices; examples=%s",
+                len(bad),
+                bad.head(5).to_dict("records"),
+            )
+            out = out.loc[~invalid_limit].copy()
+        if out.empty:
+            raise ValueError("execution source has no rows with valid daily limit prices")
         out["is_limit_up"] = out["open"] >= out["up_limit"]
         out["is_limit_down"] = out["open"] <= out["down_limit"]
     if "available_time" not in out:
@@ -76,6 +95,16 @@ def load_execution_panel(start: str, end: str, *, ts_codes: list[str] | None = N
             " ORDER BY m.trade_date, m.ts_code",
             conn, params=tuple(params),
         )
+    invalid_price = frame[["open", "high", "low", "close", "adj_factor"]].le(0).any(axis=1)
+    if invalid_price.any():
+        # Some market snapshots encode a suspension/no-trade day as zero
+        # OHLC while the suspension table is incomplete.  Such a row cannot
+        # be executed or marked; omit it so the engine carries the prior mark,
+        # and retain an explicit warning for the run log.
+        bad = frame.loc[invalid_price, ["ts_code", "trade_date"]]
+        LOGGER.warning("dropping %d non-tradable execution rows with non-positive prices; examples=%s",
+                       len(bad), bad.head(5).to_dict("records"))
+        frame = frame.loc[~invalid_price].copy()
     update_cols = [c for c in ("market_update_time", "adj_update_time", "limit_update_time",
                                "suspension_update_time") if c in frame]
     if frame.empty:
@@ -117,6 +146,24 @@ def load_market_context_panel(start: str, end: str) -> pd.DataFrame:
     frame["raw_close"] = pd.to_numeric(frame["raw_close"], errors="raise")
     frame["pct_chg"] = pd.to_numeric(frame["pct_chg"], errors="raise")
     frame["amount"] = pd.to_numeric(frame["amount"], errors="coerce")
+    frame["up_limit"] = pd.to_numeric(frame["up_limit"], errors="coerce")
+    frame["down_limit"] = pd.to_numeric(frame["down_limit"], errors="coerce")
+    invalid_limit = (
+        frame["up_limit"].isna()
+        | frame["down_limit"].isna()
+        | (frame["up_limit"] >= 99999.0)
+        | (frame["down_limit"] >= 99999.0)
+    )
+    if invalid_limit.any():
+        bad = frame.loc[invalid_limit, ["ts_code", "trade_date"]]
+        LOGGER.warning(
+            "dropping %d market context rows with missing or sentinel daily limit prices; examples=%s",
+            len(bad),
+            bad.head(5).to_dict("records"),
+        )
+        frame = frame.loc[~invalid_limit].copy()
+    if frame.empty:
+        raise ValueError("no market context rows with valid daily limit prices")
     # The DB is a frozen historical snapshot; source update_time is batch
     # ingestion metadata, not historical publication time.
     frame["available_time"] = frame["trade_date"].map(session_close)

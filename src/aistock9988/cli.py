@@ -14,7 +14,13 @@ import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
 
-from aistock9988.audit.run import RunAuditError, audit_run, write_audit_report
+from aistock9988.audit.run import (
+    RunAuditError,
+    audit_run,
+    build_completion_seal,
+    reverify_run as audit_completed_run,
+    write_audit_report,
+)
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -62,41 +68,74 @@ def init_run(name: str) -> Path:
     (running / "RUN_STATUS.json").write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + "\n")
     (running / "commands.sh").write_text(
         "#!/usr/bin/env bash\nset -euo pipefail\n"
-        f"PYTHONPATH=src python3 scripts/q70_source_parity_runner.py --run-dir '{running}' "
-        "--config configs/experiments/q70_source_parity_t10_20260822.yaml\n"
+        f"# Runner command is selected by the experiment package; run_id={run_id}\n"
     )
     return running
+
+
+def _write_json_atomic(path: Path, payload: dict) -> None:
+    fd, temp_name = tempfile.mkstemp(prefix=f".{path.name}.", dir=path.parent, text=True)
+    try:
+        with os.fdopen(fd, "w") as handle:
+            json.dump(payload, handle, ensure_ascii=False, indent=2)
+            handle.write("\n")
+        os.replace(temp_name, path)
+    except Exception:
+        Path(temp_name).unlink(missing_ok=True)
+        raise
+
+
+def _update_run_status(path: Path, **updates: object) -> dict:
+    status_path = path / "RUN_STATUS.json"
+    try:
+        status = json.loads(status_path.read_text())
+    except (OSError, json.JSONDecodeError) as exc:
+        raise RunAuditError("invalid RUN_STATUS.json") from exc
+    status.update(updates)
+    _write_json_atomic(status_path, status)
+    return status
 
 
 def verify_run(path: Path) -> dict:
     report = audit_run(path)
     write_audit_report(path, report)
+    _update_run_status(path, status="VERIFIED", audit_artifact_count=report["artifact_count"])
     return report
 
 
 def complete_run(path: Path) -> Path:
     path = path.resolve()
-    report = audit_run(path)
-    write_audit_report(path, report)
-    status_path = path / "RUN_STATUS.json"
-    status = json.loads(status_path.read_text())
-    status.update({"status": "COMPLETED", "completed_at": datetime.now(timezone.utc).isoformat(),
-                   "audit_artifact_count": report["artifact_count"]})
-    fd, temp_name = tempfile.mkstemp(prefix=".RUN_STATUS.", dir=path, text=True)
     try:
-        with os.fdopen(fd, "w") as handle:
-            json.dump(status, handle, ensure_ascii=False, indent=2)
-            handle.write("\n")
-        os.replace(temp_name, status_path)
-    except Exception:
-        Path(temp_name).unlink(missing_ok=True)
-        raise
+        current_status = json.loads((path / "RUN_STATUS.json").read_text()).get("status")
+    except (OSError, json.JSONDecodeError) as exc:
+        raise RunAuditError("invalid RUN_STATUS.json") from exc
+    if current_status != "VERIFIED":
+        raise RunAuditError("run must pass verify-run before complete-run")
     destination = ROOT / "experiments" / "completed" / path.name
     if destination.exists():
         raise FileExistsError(f"completed run already exists: {destination}")
+    report = audit_run(path)
+    audit_path = write_audit_report(path, report)
+    original_status = json.loads((path / "RUN_STATUS.json").read_text())
+    final_status = dict(original_status)
+    final_status.update({
+        "status": "COMPLETED",
+        "completed_at": datetime.now(timezone.utc).isoformat(),
+        "audit_artifact_count": report["artifact_count"],
+    })
+    final_status["completion_seal"] = build_completion_seal(final_status, audit_path)
+    _write_json_atomic(path / "RUN_STATUS.json", final_status)
     destination.parent.mkdir(parents=True, exist_ok=True)
-    os.replace(path, destination)
+    try:
+        os.replace(path, destination)
+    except Exception:
+        _write_json_atomic(path / "RUN_STATUS.json", original_status)
+        raise
     return destination
+
+
+def reverify_run(path: Path) -> dict:
+    return audit_completed_run(path)
 
 
 def main() -> int:
@@ -107,6 +146,8 @@ def main() -> int:
     p = sub.add_parser("verify-run")
     p.add_argument("run_dir", type=Path)
     p = sub.add_parser("complete-run")
+    p.add_argument("run_dir", type=Path)
+    p = sub.add_parser("reverify-run")
     p.add_argument("run_dir", type=Path)
     args = parser.parse_args()
     if args.command == "init-run":
@@ -124,6 +165,13 @@ def main() -> int:
             print(complete_run(args.run_dir))
         except (RunAuditError, FileExistsError) as exc:
             parser.error(str(exc))
+        return 0
+    if args.command == "reverify-run":
+        try:
+            report = reverify_run(args.run_dir)
+        except RunAuditError as exc:
+            parser.error(str(exc))
+        print(json.dumps(report, ensure_ascii=False, indent=2))
         return 0
     return 2
 

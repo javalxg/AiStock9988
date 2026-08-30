@@ -34,6 +34,20 @@ def test_backtest_uses_next_open_and_final_liquidation():
     assert "equal_trade_return_ratio" in metrics and "economic_trade_return_ratio" in metrics
 
 
+def test_missing_execution_price_is_retained_as_pending_order():
+    signals = pd.DataFrame({"asof": ["2026-08-20"], "ts_code": ["MISSING"], "candidate_rank": [1],
+                            "selected": [True], "selection_decision_id": ["d1"], "policy_id": ["rcqt"]})
+    prices = _complete_prices(pd.DataFrame({"trade_date": ["2026-08-20", "2026-08-21"], "ts_code": ["OTHER", "OTHER"],
+                           "raw_open": [10.0, 10.0], "raw_high": [10.0, 10.0], "raw_low": [10.0, 10.0], "raw_close": [10.0, 10.0],
+                           "economic_open": [10.0, 10.0], "economic_high": [10.0, 10.0], "economic_low": [10.0, 10.0],
+                           "economic_close": [10.0, 10.0], "adj_factor": [1.0, 1.0]}))
+    result = run_backtest(signals, prices, config=BacktestConfig(initial_cash=1000))
+    order = result["orders"].iloc[0]
+    assert order.ts_code == "MISSING"
+    assert order.status == "PENDING"
+    assert order.final_reason == "pending_missing_price"
+
+
 def test_stop_loss_uses_economic_price_but_executes_raw_price():
     signals = pd.DataFrame({"asof": ["2026-08-20"], "ts_code": ["A"], "candidate_rank": [1], "selected": [True], "selection_decision_id": ["d1"], "policy_id": ["p1"]})
     prices = _complete_prices(pd.DataFrame({"trade_date": ["2026-08-20", "2026-08-21", "2026-08-22", "2026-08-23"],
