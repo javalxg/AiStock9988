@@ -21,6 +21,9 @@ request for an `APPROVE`, `REVISE`, or `REJECT` decision:
 3. `deepseek_steady_climb_review`: terminated with upstream HTTP 502.
 4. `deepseek_f0_next_step_review_20260901` was retried after the preregistration
    was pushed and again terminated with upstream HTTP 502 before returning text.
+5. `deepseek_reset_v3_review_resume` was used for a final live service check on
+   the third consecutive goal turn and terminated with upstream HTTP 502 before
+   returning text.
 
 All failures occurred before any DeepSeek response text was returned. Earlier
 DeepSeek tasks also reported HTTP 402 insufficient balance. A submitted request
