@@ -74,3 +74,28 @@ data cover `2026-09-01`, but the factor provider still materializes F0 only
 through `2026-08-28`; F0 row count is zero on `2026-08-31` and `2026-09-01`.
 Therefore no first forward signal exists yet. The state is
 `WAITING_FOR_COMMON_F0`, not a skipped model or fallback selection.
+
+## Operational Commands
+
+Readiness check:
+
+```bash
+AISTOCK_DB_HOST=127.0.0.1 AISTOCK_DB_PORT=3306 \
+AISTOCK_DB_USER=root AISTOCK_DB_PASSWORD="$AISTOCK_DB_PASSWORD" AISTOCK_DB_NAME=quant_db \
+PYTHONPATH=src python3 scripts/f0_123_executable_forward_preflight.py \
+  --output docs/council_20260828/F0_123_EXECUTABLE_V2_FORWARD_PREFLIGHT_<DATE>.json
+```
+
+Freeze a signal only after the readiness result is
+`READY_TO_FREEZE_FIRST_FORWARD_SIGNAL`:
+
+```bash
+AISTOCK_DB_HOST=127.0.0.1 AISTOCK_DB_PORT=3306 \
+AISTOCK_DB_USER=root AISTOCK_DB_PASSWORD="$AISTOCK_DB_PASSWORD" AISTOCK_DB_NAME=quant_db \
+PYTHONPATH=src:scripts python3 scripts/f0_123_executable_forward_runner.py
+```
+
+The password remains process-only and is intentionally omitted. A waiting or
+non-capacity result must not create the lockbox. A successful result appends one
+hash-chained score/candidate/selection batch and never persists a model, label,
+price panel, or raw business-data snapshot.

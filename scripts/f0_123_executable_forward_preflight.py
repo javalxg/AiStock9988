@@ -81,8 +81,10 @@ def run(profile_path: Path) -> dict[str, Any]:
     coverage = _coverage(diagnostic_start, diagnostic_end)
     f0_ratio = float(readiness["minimum_f0_to_market_row_ratio"])
     basic_ratio = float(readiness["minimum_daily_basic_to_market_row_ratio"])
+    latest_market_session = None if coverage.empty else coverage["trade_date"].max()
     eligible = coverage[
         coverage["trade_date"].ge(pd.Timestamp(forward_not_before, tz="UTC"))
+        & coverage["trade_date"].eq(latest_market_session)
         & coverage["market_rows"].gt(0)
         & coverage["adj_rows"].eq(coverage["market_rows"])
         & coverage["limit_rows"].eq(coverage["market_rows"])
@@ -102,6 +104,9 @@ def run(profile_path: Path) -> dict[str, Any]:
         "forward_not_before": forward_not_before,
         "observed_through": config["timeline"]["observed_through"],
         "latest_dense_required_cutoff": latest_dense,
+        "latest_market_session": (
+            None if latest_market_session is None else str(latest_market_session.date())
+        ),
         "source_cutoffs": cutoffs,
         "first_eligible_forward_signal": first_eligible,
         "recent_session_coverage": recent.to_dict("records"),
