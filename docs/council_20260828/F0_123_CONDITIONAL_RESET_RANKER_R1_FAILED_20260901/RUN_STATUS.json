@@ -1,0 +1,13 @@
+{
+  "status": "FAILED_BEFORE_MODEL_AND_PORTFOLIO",
+  "failed_phase": "january_2026_training_dataset",
+  "error_type": "ValueError",
+  "error": "conditional_f0_123_202601 has no valid ranking dataset",
+  "models_trained": 0,
+  "predictions_created": 0,
+  "portfolio_backtests_run": 0,
+  "return_available": false,
+  "credentials_persisted": false,
+  "business_data_persisted": false
+}
+

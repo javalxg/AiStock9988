@@ -1,0 +1,18 @@
+{
+  "period_start": "2025-01-02",
+  "period_end": "2025-01-31",
+  "source_rows": 96687,
+  "source_sessions": 18,
+  "all_123_finite_rows": 0,
+  "all_123_finite_sessions": 0,
+  "all_123_finite_ratio": 0.0,
+  "columns_always_present": 22,
+  "columns_with_any_missing": 101,
+  "fully_missing_columns": {
+    "dv_ttm": 96687,
+    "ps_ttm": 96687
+  },
+  "audit_scope": "full F0 source month, aggregate counts only",
+  "business_data_persisted": false
+}
+
