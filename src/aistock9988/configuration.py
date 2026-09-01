@@ -198,20 +198,6 @@ class StrategyConfig:
             )
         if int(execution.get("hold_sessions_from_fill", 0)) <= 0:
             raise ValueError("execution.hold_sessions_from_fill must be positive")
-        extension = _mapping(
-            execution.get("time_exit_extension", {}),
-            "execution.time_exit_extension",
-        )
-        if bool(extension.get("enabled", False)):
-            if str(extension.get("condition")) != "prior_close_unrealized_positive":
-                raise ValueError(
-                    "time_exit_extension.condition must be prior_close_unrealized_positive"
-                )
-            extended_hold = int(extension.get("extended_hold_sessions_from_fill", 0))
-            if extended_hold <= int(execution["hold_sessions_from_fill"]):
-                raise ValueError(
-                    "time_exit_extension extended hold must exceed the base hold"
-                )
         exit_price = str(execution.get("exit_price", "next_tradable_raw_open"))
         if exit_price not in {"next_tradable_raw_open", "same_session_raw_close"}:
             raise ValueError(

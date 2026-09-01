@@ -13,6 +13,8 @@ out-of-sample claim.
 - Same in-memory candidates, decisions, prices and corporate actions; only H10
   prior-close-profitable positions may extend to H20.
 - No raw business data, model, CSV, or Parquet artifact was written.
+- Exact reproduction code/config is preserved in Git commit `c44b57d`; the
+  rejected executable path is removed from the current mainline.
 
 ## Paired portfolio result
 
