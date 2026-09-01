@@ -1,0 +1,42 @@
+{
+  "audit_date": "2026-09-01",
+  "mode": "aggregate_event_path_diagnostic_not_portfolio_backtest",
+  "source_cutoff": "2026-08-18",
+  "execution_panel_cutoff": "2026-08-28",
+  "contract": {
+    "signal_time": "after top-list event session close",
+    "entry": "next exchange session economic open",
+    "eligibility": "canonical V3 universe and execution_data_eligible at entry and endpoint; finite positive prices only",
+    "institution": "sum net_buy only for top_inst_ts rows where exalter='机构专用'",
+    "top_list": "preserve reason set by stock-day; never sum top_list_ts.net_amount across reasons",
+    "up_reason": "at least one top-list reason contains 涨幅",
+    "horizon": "Hn is entry open to open n exchange sessions after entry"
+  },
+  "coverage_2025_to_2026_08_18": {
+    "top_list_rows": 30792,
+    "top_list_stock_days": 28066,
+    "true_institution_rows": 25120,
+    "true_institution_stock_days": 15866
+  },
+  "up_and_institution_net_positive": {
+    "2025": {
+      "gap_t_close_to_entry_open": {"n": 2164, "mean": 0.013232, "win_rate": 0.564233, "profit_factor": 2.307824, "ex_top3_mean": 0.012973},
+      "entry_day_open_to_close": {"n": 2164, "mean": 0.004712, "win_rate": 0.473198, "profit_factor": 1.226055, "ex_top3_mean": 0.004319},
+      "h1": {"n": 2159, "mean": -0.000421, "win_rate": 0.438629, "profit_factor": 0.984446, "ex_top3_mean": -0.000880},
+      "h2": {"n": 2159, "mean": -0.001966, "win_rate": 0.435387, "profit_factor": 0.947043, "ex_top3_mean": -0.002649},
+      "h3": {"n": 2159, "mean": -0.002437, "win_rate": 0.414080, "profit_factor": 0.944757, "ex_top3_mean": -0.003239},
+      "h5": {"n": 2157, "mean": -0.002066, "win_rate": 0.401947, "profit_factor": 0.961144, "ex_top3_mean": -0.003634},
+      "h10": {"n": 2154, "mean": 0.002435, "win_rate": 0.405757, "profit_factor": 1.037300, "ex_top3_mean": 0.000798}
+    },
+    "2026": {
+      "gap_t_close_to_entry_open": {"n": 1861, "mean": 0.010043, "win_rate": 0.529285, "profit_factor": 1.915947, "ex_top3_mean": 0.009736},
+      "entry_day_open_to_close": {"n": 1861, "mean": 0.003439, "win_rate": 0.493821, "profit_factor": 1.166393, "ex_top3_mean": 0.003086},
+      "h1": {"n": 1858, "mean": -0.001359, "win_rate": 0.467707, "profit_factor": 0.949220, "ex_top3_mean": -0.001901},
+      "h2": {"n": 1857, "mean": -0.001910, "win_rate": 0.453958, "profit_factor": 0.947576, "ex_top3_mean": -0.002903},
+      "h3": {"n": 1854, "mean": -0.003534, "win_rate": 0.441208, "profit_factor": 0.919773, "ex_top3_mean": -0.004841},
+      "h5": {"n": 1853, "mean": -0.011190, "win_rate": 0.420939, "profit_factor": 0.807068, "ex_top3_mean": -0.012258},
+      "h10": {"n": 1836, "mean": -0.015286, "win_rate": 0.400871, "profit_factor": 0.804438, "ex_top3_mean": -0.016891}
+    }
+  },
+  "decision": "DIRECT_T1_OPEN_CHASE_REFUTED; EVENT_SOURCE_RETAINED_FOR_ONE_PREREGISTERED_PULLBACK_RECLAIM_DIAGNOSTIC"
+}

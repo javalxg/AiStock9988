@@ -33,7 +33,8 @@
       "rows_snapshot_later_than_next_calendar_date": 134129,
       "rows_snapshot_before_trade_date_close": 0,
       "trade_dates_in_2026": 92,
-      "decision": "BLOCKED_SPARSE_AND_LATE_SNAPSHOT"
+      "snapshot_time_semantics": "Assigned from datetime.now() during historical ingestion; not proven content observation time",
+      "decision": "BLOCKED_SPARSE_AND_OBSERVATION_TIME_UNPROVEN"
     },
     "dc_hot_snapshot_ts": {
       "min_trade_date": "2025-05-06",
@@ -45,7 +46,8 @@
       "rows_snapshot_next_calendar_date": 2386,
       "rows_snapshot_later_than_next_calendar_date": 26906,
       "rows_snapshot_before_trade_date_close": 0,
-      "decision": "BLOCKED_SPARSE_AND_LATE_SNAPSHOT"
+      "snapshot_time_semantics": "Ingestion timestamp alone is not evidence of content visibility",
+      "decision": "BLOCKED_SPARSE_AND_OBSERVATION_TIME_UNPROVEN"
     },
     "institutional_event_history": {
       "return": -0.0647,
@@ -54,6 +56,21 @@
       "mean_weekly_return": -0.002,
       "evidence": "/Users/lxg/quant/deltafstation/doc/research/CURRENT_V6_HANDOFF.md:2409",
       "decision": "REJECTED_EXISTING_EXPERIMENT"
+    },
+    "dragon_tiger_event_source": {
+      "tables": [
+        "top_list_ts",
+        "top_inst_ts"
+      ],
+      "max_trade_date": "2026-08-18",
+      "top_list_rows_2026": 12774,
+      "top_list_stock_days_2026": 11714,
+      "top_list_trade_dates_2026": 151,
+      "top_list_unique_codes_2026": 2955,
+      "true_institution_rows_2026": 11669,
+      "true_institution_stock_days_2026": 7162,
+      "contract": "Aggregate net_buy only for top_inst_ts.exalter='机构专用'; preserve top_list reasons as a set and never sum top_list.net_amount across reasons",
+      "decision": "AUTHORIZED_FOR_EVENT_PATH_DIAGNOSTIC_THROUGH_2026_08_18"
     },
     "daily_moneyflow_and_chip_history": {
       "evidence": [
@@ -65,5 +82,5 @@
   },
   "wide_factor_202_used": false,
   "strategy_or_model_run": false,
-  "result": "NO_CURRENT_SOURCE_AUTHORIZES_A_NEW_STRONG_REGIME_BACKTEST"
+  "result": "DRAGON_TIGER_EVENT_PATH_DIAGNOSTIC_AUTHORIZED; NO_NEW_PORTFOLIO_BACKTEST_AUTHORIZED"
 }
