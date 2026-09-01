@@ -1,0 +1,36 @@
+{
+  "label_audit": {
+    "calendar_horizon_rows": 695253,
+    "excluded_price_or_path_rows": 2720,
+    "label_rows": 692533,
+    "mean_label": 0.011741082244320605,
+    "path_stop_rows": 145679,
+    "positive_label_rate": 0.4946435765515867,
+    "requested_rows": 695253
+  },
+  "prediction_feature_rows": 153753,
+  "prediction_features_sha256": "8d156fc265056cef6a47534bee34bc021d69ccf39ffc14e064c962954175e382",
+  "prediction_rows": 153753,
+  "preprocessing": {
+    "eligible_rows": 1937782,
+    "maximum_rows_per_date": 1500,
+    "minimum_non_null_features": 61,
+    "output_rows": 695253,
+    "output_sessions": 392,
+    "source_rows": 1937782,
+    "source_sessions": 392
+  },
+  "signal_sessions": 31,
+  "training_feature_rows": 588000,
+  "training_feature_sessions": 392,
+  "training_features_sha256": "7c5e9293ed742d798d8b8fb5466a90c334d391e79aae27df78a479798699be4e",
+  "universe_filter": {
+    "delisted_rows": 0,
+    "eligible_rows": 1937782,
+    "excluded_suffix_rows": 111561,
+    "listing_age_rows": 23655,
+    "not_listed_rows": 1399,
+    "pit_st_rows": 66426,
+    "source_rows": 2131840
+  }
+}

@@ -1,0 +1,87 @@
+identity:
+  strategy_id: f0_123_full_market_top5_v1
+  version: 1
+  mode: rules
+  hypothesis_id: full_market.f0_123_grouped_rank_top20_to_top5
+  research_status: historical
+
+universe:
+  source: database_stock_basic
+  exclude_suffixes: [.BJ]
+  exclude_pit_st: true
+  require_listed_on_signal: true
+  min_listed_sessions: 120
+
+data_policy:
+  dense_required:
+    selection: [market_daily_ts, adj_factor_ts, stk_limit_ts]
+    training: [market_daily_ts, adj_factor_ts]
+    execution: [market_daily_ts, adj_factor_ts, stk_limit_ts]
+  sparse_event: [stock_st_ts, suspend_d_ts, stk_auction_o_ts, corporate_actions]
+  optional_enrichment: []
+  source_availability: {}
+  missing_action:
+    selection: exclude_stock_session
+    training: exclude_sample
+    entry: skip_and_ranked_fallback
+    held_position: carry_last_mark_and_retry
+
+decision:
+  frequency: weekly
+  session_selector: last_session_of_week
+  decision_time: "15:00:00 Asia/Shanghai"
+  entry_delay_sessions: 1
+
+features:
+  model_history_anchor: {provider: registered_f0_history, window_sessions: 260}
+
+stage1:
+  expression: {left: economic_close, op: gt, value: 0.0}
+
+ranking:
+  method: model_score_desc
+  terms:
+    - {feature: model_score, direction: desc, weight: 1.0}
+  tie_breakers: [model_score_desc, ts_code_asc]
+
+portfolio:
+  candidate_view_size: 20
+  candidate_min_daily_view_ratio: 0.80
+  allow_sparse_candidate_view: true
+  entries_per_decision: 5
+  max_open_positions: 5
+  target_gross_exposure_cap: 1.0
+  sizing: {method: fixed_fraction_of_decision_nav, value: 0.20}
+  duplicate_symbol: skip
+  exit_pending_occupies_slot: true
+
+execution:
+  initial_cash: 1000000.0
+  entry_price: next_session_raw_open
+  hold_sessions_from_fill: 10
+  exit_price: next_tradable_raw_open
+  stop:
+    trigger: close
+    threshold_pct: -0.08
+    execute: next_tradable_open
+    mode: from_entry
+  buy_untradable: same_decision_ranked_replacement
+  sell_untradable: retain_and_retry
+  lot_size: 100
+  accounting_basis: raw_with_corporate_actions
+  amount_unit: thousand_rmb
+  amount_unit_multiplier: 1000.0
+  adv20_max_participation: 0.02
+  end_policy: mark_open_positions
+  cost_scenarios:
+    base: {slippage_each_side: 0.001, buy_commission: 0.0003, sell_commission: 0.0003, stamp_duty: 0.0005}
+    stress: {slippage_each_side: 0.003, buy_commission: 0.0003, sell_commission: 0.0003, stamp_duty: 0.0005}
+
+acceptance:
+  portfolio_profit_factor_min: 2.0
+  max_drawdown_abs_max: 0.15
+  return_excluding_best_week_min_exclusive: 0.0
+  minimum_closed_trades: 20
+  minimum_active_signal_days: 20
+  max_feature_warmup_days: 260
+  parameter_sweep: false
