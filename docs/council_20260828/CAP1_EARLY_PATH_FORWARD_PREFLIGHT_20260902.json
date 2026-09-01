@@ -1,0 +1,28 @@
+{
+  "common_data_cutoff": "2026-09-01",
+  "created_at": "2026-09-01T17:16:11.845570+00:00",
+  "data_max_by_source": {
+    "adj_factor_ts": "2026-09-01",
+    "market_daily_ts": "2026-09-01",
+    "stk_limit_ts": "2026-09-01"
+  },
+  "database_query_read_only": true,
+  "forward_start": "2026-09-01",
+  "no_future_rows_used": true,
+  "overlay_config_sha256": "5f967470de19401793903af40c3e0796d950df9605b4ab6760f19d9d86c805bb",
+  "overlay_id": "cap1_early_path_forward",
+  "overlay_prereg_sha256": "706de2d131cfe6444424097461b8c0493a991ee037ad8faf50aa805fccedbdf3",
+  "overlay_registration_sha256": "859382b89eb4d90a3b276670bb0dd799d536ce60ef2ef4eff388e4acb1a11d84",
+  "reason": "target_exists_in_lockbox",
+  "registered_code_manifest_sha256": "c6c8ca04b8ac2947100eaf3bb5cc6e302c16bc700723c160b2ccb49d8d5f8599",
+  "required_sources": [
+    "adj_factor_ts",
+    "market_daily_ts",
+    "stk_limit_ts"
+  ],
+  "research_status": "forward_only",
+  "status": "ALREADY_FROZEN",
+  "strategy_config_sha256": "ce2e61c82fd07e434ffed85b94d1b368a66480c1f6da77d270d44e281a1e128b",
+  "strategy_id": "reset_weak_confirm_v3_cap1_20_forward",
+  "target_asof": "2026-09-01"
+}
