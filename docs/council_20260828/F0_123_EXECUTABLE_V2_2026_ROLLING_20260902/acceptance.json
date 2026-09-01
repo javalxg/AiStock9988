@@ -1,0 +1,29 @@
+{
+  "passed": false,
+  "scenarios": {
+    "base": {
+      "passed": false,
+      "tests": {
+        "excluding_best_week_positive": false,
+        "excluding_top3_positive": false,
+        "maxdd_limit": false,
+        "minimum_closed_trades": true,
+        "pf_minimum": false,
+        "position_cap": true,
+        "trade_win_rate_minimum": false
+      }
+    },
+    "stress": {
+      "passed": false,
+      "tests": {
+        "excluding_best_week_positive": false,
+        "excluding_top3_positive": false,
+        "maxdd_limit": false,
+        "minimum_closed_trades": true,
+        "pf_minimum": false,
+        "position_cap": true,
+        "trade_win_rate_minimum": false
+      }
+    }
+  }
+}

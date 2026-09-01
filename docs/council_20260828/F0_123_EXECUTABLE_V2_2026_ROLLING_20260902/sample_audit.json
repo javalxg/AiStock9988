@@ -1,0 +1,55 @@
+{
+  "label_audit": {
+    "calendar_resolved_signal_rows": 717385,
+    "entry_rejected_rows": 4910,
+    "label_rows": 692682,
+    "labels_clamped": false,
+    "maximum_exit_retry_sessions": 327,
+    "maximum_label_return": 8.824099519840232,
+    "mean_label_return": 0.004561121196613057,
+    "mean_stop_crossing_return": -0.10155568202057837,
+    "mean_stop_label_return": -0.10346065908381397,
+    "minimum_label_return": -0.9519739425890208,
+    "profile": {
+      "buy_commission": 0.0003,
+      "buy_slippage": 0.001,
+      "entry_delay_sessions": 1,
+      "hold_sessions_from_fill": 10,
+      "id": "label.executable_path_open_open_t10_base.v1",
+      "sell_commission": 0.0003,
+      "sell_slippage": 0.001,
+      "stamp_duty": 0.0005,
+      "stop_threshold_pct": -0.08
+    },
+    "requested_rows": 717385,
+    "retried_exit_rows": 5038,
+    "stop_rows": 149373,
+    "time_exit_rows": 543309,
+    "unresolved_exit_rows": 19793
+  },
+  "prediction_feature_rows": 163885,
+  "prediction_features_sha256": "6900ce7afeb5082e1d27f3c334030ce98e0c6d38cac3ef4a048999f97af183f8",
+  "prediction_rows": 163885,
+  "preprocessing": {
+    "eligible_rows": 1988442,
+    "maximum_rows_per_date": 1500,
+    "minimum_non_null_features": 61,
+    "output_rows": 717385,
+    "output_sessions": 402,
+    "source_rows": 1988442,
+    "source_sessions": 402
+  },
+  "signal_sessions": 33,
+  "training_feature_rows": 603000,
+  "training_feature_sessions": 402,
+  "training_features_sha256": "d5e440cdb08d9ecadb478a2387c00034e0f1309824bb53d3af528b43326b264b",
+  "universe_filter": {
+    "delisted_rows": 0,
+    "eligible_rows": 1988442,
+    "excluded_suffix_rows": 114841,
+    "listing_age_rows": 24327,
+    "not_listed_rows": 1749,
+    "pit_st_rows": 67456,
+    "source_rows": 2187133
+  }
+}

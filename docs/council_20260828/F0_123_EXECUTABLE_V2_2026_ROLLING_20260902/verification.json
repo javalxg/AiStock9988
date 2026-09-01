@@ -1,0 +1,17 @@
+{
+  "checks": {
+    "all_model_labels_mature": true,
+    "base_cash_nonnegative": true,
+    "base_execution_end": true,
+    "base_nav_identity": true,
+    "base_position_cap": true,
+    "no_skipped_signal_week": true,
+    "one_model_per_signal_month": true,
+    "stress_cash_nonnegative": true,
+    "stress_execution_end": true,
+    "stress_nav_identity": true,
+    "stress_position_cap": true
+  },
+  "failed": [],
+  "passed": true
+}

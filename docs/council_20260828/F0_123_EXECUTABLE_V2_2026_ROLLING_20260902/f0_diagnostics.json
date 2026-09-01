@@ -1,0 +1,192 @@
+{
+  "rank_buckets": [
+    {
+      "bucket": "top1",
+      "ge_10pct_rate": 0.2,
+      "mean_label": -0.008489210180295676,
+      "positive_rate": 0.3,
+      "rows": 30
+    },
+    {
+      "bucket": "top2",
+      "ge_10pct_rate": 0.20967741935483872,
+      "mean_label": -0.009234815231672307,
+      "positive_rate": 0.3387096774193548,
+      "rows": 62
+    },
+    {
+      "bucket": "rank3_5",
+      "ge_10pct_rate": 0.12903225806451613,
+      "mean_label": -0.010475964692457115,
+      "positive_rate": 0.3870967741935484,
+      "rows": 93
+    },
+    {
+      "bucket": "rank6_10",
+      "ge_10pct_rate": 0.15384615384615385,
+      "mean_label": -0.002276824950329688,
+      "positive_rate": 0.3525641025641026,
+      "rows": 156
+    },
+    {
+      "bucket": "rank11_20",
+      "ge_10pct_rate": 0.18064516129032257,
+      "mean_label": 0.002888925398662104,
+      "positive_rate": 0.3967741935483871,
+      "rows": 310
+    }
+  ],
+  "top20_labeled_rows": 621,
+  "winner_loser_largest_absolute_differences": [
+    {
+      "difference": 0.3051128387451172,
+      "feature": "asi_bfq_sector_rel",
+      "loser_mean": -0.1753617525100708,
+      "winner_mean": 0.1297510862350464
+    },
+    {
+      "difference": 0.30363811552524567,
+      "feature": "asit_bfq_sector_rel",
+      "loser_mean": -0.1762639582157135,
+      "winner_mean": 0.12737415730953217
+    },
+    {
+      "difference": -0.3005459364503622,
+      "feature": "brar_ar_bfq",
+      "loser_mean": 0.019671445712447166,
+      "winner_mean": -0.28087449073791504
+    },
+    {
+      "difference": -0.2998211160302162,
+      "feature": "brar_br_bfq",
+      "loser_mean": 0.2094748169183731,
+      "winner_mean": -0.09034629911184311
+    },
+    {
+      "difference": 0.2575283944606781,
+      "feature": "dfma_difma_bfq_sector_rel",
+      "loser_mean": -0.12864269316196442,
+      "winner_mean": 0.12888570129871368
+    },
+    {
+      "difference": 0.25364423636347055,
+      "feature": "madpo_bfq_sector_rel",
+      "loser_mean": -0.005122923292219639,
+      "winner_mean": 0.24852131307125092
+    },
+    {
+      "difference": 0.2528923638164997,
+      "feature": "dfma_dif_bfq_sector_rel",
+      "loser_mean": -0.04995271936058998,
+      "winner_mean": 0.20293964445590973
+    },
+    {
+      "difference": -0.24174814671278,
+      "feature": "brar_ar_bfq_sector_rel",
+      "loser_mean": -0.08131388574838638,
+      "winner_mean": -0.3230620324611664
+    },
+    {
+      "difference": 0.23972250521183014,
+      "feature": "macd_dea_bfq_sector_rel",
+      "loser_mean": -0.09023915231227875,
+      "winner_mean": 0.1494833528995514
+    },
+    {
+      "difference": -0.23015029914677143,
+      "feature": "trma_bfq",
+      "loser_mean": 0.25232893228530884,
+      "winner_mean": 0.022178633138537407
+    },
+    {
+      "difference": -0.2226545810699463,
+      "feature": "trix_bfq",
+      "loser_mean": 0.10935373604297638,
+      "winner_mean": -0.11330084502696991
+    },
+    {
+      "difference": 0.20993377454578876,
+      "feature": "macd_dif_bfq_sector_rel",
+      "loser_mean": -0.006591411307454109,
+      "winner_mean": 0.20334236323833466
+    },
+    {
+      "difference": -0.2070426046848297,
+      "feature": "dfma_difma_bfq",
+      "loser_mean": 0.2901390492916107,
+      "winner_mean": 0.083096444606781
+    },
+    {
+      "difference": -0.20278581976890564,
+      "feature": "macd_dea_bfq",
+      "loser_mean": 0.2550760507583618,
+      "winner_mean": 0.05229023098945618
+    },
+    {
+      "difference": -0.19931000471115112,
+      "feature": "atr_bfq",
+      "loser_mean": 0.5290526747703552,
+      "winner_mean": 0.3297426700592041
+    },
+    {
+      "difference": -0.19764043763279915,
+      "feature": "dfma_dif_bfq",
+      "loser_mean": 0.2595561146736145,
+      "winner_mean": 0.06191567704081535
+    },
+    {
+      "difference": -0.1968330666422844,
+      "feature": "brar_br_bfq_sector_rel",
+      "loser_mean": 0.11018077284097672,
+      "winner_mean": -0.08665229380130768
+    },
+    {
+      "difference": -0.19526022672653198,
+      "feature": "xsii_td3_bfq",
+      "loser_mean": 0.507132887840271,
+      "winner_mean": 0.311872661113739
+    },
+    {
+      "difference": -0.19526022672653198,
+      "feature": "xsii_td4_bfq",
+      "loser_mean": 0.507132887840271,
+      "winner_mean": 0.311872661113739
+    },
+    {
+      "difference": -0.19169530272483826,
+      "feature": "xsii_td1_bfq",
+      "loser_mean": 0.5036283135414124,
+      "winner_mean": 0.3119330108165741
+    },
+    {
+      "difference": -0.19169530272483826,
+      "feature": "xsii_td2_bfq",
+      "loser_mean": 0.5036283135414124,
+      "winner_mean": 0.3119330108165741
+    },
+    {
+      "difference": -0.19158968329429626,
+      "feature": "bbi_bfq",
+      "loser_mean": 0.5056353807449341,
+      "winner_mean": 0.3140456974506378
+    },
+    {
+      "difference": -0.19118699431419373,
+      "feature": "boll_lower_bfq",
+      "loser_mean": 0.5004866719245911,
+      "winner_mean": 0.30929967761039734
+    },
+    {
+      "difference": -0.19053256511688232,
+      "feature": "expma_12_bfq",
+      "loser_mean": 0.5057229399681091,
+      "winner_mean": 0.3151903748512268
+    },
+    {
+      "difference": -0.19006073474884033,
+      "feature": "boll_upper_bfq",
+      "loser_mean": 0.5092974901199341,
+      "winner_mean": 0.31923675537109375
+    }
+  ]
+}

@@ -29,6 +29,10 @@ from aistock9988.data.q70_source import load_f0_panel
 from aistock9988.data.quantdb import readonly_connection
 from aistock9988.features.f0_cross_section import prepare_f0_cross_sections
 from aistock9988.features.registry import FeatureSet
+from aistock9988.labeling.executable_path import (
+    ExecutablePathLabelProfile,
+    build_executable_path_labels,
+)
 from aistock9988.planning import RunRequest, compile_run_plan
 from aistock9988.reporting.metrics import summarize
 from aistock9988.time.session import session_close, session_open
@@ -92,23 +96,57 @@ def _load_model_config(path: Path, feature_set: FeatureSet) -> dict[str, Any]:
     return raw
 
 
-def _compile_plan(strategy: StrategyConfig, config: dict[str, Any], output: Path) -> tuple[Any, pd.DataFrame]:
+def _latest_session_on_or_before(calendar: pd.DataFrame, value: str) -> str:
+    sessions = pd.DatetimeIndex(pd.to_datetime(calendar["session"], utc=True)).normalize()
+    eligible = sessions[sessions <= pd.Timestamp(value, tz="UTC")]
+    if eligible.empty:
+        raise ValueError(f"calendar has no session on or before {value}")
+    return str(eligible[-1].date())
+
+
+def _compile_plan(
+    strategy: StrategyConfig,
+    config: dict[str, Any],
+    output: Path,
+) -> tuple[Any, pd.DataFrame, dict[str, str]]:
     timeline = config["timeline"]
-    calendar = load_trading_calendar("2024-01-01", timeline["execution_end"])
+    dynamic = timeline.get("signal_end_policy") == "latest_common_source_session"
+    if dynamic:
+        signal_sources = tuple(timeline["signal_cutoff_sources"])
+        execution_sources = tuple(timeline["execution_cutoff_sources"])
+        cutoffs = load_source_max_dates(set(signal_sources) | set(execution_sources))
+        raw_execution_end = min(cutoffs[name] for name in execution_sources)
+        calendar = load_trading_calendar("2024-01-01", raw_execution_end)
+        prediction_end = _latest_session_on_or_before(
+            calendar, min(cutoffs[name] for name in signal_sources)
+        )
+        execution_end = _latest_session_on_or_before(calendar, raw_execution_end)
+    else:
+        prediction_end = timeline["prediction_end"]
+        execution_end = timeline["execution_end"]
+        cutoffs = load_source_max_dates({
+            "stock_factor_pro_ts",
+            "daily_basic_ts",
+            "market_daily_ts",
+            "adj_factor_ts",
+            "stk_limit_ts",
+        })
+        calendar = load_trading_calendar("2024-01-01", execution_end)
     plan = compile_run_plan(
         strategy,
         RunRequest(
             timeline["prediction_start"],
-            timeline["prediction_end"],
-            timeline["execution_end"],
+            prediction_end,
+            execution_end,
             str(output),
             "f0_123_full_market_weekly_top5_2026",
         ),
         calendar["session"],
+        require_complete_horizon=bool(timeline.get("require_complete_horizon", True)),
     )
-    if plan.signal_end != timeline["prediction_end"]:
+    if plan.signal_end != prediction_end:
         raise ValueError("weekly signal boundary differs from preregistration")
-    return plan, calendar
+    return plan, calendar, cutoffs
 
 
 def _load_label_prices(start: str, end: str) -> pd.DataFrame:
@@ -351,6 +389,8 @@ def _walk_forward_predictions(
     feature_set: FeatureSet,
     config: dict[str, Any],
     signal_days: list[pd.Timestamp],
+    *,
+    model_id_prefix: str = "f0_123_full_market",
 ) -> tuple[pd.DataFrame, list[dict[str, Any]]]:
     training = training_features.merge(
         labels.rename(columns={"available_time": "label_available_time"}),
@@ -374,7 +414,7 @@ def _walk_forward_predictions(
                 & pd.to_datetime(training["available_time"], utc=True).le(cutoff_time)
                 & pd.to_datetime(training["label_available_time"], utc=True).le(cutoff_time)
             ].copy()
-            model_id = f"f0_123_full_market_{day.strftime('%Y%m%d')}"
+            model_id = f"{model_id_prefix}_{day.strftime('%Y%m%d')}"
             model, metadata = _fit_model(fit_rows, feature_set, params, model_id)
             metadata.update({
                 "model_signal_date": str(day.date()),
@@ -402,6 +442,8 @@ def _build_ledgers(
     predictions: pd.DataFrame,
     signal_days: list[pd.Timestamp],
     strategy: StrategyConfig,
+    *,
+    policy_id: str = "full_market_f0_123_top20_to_top5",
 ) -> dict[str, pd.DataFrame]:
     ranked = predictions.sort_values(
         ["event_time", "model_score", "ts_code"],
@@ -420,7 +462,7 @@ def _build_ledgers(
         snapshots[day] = hashlib.sha256(payload.encode()).hexdigest()
     ranked["candidate_snapshot_id"] = ranked["asof"].map(snapshots)
     policy_hash = hashlib.sha256(
-        f"full_market_f0_123_top20_to_top5|{strategy.config_hash}".encode()
+        f"{policy_id}|{strategy.config_hash}".encode()
     ).hexdigest()
     selection = pd.DataFrame({"asof": signal_days})
     selection["candidate_snapshot_id"] = selection["asof"].map(snapshots)
@@ -436,7 +478,7 @@ def _build_ledgers(
     selection["target_weight_each"] = float(strategy.portfolio["sizing"]["value"])
     selection["primary_rank_end"] = int(strategy.portfolio["entries_per_decision"])
     selection["replacement_rank_end"] = int(strategy.portfolio["candidate_view_size"])
-    selection["policy_id"] = "full_market_f0_123_top20_to_top5"
+    selection["policy_id"] = policy_id
     selection["policy_hash"] = policy_hash
     selection["context_hash"] = selection["asof"].map(
         lambda day: hashlib.sha256(f"{day.date()}|{policy_hash}".encode()).hexdigest()
@@ -487,7 +529,6 @@ def _acceptance(portfolio: dict[str, dict[str, Any]], config: dict[str, Any]) ->
     for scenario in ("base", "stress"):
         item = portfolio[scenario]
         tests = {
-            "higher_than_cap1": item["total_return"] > float(cap1[scenario]),
             "pf_minimum": (item["portfolio_profit_factor"] or 0.0) >= float(rules["portfolio_profit_factor_min"]),
             "maxdd_limit": abs(item["max_drawdown"]) <= float(rules["max_drawdown_abs_max"]),
             "excluding_best_week_positive": item["return_excluding_best_week"] > 0.0,
@@ -495,6 +536,13 @@ def _acceptance(portfolio: dict[str, dict[str, Any]], config: dict[str, Any]) ->
             "minimum_closed_trades": item["trade_count"] >= int(rules["minimum_closed_trades"]),
             "position_cap": item["max_open_positions"] <= int(rules["maximum_positions"]),
         }
+        if bool(rules.get("paired_control_required", True)):
+            tests["higher_than_cap1"] = item["total_return"] > float(cap1[scenario])
+        if "trade_win_rate_min" in rules:
+            tests["trade_win_rate_minimum"] = (
+                item["trade_win_rate"] is not None
+                and item["trade_win_rate"] >= float(rules["trade_win_rate_min"])
+            )
         scenarios[scenario] = {"passed": all(tests.values()), "tests": tests}
     return {"passed": all(row["passed"] for row in scenarios.values()), "scenarios": scenarios}
 
@@ -580,26 +628,32 @@ def _write_result(
     sample: dict[str, Any],
     portfolio: dict[str, dict[str, Any]],
     acceptance: dict[str, Any],
+    *,
+    label_name: str,
+    signal_start: str,
+    signal_end: str,
+    execution_end: str,
 ) -> None:
     lines = [
         "# F0-123 Full-Market Weekly Top5", "",
         "## Contract", "",
         "- Frozen F0=123 only; daily cross-sectional percentile/z-score; at least 61 values per row.",
         "- Daily broad-market training (deterministic cap 1500/date), monthly grouped XGBRanker, weekly full-market scoring.",
-        "- Path-stop T+10 label, Top20 to Top5, H10, maximum five positions and canonical Base/Stress execution.",
+        f"- Training label: `{label_name}`; Top20 to Top5, H10, maximum five positions and canonical Base/Stress execution.",
         "- No auxiliary data, factor gate, feature selection, threshold scan, fallback, or business-data cache.", "",
         "## Sample", "",
+        f"- 2026 signal sessions: `{signal_start}` through `{signal_end}`; execution through database cutoff `{execution_end}`.",
         f"- Prepared training rows: `{sample['training_feature_rows']}` across `{sample['training_feature_sessions']}` sessions.",
         f"- Weekly full-market prediction rows: `{sample['prediction_feature_rows']}` across `{sample['signal_sessions']}` signal weeks.",
-        f"- Mature labels: `{sample['label_audit']['label_rows']}`; path-stop labels: `{sample['label_audit']['path_stop_rows']}`.", "",
+        f"- Mature executable labels: `{sample['label_audit']['label_rows']}`; stop labels: `{sample['label_audit'].get('stop_rows', sample['label_audit'].get('path_stop_rows'))}`.", "",
         "## Portfolio", "",
-        "| Cost | Return | PF | MaxDD | Ex-best | Ex-top3 | Trades | Pass |",
-        "|---|---:|---:|---:|---:|---:|---:|---|",
+        "| Cost | Return | Win rate | PF | MaxDD | Ex-best | Ex-top3 | Trades | Pass |",
+        "|---|---:|---:|---:|---:|---:|---:|---:|---|",
     ]
     for scenario in ("base", "stress"):
         item = portfolio[scenario]
         lines.append(
-            f"| {scenario} | {item['total_return']:+.2%} | {item['portfolio_profit_factor']:.3f} | "
+            f"| {scenario} | {item['total_return']:+.2%} | {item['trade_win_rate']:.2%} | {item['portfolio_profit_factor']:.3f} | "
             f"{item['max_drawdown']:.2%} | {item['return_excluding_best_week']:+.2%} | "
             f"{item['return_excluding_top3_profit']:+.2%} | {item['trade_count']} | "
             f"{acceptance['scenarios'][scenario]['passed']} |"
@@ -620,10 +674,7 @@ def run(args: argparse.Namespace) -> Path:
     strategy = StrategyConfig.from_yaml(args.strategy)
     feature_set = FeatureSet.from_f0_json(ROOT / "configs/feature_sets/f0_123_columns.json")
     config = _load_model_config(args.model_profile, feature_set)
-    plan, calendar = _compile_plan(strategy, config, output)
-    cutoffs = load_source_max_dates({
-        "stock_factor_pro_ts", "daily_basic_ts", "market_daily_ts", "adj_factor_ts", "stk_limit_ts"
-    })
+    plan, calendar, cutoffs = _compile_plan(strategy, config, output)
     if min(cutoffs["stock_factor_pro_ts"], cutoffs["daily_basic_ts"]) < plan.signal_end:
         raise ValueError(f"F0 sources do not cover the final weekly signal: {cutoffs}")
 
@@ -651,21 +702,46 @@ def run(args: argparse.Namespace) -> Path:
     del prepared
     gc.collect()
 
-    print("phase=label_price_load", flush=True)
-    label_prices = _load_label_prices(config["timeline"]["train_start"], plan.execution_end)
     label_keys = pd.concat([
         training_features[["event_time", "ts_code"]],
         prediction_features[["event_time", "ts_code"]],
     ], ignore_index=True).drop_duplicates()
-    labels, label_audit = _build_path_labels(
-        label_keys,
-        label_prices,
-        pd.DatetimeIndex(calendar["session"]),
-        entry_delay=int(config["label"]["signal_to_entry_sessions"]),
-        horizon=int(config["label"]["entry_to_exit_sessions"]),
-        stop_pct=float(config["label"]["path_stop_pct"]),
-    )
-    del label_prices, label_keys
+    label_name = str(config["label"]["profile"])
+    bundle = None
+    if label_name == "label.executable_path_open_open_t10_base.v1":
+        print("phase=execution_bundle_load_for_executable_labels", flush=True)
+        bundle = build_data_bundle(plan, strategy, output)
+        base_costs = strategy.execution["cost_scenarios"]["base"]
+        labels, label_audit = build_executable_path_labels(
+            label_keys,
+            bundle.execution,
+            pd.DatetimeIndex(calendar["session"]),
+            profile=ExecutablePathLabelProfile(
+                entry_delay_sessions=int(strategy.decision["entry_delay_sessions"]),
+                hold_sessions_from_fill=int(strategy.execution["hold_sessions_from_fill"]),
+                stop_threshold_pct=float(strategy.execution["stop"]["threshold_pct"]),
+                buy_slippage=float(base_costs["slippage_each_side"]),
+                sell_slippage=float(base_costs["slippage_each_side"]),
+                buy_commission=float(base_costs["buy_commission"]),
+                sell_commission=float(base_costs["sell_commission"]),
+                stamp_duty=float(base_costs["stamp_duty"]),
+            ),
+        )
+    elif label_name == "label.path_stop_open_open_t10.v1":
+        print("phase=label_price_load", flush=True)
+        label_prices = _load_label_prices(config["timeline"]["train_start"], plan.execution_end)
+        labels, label_audit = _build_path_labels(
+            label_keys,
+            label_prices,
+            pd.DatetimeIndex(calendar["session"]),
+            entry_delay=int(config["label"]["signal_to_entry_sessions"]),
+            horizon=int(config["label"]["entry_to_exit_sessions"]),
+            stop_pct=float(config["label"]["path_stop_pct"]),
+        )
+        del label_prices
+    else:
+        raise ValueError(f"unsupported F0 training label profile: {label_name}")
+    del label_keys
     gc.collect()
     print(
         f"phase=model_train training_rows={len(training_features)} signal_weeks={len(signal_days)}",
@@ -678,10 +754,16 @@ def run(args: argparse.Namespace) -> Path:
         feature_set,
         config,
         signal_days,
+        model_id_prefix=str(config["identity"]["model_profile_id"]),
     )
     completed_prediction_sessions = int(predictions["event_time"].nunique())
     print("phase=model_train_complete", flush=True)
-    ledgers = _build_ledgers(predictions, signal_days, strategy)
+    ledgers = _build_ledgers(
+        predictions,
+        signal_days,
+        strategy,
+        policy_id=f"{config['identity']['model_profile_id']}_top20_to_top5",
+    )
     diagnostics = _diagnostics(predictions, labels, feature_set)
     training_key_hash = _frame_hash(training_features[["event_time", "ts_code"]])
     prediction_key_hash = _frame_hash(prediction_features[["event_time", "ts_code"]])
@@ -691,8 +773,9 @@ def run(args: argparse.Namespace) -> Path:
     del training_features, prediction_features, predictions, labels
     gc.collect()
 
-    print("phase=execution_bundle_load", flush=True)
-    bundle = build_data_bundle(plan, strategy, output)
+    if bundle is None:
+        print("phase=execution_bundle_load", flush=True)
+        bundle = build_data_bundle(plan, strategy, output)
     print("phase=backtest", flush=True)
     portfolio, results = _run_portfolios(ledgers, bundle, strategy, plan.execution_sessions)
     acceptance = _acceptance(portfolio, config)
@@ -702,7 +785,7 @@ def run(args: argparse.Namespace) -> Path:
         completed_prediction_sessions,
         portfolio,
         results,
-        config["timeline"]["execution_end"],
+        plan.execution_end,
     )
     if not verification["passed"]:
         raise AssertionError(f"verification failed: {verification['failed']}")
@@ -747,7 +830,16 @@ def run(args: argparse.Namespace) -> Path:
     _write_json(output / "acceptance.json", acceptance)
     _write_json(output / "verification.json", verification)
     _write_json(output / "f0_diagnostics.json", diagnostics)
-    _write_result(output, sample, portfolio, acceptance)
+    _write_result(
+        output,
+        sample,
+        portfolio,
+        acceptance,
+        label_name=label_name,
+        signal_start=plan.signal_start,
+        signal_end=plan.signal_end,
+        execution_end=plan.execution_end,
+    )
     code_paths = [
         ROOT / "src/aistock9988/data/q70_source.py",
         ROOT / "src/aistock9988/features/f0_cross_section.py",

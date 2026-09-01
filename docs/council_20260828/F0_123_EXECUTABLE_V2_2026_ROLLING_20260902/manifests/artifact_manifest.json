@@ -1,0 +1,50 @@
+{
+  "RESULT.md": {
+    "bytes": 1283,
+    "sha256": "dbbecb6d38f32f2a5ef94865c0b2681fda5c144ee21d5a8c9cf618524b5a854f"
+  },
+  "RUN_STATUS.json": {
+    "bytes": 330,
+    "sha256": "4bd22e0d9965d1ece6797fa2c438bdbde383e1ac9a5ffd455f152c8b1cd96e0a"
+  },
+  "acceptance.json": {
+    "bytes": 697,
+    "sha256": "d5626cd96cf9eb7f7d92b9291d0d7d5fc8440f14a341a110afc76e9b18a1cd07"
+  },
+  "configs/model_profile.yaml": {
+    "bytes": 1741,
+    "sha256": "e5774b9e208321476699903e81725160a55a0aa0b95e4c53194db9ebaba1df41"
+  },
+  "configs/strategy.yaml": {
+    "bytes": 2594,
+    "sha256": "20563c11a13abe10783572dca5e4b2c5d64abb3c2831edc7de5f566a40364970"
+  },
+  "f0_diagnostics.json": {
+    "bytes": 5302,
+    "sha256": "14650dbc0221985a232c289cddfb5f60bfdab15041968f7d7245e00a0964b749"
+  },
+  "manifests/code_manifest.json": {
+    "bytes": 454,
+    "sha256": "1db4689057a1d6c3f08b050677e6e475d2c66a27cd422dccbdcbc7335cfed3a5"
+  },
+  "model_manifest.json": {
+    "bytes": 4019,
+    "sha256": "da9aff9f542fbe4ed86241a2d797c2a95915c88f87803278b8633d8d943a49b1"
+  },
+  "plan.json": {
+    "bytes": 9784,
+    "sha256": "92765463ca91bf5d599755552a00de513a9c09f3318c247f897dd4e384c939a4"
+  },
+  "portfolio_metrics.json": {
+    "bytes": 2520,
+    "sha256": "2f6b8d2550130d33f4f19ad560903f42834ff8d244407d33fcca9ad824b2da84"
+  },
+  "sample_audit.json": {
+    "bytes": 1768,
+    "sha256": "f601807781813aab624a3a40df515552777fd8d33f84b770fafee1e57f29180a"
+  },
+  "verification.json": {
+    "bytes": 434,
+    "sha256": "f684f169aa3fde1f28c03b9a35f5317c379b18e79e7a4a55edfc0710010a2bec"
+  }
+}
