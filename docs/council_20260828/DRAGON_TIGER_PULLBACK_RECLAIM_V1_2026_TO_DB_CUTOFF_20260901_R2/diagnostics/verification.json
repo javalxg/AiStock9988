@@ -1,0 +1,24 @@
+{
+  "checks": {
+    "base_cash_nonnegative": true,
+    "base_entries_next_session": true,
+    "base_execution_end": true,
+    "base_fills_execution_eligible": true,
+    "base_nav_identity": true,
+    "base_position_cap": true,
+    "candidate_dates_bounded": true,
+    "candidate_keys_unique": true,
+    "event_cutoff": true,
+    "event_keys_unique": true,
+    "no_business_data_files": true,
+    "no_parameter_sweep": true,
+    "stress_cash_nonnegative": true,
+    "stress_entries_next_session": true,
+    "stress_execution_end": true,
+    "stress_fills_execution_eligible": true,
+    "stress_nav_identity": true,
+    "stress_position_cap": true
+  },
+  "failed": [],
+  "passed": true
+}

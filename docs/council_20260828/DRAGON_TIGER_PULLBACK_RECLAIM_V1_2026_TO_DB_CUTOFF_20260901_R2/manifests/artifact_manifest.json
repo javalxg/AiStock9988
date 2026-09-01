@@ -1,0 +1,50 @@
+{
+  "PORTFOLIO_SUMMARY.json": {
+    "bytes": 3647,
+    "sha256": "c54e28f59aea8089b27073600f0c65d8dc6661a1afa1c50402a729f913900e92"
+  },
+  "RESULT.md": {
+    "bytes": 1036,
+    "sha256": "82e57c82708fadc7ae86790341dbc25aef63ee2a52a9db6bf220dad62f90a81e"
+  },
+  "RUN_STATUS.json": {
+    "bytes": 697,
+    "sha256": "51ba2be23c4974b6f0144ad20274b02b4ce9f8280ed457bc22244da0cd583693"
+  },
+  "backtests/base/metrics.json": {
+    "bytes": 1706,
+    "sha256": "c3d9e4cfb5984e9542e03ebf92ca031672c030a36fc5d079262a673f4d928f60"
+  },
+  "backtests/stress/metrics.json": {
+    "bytes": 1706,
+    "sha256": "d0c1eb395269699623a8a87ed2c4a9734921a885eeb361667cc438531fd99386"
+  },
+  "configs/strategy.yaml": {
+    "bytes": 2789,
+    "sha256": "27c7d78e41f6dddcc7e676d60afcad67f58b79096986a211144efe5dd3b67cce"
+  },
+  "data_manifest.json": {
+    "bytes": 5884,
+    "sha256": "a467be802551de36f8f059a5bd1498b87857bedea1ca7f074c31d2aedcd08ed5"
+  },
+  "diagnostics/event_state_summary.json": {
+    "bytes": 816,
+    "sha256": "39f73f1654c352dc8a1c29d2d6f2c359831d69540c17ae8edd0d81db8e47b9fc"
+  },
+  "diagnostics/verification.json": {
+    "bytes": 686,
+    "sha256": "5309eb40b6b6c5d3d271c2557910e7a6345ced65b92f0d6f7ab3f30e97a4e99e"
+  },
+  "manifests/code_manifest.json": {
+    "bytes": 674,
+    "sha256": "c34defa41b4399cbc66902ab5fbe099d91a7a5b747f5cff8eec0cab1100d24ba"
+  },
+  "manifests/in_memory_ledger_manifest.json": {
+    "bytes": 2712,
+    "sha256": "61a1124a3327c83d34a61e0a777622a0d31ee86494d2cbd57f9b030a138819e3"
+  },
+  "plan.json": {
+    "bytes": 6983,
+    "sha256": "6f5180f8f089aed995097f64fc23e2d8fa34282f0a1302c61b9fa0219baf531f"
+  }
+}

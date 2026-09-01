@@ -1,0 +1,176 @@
+{
+  "amount_unit_audit": {
+    "declared_unit": "thousand_rmb",
+    "multiplier_to_rmb": 1000.0,
+    "price_volume_amount_ratio_median": 1.0001962111753813,
+    "price_volume_amount_ratio_p01": 0.9610078287074055,
+    "price_volume_amount_ratio_p99": 1.0391062280645254,
+    "sample_rows": 890640,
+    "sample_trade_date_max": "2026-09-01",
+    "sample_trade_date_min": "2025-12-31",
+    "volume_unit_assumption": "100_shares_per_lot"
+  },
+  "bundle_id": "cc01e63313e53a552c8452cdf8d57bb2771df951deaf5271d451df9a514e80ef",
+  "business_data_persisted": false,
+  "configured_codes": 5838,
+  "corporate_actions_pit_excluded_rows": 0,
+  "corporate_actions_query_start": "2026-01-05",
+  "coverage": {
+    "data_eligibility": {
+      "execution": {
+        "eligible_rows": 804727,
+        "excluded_rows": 1743,
+        "missing_source_counts": {
+          "adj_factor_ts": 9,
+          "market_daily_ts": 1729,
+          "stk_limit_ts": 568
+        }
+      },
+      "selection": {
+        "eligible_rows": 804727,
+        "excluded_rows": 1743,
+        "missing_source_counts": {
+          "adj_factor_ts": 9,
+          "market_daily_ts": 1729,
+          "stk_limit_ts": 568
+        }
+      },
+      "training": {
+        "eligible_rows": 804741,
+        "excluded_rows": 1729,
+        "missing_source_counts": {
+          "adj_factor_ts": 9,
+          "market_daily_ts": 1729
+        }
+      }
+    },
+    "duplicate_execution_keys": 0,
+    "expected_eligible_rows": 806470,
+    "missing_required_data_rows": 847,
+    "optional_missing_source_counts": {},
+    "status_counts": {
+      "LIMIT_DOWN": 660,
+      "LIMIT_UP": 1298,
+      "MISSING_REQUIRED_DATA": 847,
+      "TRADABLE": 801148,
+      "ZERO_VOLUME": 2517
+    }
+  },
+  "credentials_persisted": false,
+  "data_policy": {
+    "dense_required": {
+      "execution": [
+        "market_daily_ts",
+        "adj_factor_ts",
+        "stk_limit_ts"
+      ],
+      "selection": [
+        "market_daily_ts",
+        "adj_factor_ts",
+        "stk_limit_ts"
+      ],
+      "training": [
+        "market_daily_ts",
+        "adj_factor_ts"
+      ]
+    },
+    "missing_action": {
+      "entry": "skip_and_ranked_fallback",
+      "held_position": "carry_last_mark_and_retry",
+      "selection": "exclude_stock_session",
+      "training": "exclude_sample"
+    },
+    "optional_enrichment": [],
+    "source_availability": {
+      "top_inst_ts": "eod_trade_date_close",
+      "top_list_ts": "eod_trade_date_close"
+    },
+    "sparse_event": [
+      "stock_st_ts",
+      "suspend_d_ts",
+      "stk_auction_o_ts",
+      "corporate_actions"
+    ]
+  },
+  "dragon_tiger": {
+    "aggregation_contract": {
+      "daily_amount": "single stock-day value; duplicate reasons must agree",
+      "institution": "sum net_buy only where exalter=机构专用",
+      "top_list_net_amount": "not loaded and never summed",
+      "top_list_reason": "sorted distinct set per stock-day"
+    },
+    "business_data_persisted": false,
+    "credentials_persisted": false,
+    "dense_source_cutoffs": {
+      "adj_factor_ts": "2026-09-01",
+      "market_daily_ts": "2026-09-01",
+      "stk_limit_ts": "2026-09-01"
+    },
+    "end": "2026-08-18",
+    "event_max_date": "2026-08-18",
+    "event_min_date": "2026-01-05",
+    "event_source_cutoffs": {
+      "top_inst_ts": "2026-08-18",
+      "top_list_ts": "2026-08-18"
+    },
+    "execution_bundle_id": "cc01e63313e53a552c8452cdf8d57bb2771df951deaf5271d451df9a514e80ef",
+    "inconsistent_amount_stock_days": 1031,
+    "source": "quant_db",
+    "start": "2026-01-05",
+    "top_list_rows": 12774,
+    "top_list_sha256": "b351b3ef241436cfd425a42b34eced982ea91b12abe9953c33b102d91f6d37bf",
+    "top_list_stock_days": 11714,
+    "top_list_trade_dates": 151,
+    "true_institution_rows": 11667,
+    "true_institution_sha256": "db7ae4d1f7828d7d0bff58f37bb4c6700f35ad46650d6869f79aff8ba2b2e7f2",
+    "true_institution_stock_days": 7161
+  },
+  "eligible_suffix_codes": 5522,
+  "enrichment_rows": {},
+  "execution_end": "2026-09-01",
+  "feature_start": "2025-12-31",
+  "listing_age_policy": {
+    "calendar_end": "2026-09-01",
+    "calendar_start": "1990-12-19",
+    "min_listed_sessions": 120
+  },
+  "shared_snapshot": {
+    "cache_key": null,
+    "cache_root": null,
+    "cache_status": "disabled_db_direct",
+    "materialization": {}
+  },
+  "snapshot_semantics": "source_ingested_time is provenance; event/available time controls PIT",
+  "source_availability_policy": {
+    "top_inst_ts": "eod_trade_date_close",
+    "top_list_ts": "eod_trade_date_close"
+  },
+  "source_id": "quant_db",
+  "source_rows": {
+    "adjustment": 893445,
+    "auction_zero": 3573,
+    "calendar": 162,
+    "calendar_listing": 8716,
+    "corporate_actions": 3625,
+    "daily_limits": 1216161,
+    "market_daily": 890810,
+    "pit_st": 29789,
+    "security_master": 5838,
+    "suspensions": 0,
+    "universe_codes": 5522
+  },
+  "source_sha256": {
+    "adjustment": "10cf0c352a5b89264f99614c6107eef42a821152e665d4ce74d61a72ee8db3be",
+    "auction_zero": "0412ac4a563fc4956428908c807eb0f7df1db32aaf85fc797e8fee738d3a576e",
+    "calendar": "cd9d28faf609d07460c28742e4b7140d3918f48380fe7fffb36c2052b40c4b02",
+    "calendar_listing": "bf58e9285da9a8984aed77c4873a2ec1ddd80b87f31a2ab03b0b0e21cd1242a1",
+    "corporate_actions": "499486fc58c34f182928841df622b07a14ccdfd724ce2c8efe117b1772db8ea4",
+    "daily_limits": "6a0a33fbacc11ec7a0489937062b5f00b1f8590cd0529d820b128838902d41a7",
+    "market_daily": "132af47eefd64af88108f35c341108a46c6776009b51ce0d355f51db6faf5ac6",
+    "pit_st": "957750ca63e0f2d8f0ae45335d1b93bc742d6042b5df8d5dfb3b211dd3c217a2",
+    "security_master": "65d16f0e4cf0b6381bf8cb3dae9d4bfa2669015313ea87a720e946567be02ac9",
+    "suspensions": "5e3ed91ef841dbadb57a718f2d3bd41b03333b75067dec7882f049ebe9fd6e00",
+    "universe_codes": "6bb36aeca53fd527b0270f67b377090586b187fdeed6460b33126d53184ebfea"
+  },
+  "source_update_time_summary": {}
+}

@@ -1,0 +1,16 @@
+{
+  "base_acceptance_passed": false,
+  "bundle_id": "cc01e63313e53a552c8452cdf8d57bb2771df951deaf5271d451df9a514e80ef",
+  "business_data_persisted": false,
+  "completed_at": "2026-09-01T09:35:42.544973+00:00",
+  "created_at": "2026-09-01T09:34:10.778455+00:00",
+  "credentials_persisted": false,
+  "git_commit": "5a8cd76a1603791fc022a7e2e7ad6281c6434697",
+  "overall_acceptance_passed": false,
+  "run_name": "dragon_tiger_pullback_reclaim_v1_2026_r2",
+  "status": "DIAGNOSTIC_COMPLETED",
+  "strategy_hash": "9c69fee436d421891d7f4e7ee0e6be163767e2369874498974e848024bb94070",
+  "strategy_id": "dragon_tiger_pullback_reclaim_v1",
+  "stress_acceptance_passed": false,
+  "verification_passed": true
+}

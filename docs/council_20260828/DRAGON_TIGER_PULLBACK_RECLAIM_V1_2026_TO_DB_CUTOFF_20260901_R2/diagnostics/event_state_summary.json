@@ -1,0 +1,23 @@
+{
+  "active_confirmation_sessions": 84,
+  "candidate_ledger_sha256": "10f63eb686aa4898f1a96c2fcb2e647bc81bb596ae2274172ccc0917cece609a",
+  "candidate_rows": 127,
+  "confirmed_events": 127,
+  "events": 11714,
+  "maximum_daily_candidates": 4,
+  "overlapping_events_skipped": 122,
+  "selection_ledger_sha256": "d9844f7e2f58fbd48072d43bf47fbfffbced441ee332e58b1412884ff047514c",
+  "state_ledger_sha256": "7055448bb775537f8c746663f59adc246d532cc77680a8bd7de957f10b995d8a",
+  "status_counts": {
+    "CONFIRMED": 127,
+    "EVENT_STOCK_DAY_INELIGIBLE": 164,
+    "INSTITUTION_NOT_POSITIVE": 3522,
+    "NON_POSITIVE_GAP": 645,
+    "NOT_UP_REASON": 6133,
+    "NO_PULLBACK_BY_T4": 335,
+    "NO_RECLAIM_BY_T5": 324,
+    "OVERLAPPING_EVENT_SKIPPED": 122,
+    "T1_STOCK_DAY_INELIGIBLE": 6,
+    "TOP_LIST_AMOUNT_INVALID": 336
+  }
+}

@@ -1,0 +1,53 @@
+{
+  "acceptance": {
+    "passed": false,
+    "tests": {
+      "excluding_best_week": false,
+      "excluding_top3_profit": false,
+      "max_drawdown": false,
+      "maximum_five_positions": true,
+      "mean_weekly_return": false,
+      "minimum_active_signal_days": true,
+      "minimum_closed_trades": true,
+      "profit_factor": false,
+      "trade_win_rate": false
+    }
+  },
+  "active_signal_days": 84,
+  "annualized_return": -0.4689925503690128,
+  "average_gross_exposure": 0.7467549438812201,
+  "best_week": 0.11023625264118797,
+  "calendar_week_count": 34,
+  "entry_attempts": 79,
+  "entry_fills": 79,
+  "fees_and_taxes": 14409.829395459998,
+  "final_nav": 669053.2848045415,
+  "gross_turnover": 26.4547740762,
+  "initial_cash": 1000000.0,
+  "max_drawdown": -0.4106913912043081,
+  "max_open_positions": 5,
+  "mean_weekly_return": -0.01012250799474715,
+  "median_weekly_return": -0.01013741698602555,
+  "open_positions_at_end": 2,
+  "portfolio_profit_factor": 0.651188802397991,
+  "realized_net_pnl": -302739.0045038581,
+  "return_excluding_best_week": -0.3973775552609611,
+  "return_excluding_top3_profit": -0.49595400837895864,
+  "scenario": "stress",
+  "sharpe_weekly": -1.268201617890554,
+  "top3_replay": {
+    "available": true,
+    "final_nav": 504045.9916210414,
+    "max_drawdown": -0.5097282227103553,
+    "removed_trade_count": 3,
+    "return": -0.49595400837895864
+  },
+  "total_return": -0.3309467151954585,
+  "trade_count": 77,
+  "trade_pnl_excluding_top3_profit": -467746.2976873583,
+  "trade_win_rate": 0.37662337662337664,
+  "weekly_ge_5_count": 7,
+  "weekly_ge_5_ratio": 0.20588235294117646,
+  "weekly_positive_ratio": 0.38235294117647056,
+  "worst_week": -0.13488768263176887
+}

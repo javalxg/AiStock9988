@@ -1,0 +1,87 @@
+{
+  "backtest": {
+    "base": {
+      "corporate_actions": {
+        "rows": 2,
+        "sha256": "134a6764a2acd8ea81066004af8ffc233053a574b568abebe1657c5c394fe984"
+      },
+      "execution_decisions": {
+        "rows": 79,
+        "sha256": "6718c2824d4472d1f021fface62292c548d5d8322ede11425dc9d89f64bb39b2"
+      },
+      "fills": {
+        "rows": 156,
+        "sha256": "e1d5390b5d98ec5bbc96df9f3e62b129f158e73e374db574662cd295e08fa596"
+      },
+      "nav": {
+        "rows": 161,
+        "sha256": "11204a170d2f175dbf3acf9eca76aabcd12d77e8eccddad2d82585c365e1f69e"
+      },
+      "open_positions": {
+        "rows": 2,
+        "sha256": "9224578a02f71cab4df12a74ca6a65bc4d7a0afa0546844e502360ffba62a614"
+      },
+      "orders": {
+        "rows": 158,
+        "sha256": "aeaeab652daf3de0e1278637886bac7267d5e1c9231a6ac7f4027939c16f3b04"
+      },
+      "position_events": {
+        "rows": 239,
+        "sha256": "d3fbfa33ed1b4406e563f030fa8d19ab62d045af910bb2fae65a3f710a4c4a2d"
+      },
+      "positions": {
+        "rows": 612,
+        "sha256": "92b0281070eff7bccaf08b103cc8aa1598af8e803a18ad5e0f141a15fb6e4017"
+      }
+    },
+    "stress": {
+      "corporate_actions": {
+        "rows": 2,
+        "sha256": "e72530adc9a31dae5854e372c0783d50266e5d7f99a96977fd801ab3d8d5e185"
+      },
+      "execution_decisions": {
+        "rows": 79,
+        "sha256": "6718c2824d4472d1f021fface62292c548d5d8322ede11425dc9d89f64bb39b2"
+      },
+      "fills": {
+        "rows": 156,
+        "sha256": "9a3107bd248125936a94e1f290bee75441971e4e33f667a6a660ecf975190acc"
+      },
+      "nav": {
+        "rows": 161,
+        "sha256": "eb6c8c3d014da6ea50fba536840a33847ff094f221fff92098b61c33dcfcfaef"
+      },
+      "open_positions": {
+        "rows": 2,
+        "sha256": "a5ac6887a62307270f1057395c59b8da15113051076b141289520e47ccf8e5ee"
+      },
+      "orders": {
+        "rows": 158,
+        "sha256": "a9ad85e554afbc24f77c6fdb4fe3f31cf904ad53fb47ca5453cce1f3f8131067"
+      },
+      "position_events": {
+        "rows": 239,
+        "sha256": "e9bbc030194130683fbba3278f1db1fd42551616643dc0e05ccc6e0984728a42"
+      },
+      "positions": {
+        "rows": 612,
+        "sha256": "f72409710958f3168c7fd0133ff164a5c25b7949b0a715dceae9c111b86c888d"
+      }
+    }
+  },
+  "business_data_persisted": false,
+  "event_and_selection": {
+    "candidate": {
+      "rows": 127,
+      "sha256": "10f63eb686aa4898f1a96c2fcb2e647bc81bb596ae2274172ccc0917cece609a"
+    },
+    "selection": {
+      "rows": 156,
+      "sha256": "d9844f7e2f58fbd48072d43bf47fbfffbced441ee332e58b1412884ff047514c"
+    },
+    "state": {
+      "rows": 11714,
+      "sha256": "7055448bb775537f8c746663f59adc246d532cc77680a8bd7de957f10b995d8a"
+    }
+  }
+}
