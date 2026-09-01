@@ -1,0 +1,32 @@
+{
+  "checks": {
+    "all_forward_weeks_present": true,
+    "all_stage1_labels_mature": true,
+    "all_stage2_labels_mature": true,
+    "challenger_base_cash_nonnegative": true,
+    "challenger_base_execution_end": true,
+    "challenger_base_nav_identity": true,
+    "challenger_base_position_cap": true,
+    "challenger_stress_cash_nonnegative": true,
+    "challenger_stress_execution_end": true,
+    "challenger_stress_nav_identity": true,
+    "challenger_stress_position_cap": true,
+    "control_base_cash_nonnegative": true,
+    "control_base_execution_end": true,
+    "control_base_nav_identity": true,
+    "control_base_position_cap": true,
+    "control_stress_cash_nonnegative": true,
+    "control_stress_execution_end": true,
+    "control_stress_nav_identity": true,
+    "control_stress_position_cap": true,
+    "no_skipped_stage1_week": true,
+    "no_skipped_stage2_week": true,
+    "one_stage1_model_per_month": true,
+    "one_stage2_model_per_forward_month": true,
+    "paired_candidate_membership_identical": true,
+    "twenty_candidates_every_week": true,
+    "twenty_causal_candidates_every_week": true
+  },
+  "failed": [],
+  "passed": true
+}

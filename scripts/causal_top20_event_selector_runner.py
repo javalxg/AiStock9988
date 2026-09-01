@@ -378,6 +378,116 @@ def _event_diagnostics(forward_top20: pd.DataFrame, event_minimum: float) -> dic
     }
 
 
+def _finite_mean(values: pd.Series) -> float | None:
+    numeric = pd.to_numeric(values, errors="coerce").dropna()
+    return float(numeric.mean()) if len(numeric) else None
+
+
+def _execution_alignment(
+    paired_ledgers: dict[str, dict[str, pd.DataFrame]],
+    paired_results: dict[str, dict[str, dict[str, pd.DataFrame]]],
+    event_minimum: float,
+) -> dict[str, Any]:
+    """Compare frozen candidate labels with the subset actually traded."""
+    output: dict[str, Any] = {"policies": {}, "base_stress_fill_overlap": {}}
+    for policy in ("control", "challenger"):
+        candidate = paired_ledgers[policy]["candidate"].copy()
+        selection = paired_ledgers[policy]["selection"][["asof", "decision_id"]]
+        evidence = candidate.merge(selection, on="asof", how="left", validate="many_to_one")
+        evidence = evidence[[
+            "decision_id", "asof", "ts_code", "candidate_rank", "stage1_rank",
+            "model_score", "stage2_probability", "label_return", "label_available_time",
+        ]]
+        policy_output: dict[str, Any] = {}
+        buy_keys: dict[str, set[tuple[str, str]]] = {}
+        for scenario in ("base", "stress"):
+            result = paired_results[policy][scenario]
+            fills = result["fills"].copy()
+            buys = fills[fills["side"].eq("BUY")][[
+                "decision_id", "ts_code", "trade_date", "economic_price", "gross_value", "commission"
+            ]].rename(columns={
+                "trade_date": "buy_date",
+                "economic_price": "buy_economic_price",
+                "gross_value": "buy_gross_value",
+                "commission": "buy_commission",
+            })
+            sells = fills[fills["side"].eq("SELL")][[
+                "decision_id", "ts_code", "trade_date", "economic_price", "economic_return",
+                "realized_pnl", "gap_return", "reason", "gross_value", "commission", "stamp_duty",
+            ]].rename(columns={
+                "trade_date": "sell_date",
+                "economic_price": "sell_economic_price",
+                "gross_value": "sell_gross_value",
+                "commission": "sell_commission",
+                "reason": "exit_reason",
+            })
+            traded = buys.merge(
+                sells, on=["decision_id", "ts_code"], how="left", validate="one_to_one"
+            ).merge(
+                evidence, on=["decision_id", "ts_code"], how="left", validate="many_to_one"
+            )
+            if traded["candidate_rank"].isna().any():
+                raise AssertionError(f"{policy}/{scenario} fill is absent from candidate evidence")
+            traded["realized_return"] = traded["realized_pnl"] / (
+                traded["buy_gross_value"] + traded["buy_commission"]
+            )
+            traded["label_minus_economic"] = traded["label_return"] - traded["economic_return"]
+            traded["is_primary"] = traded["candidate_rank"].le(5)
+            traded["is_event"] = traded["label_return"].ge(event_minimum)
+            closed = traded[traded["sell_date"].notna()].copy()
+            rank_groups: dict[str, Any] = {}
+            for name, group in (
+                ("primary_rank_1_5", traded[traded["is_primary"]]),
+                ("replacement_rank_6_20", traded[~traded["is_primary"]]),
+            ):
+                rank_groups[name] = {
+                    "buys": int(len(group)),
+                    "closed": int(group["sell_date"].notna().sum()),
+                    "mean_label_return": _finite_mean(group["label_return"]),
+                    "event_rate": _finite_mean(group["is_event"].where(group["label_return"].notna())),
+                    "mean_realized_return": _finite_mean(group["realized_return"]),
+                }
+            exits: dict[str, Any] = {}
+            for reason, group in closed.groupby("exit_reason", sort=True):
+                exits[str(reason)] = {
+                    "trades": int(len(group)),
+                    "mean_label_return": _finite_mean(group["label_return"]),
+                    "mean_economic_return": _finite_mean(group["economic_return"]),
+                    "mean_realized_return": _finite_mean(group["realized_return"]),
+                    "mean_label_minus_economic": _finite_mean(group["label_minus_economic"]),
+                    "mean_exit_gap_return": _finite_mean(group["gap_return"]),
+                    "win_rate": _finite_mean(group["realized_return"].gt(0)),
+                }
+            decisions = result["execution_decisions"]
+            rejections = decisions[~decisions["chosen"]]["reject_reason"].value_counts().sort_index()
+            policy_output[scenario] = {
+                "buys": int(len(traded)),
+                "closed_trades": int(len(closed)),
+                "open_at_end": int(traded["sell_date"].isna().sum()),
+                "mature_label_buys": int(traded["label_return"].notna().sum()),
+                "mean_filled_label_return": _finite_mean(traded["label_return"]),
+                "filled_event_rate": _finite_mean(
+                    traded["is_event"].where(traded["label_return"].notna())
+                ),
+                "mean_closed_economic_return": _finite_mean(closed["economic_return"]),
+                "mean_closed_realized_return": _finite_mean(closed["realized_return"]),
+                "mean_closed_label_minus_economic": _finite_mean(closed["label_minus_economic"]),
+                "rank_groups": rank_groups,
+                "exit_reasons": exits,
+                "rejection_reasons": {str(key): int(value) for key, value in rejections.items()},
+            }
+            buy_keys[scenario] = set(zip(traded["decision_id"].astype(str), traded["ts_code"].astype(str)))
+        output["policies"][policy] = policy_output
+        common = buy_keys["base"] & buy_keys["stress"]
+        output["base_stress_fill_overlap"][policy] = {
+            "common_buys": len(common),
+            "base_only_buys": len(buy_keys["base"] - common),
+            "stress_only_buys": len(buy_keys["stress"] - common),
+            "jaccard": len(common) / len(buy_keys["base"] | buy_keys["stress"]),
+        }
+    return output
+
+
 def _acceptance(
     paired_metrics: dict[str, dict[str, dict[str, Any]]],
     event_diagnostics: dict[str, Any],
@@ -588,6 +698,11 @@ def run(args: argparse.Namespace) -> Path:
         paired_metrics[policy] = metrics
         paired_results[policy] = results
     acceptance = _acceptance(paired_metrics, event_diagnostics, config)
+    execution_alignment = _execution_alignment(
+        paired_ledgers,
+        paired_results,
+        float(config["stage2"]["event_return_minimum"]),
+    )
     verification = _verification(
         stage1_models,
         stage2_models,
@@ -645,6 +760,7 @@ def run(args: argparse.Namespace) -> Path:
     _write_json(output / "stage2_model_manifest.json", stage2_models)
     _write_json(output / "paired_portfolio_metrics.json", paired_metrics)
     _write_json(output / "event_diagnostics.json", event_diagnostics)
+    _write_json(output / "execution_alignment.json", execution_alignment)
     _write_json(output / "acceptance.json", acceptance)
     _write_json(output / "verification.json", verification)
     _write_result(output, sample, paired_metrics, event_diagnostics, acceptance)

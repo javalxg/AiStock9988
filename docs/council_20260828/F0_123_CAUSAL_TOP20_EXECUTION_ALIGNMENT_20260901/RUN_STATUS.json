@@ -1,0 +1,10 @@
+{
+  "acceptance_passed": false,
+  "business_data_persisted": false,
+  "completed_at": "2026-09-01T15:05:57.317967+00:00",
+  "credentials_persisted": false,
+  "model_profile_id": "f0_123_causal_top20_event_selector_v1",
+  "status": "DIAGNOSTIC_COMPLETED",
+  "strategy_id": "f0_123_full_market_top5_v1",
+  "verification_passed": true
+}

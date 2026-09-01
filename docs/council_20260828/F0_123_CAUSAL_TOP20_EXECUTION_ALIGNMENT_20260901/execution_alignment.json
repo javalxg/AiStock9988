@@ -1,0 +1,224 @@
+{
+  "base_stress_fill_overlap": {
+    "challenger": {
+      "base_only_buys": 4,
+      "common_buys": 57,
+      "jaccard": 0.7808219178082192,
+      "stress_only_buys": 12
+    },
+    "control": {
+      "base_only_buys": 2,
+      "common_buys": 62,
+      "jaccard": 0.9117647058823529,
+      "stress_only_buys": 4
+    }
+  },
+  "policies": {
+    "challenger": {
+      "base": {
+        "buys": 61,
+        "closed_trades": 60,
+        "exit_reasons": {
+          "STOP_LOSS": {
+            "mean_economic_return": -0.11638751503219613,
+            "mean_exit_gap_return": 0.0042324291634054665,
+            "mean_label_minus_economic": 0.024995681071838943,
+            "mean_label_return": -0.08000000000000002,
+            "mean_realized_return": -0.11735919726099207,
+            "trades": 33,
+            "win_rate": 0.0
+          },
+          "TIME_EXIT": {
+            "mean_economic_return": 0.07118651929878098,
+            "mean_exit_gap_return": -0.0013123208796199165,
+            "mean_label_minus_economic": 0.0021445175561536235,
+            "mean_label_return": 0.0733310368549346,
+            "mean_realized_return": 0.07000856751308805,
+            "trades": 27,
+            "win_rate": 0.5925925925925926
+          }
+        },
+        "filled_event_rate": 0.16071428571428573,
+        "mature_label_buys": 56,
+        "mean_closed_economic_return": -0.031979199583256436,
+        "mean_closed_label_minus_economic": 0.013978155805347803,
+        "mean_closed_realized_return": -0.03304370311265602,
+        "mean_filled_label_return": -0.0060725358020851114,
+        "open_at_end": 1,
+        "rank_groups": {
+          "primary_rank_1_5": {
+            "buys": 61,
+            "closed": 60,
+            "event_rate": 0.16071428571428573,
+            "mean_label_return": -0.0060725358020851114,
+            "mean_realized_return": -0.03304370311265602
+          },
+          "replacement_rank_6_20": {
+            "buys": 0,
+            "closed": 0,
+            "event_rate": null,
+            "mean_label_return": null,
+            "mean_realized_return": null
+          }
+        },
+        "rejection_reasons": {
+          "BUY_OUT_OF_UNIVERSE": 1,
+          "DUPLICATE_POSITION": 3
+        }
+      },
+      "stress": {
+        "buys": 69,
+        "closed_trades": 68,
+        "exit_reasons": {
+          "STOP_LOSS": {
+            "mean_economic_return": -0.11171712604727821,
+            "mean_exit_gap_return": 0.004130645225473505,
+            "mean_label_minus_economic": 0.025244345938369966,
+            "mean_label_return": -0.07936957061305536,
+            "mean_realized_return": -0.11269394416319144,
+            "trades": 36,
+            "win_rate": 0.0
+          },
+          "TIME_EXIT": {
+            "mean_economic_return": 0.08623335552963418,
+            "mean_exit_gap_return": -0.003254603543031701,
+            "mean_label_minus_economic": 0.006537011166677743,
+            "mean_label_return": 0.09277036669631193,
+            "mean_realized_return": 0.08503807837159663,
+            "trades": 32,
+            "win_rate": 0.65625
+          }
+        },
+        "filled_event_rate": 0.18461538461538463,
+        "mature_label_buys": 65,
+        "mean_closed_economic_return": -0.01856395824637827,
+        "mean_closed_label_minus_economic": 0.016034581127690718,
+        "mean_closed_realized_return": -0.019643580617408812,
+        "mean_filled_label_return": 0.005376244677710084,
+        "open_at_end": 1,
+        "rank_groups": {
+          "primary_rank_1_5": {
+            "buys": 69,
+            "closed": 68,
+            "event_rate": 0.18461538461538463,
+            "mean_label_return": 0.005376244677710084,
+            "mean_realized_return": -0.019643580617408812
+          },
+          "replacement_rank_6_20": {
+            "buys": 0,
+            "closed": 0,
+            "event_rate": null,
+            "mean_label_return": null,
+            "mean_realized_return": null
+          }
+        },
+        "rejection_reasons": {
+          "BUY_OUT_OF_UNIVERSE": 1,
+          "DUPLICATE_POSITION": 4
+        }
+      }
+    },
+    "control": {
+      "base": {
+        "buys": 64,
+        "closed_trades": 63,
+        "exit_reasons": {
+          "STOP_LOSS": {
+            "mean_economic_return": -0.10825991882472952,
+            "mean_exit_gap_return": 0.0020673824354885584,
+            "mean_label_minus_economic": 0.019457029364589505,
+            "mean_label_return": -0.08,
+            "mean_realized_return": -0.1092405387280513,
+            "trades": 31,
+            "win_rate": 0.0
+          },
+          "TIME_EXIT": {
+            "mean_economic_return": 0.0464648231524859,
+            "mean_exit_gap_return": -0.0026547508567518127,
+            "mean_label_minus_economic": 0.002095024670975807,
+            "mean_label_return": 0.04855984782346171,
+            "mean_realized_return": 0.045367236953161555,
+            "trades": 32,
+            "win_rate": 0.59375
+          }
+        },
+        "filled_event_rate": 0.13333333333333333,
+        "mature_label_buys": 60,
+        "mean_closed_economic_return": -0.02966957369344549,
+        "mean_closed_label_minus_economic": 0.010197293527995532,
+        "mean_closed_realized_return": -0.03070960504870509,
+        "mean_filled_label_return": -0.01143474782748709,
+        "open_at_end": 1,
+        "rank_groups": {
+          "primary_rank_1_5": {
+            "buys": 64,
+            "closed": 63,
+            "event_rate": 0.13333333333333333,
+            "mean_label_return": -0.01143474782748709,
+            "mean_realized_return": -0.03070960504870509
+          },
+          "replacement_rank_6_20": {
+            "buys": 0,
+            "closed": 0,
+            "event_rate": null,
+            "mean_label_return": null,
+            "mean_realized_return": null
+          }
+        },
+        "rejection_reasons": {
+          "DUPLICATE_POSITION": 3
+        }
+      },
+      "stress": {
+        "buys": 66,
+        "closed_trades": 65,
+        "exit_reasons": {
+          "STOP_LOSS": {
+            "mean_economic_return": -0.10861468547872391,
+            "mean_exit_gap_return": 0.0020852867515245913,
+            "mean_label_minus_economic": 0.019817713058972623,
+            "mean_label_return": -0.08000000000000002,
+            "mean_realized_return": -0.10959491525576423,
+            "trades": 32,
+            "win_rate": 0.0
+          },
+          "TIME_EXIT": {
+            "mean_economic_return": 0.041502724807639786,
+            "mean_exit_gap_return": -0.005296868197971264,
+            "mean_label_minus_economic": 0.006267819808270544,
+            "mean_label_return": 0.047770544615910335,
+            "mean_realized_return": 0.040373427319134556,
+            "trades": 33,
+            "win_rate": 0.5757575757575758
+          }
+        },
+        "filled_event_rate": 0.12903225806451613,
+        "mature_label_buys": 62,
+        "mean_closed_economic_return": -0.03240123102564696,
+        "mean_closed_label_minus_economic": 0.012605673102953772,
+        "mean_closed_realized_return": -0.0334571413331233,
+        "mean_filled_label_return": -0.011993097220563857,
+        "open_at_end": 1,
+        "rank_groups": {
+          "primary_rank_1_5": {
+            "buys": 66,
+            "closed": 65,
+            "event_rate": 0.12903225806451613,
+            "mean_label_return": -0.011993097220563857,
+            "mean_realized_return": -0.0334571413331233
+          },
+          "replacement_rank_6_20": {
+            "buys": 0,
+            "closed": 0,
+            "event_rate": null,
+            "mean_label_return": null,
+            "mean_realized_return": null
+          }
+        },
+        "rejection_reasons": {
+          "DUPLICATE_POSITION": 2
+        }
+      }
+    }
+  }
+}
