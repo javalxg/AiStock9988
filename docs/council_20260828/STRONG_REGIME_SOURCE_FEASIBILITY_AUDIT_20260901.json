@@ -1,0 +1,69 @@
+{
+  "audit_date": "2026-09-01",
+  "database": "quant_db",
+  "mode": "metadata_only_read_only",
+  "daily_common_cutoff": "2026-09-01",
+  "sources": {
+    "stk_auction_c_ts": {
+      "min_trade_date": "2025-01-02",
+      "max_trade_date": "2026-06-17",
+      "rows_2025_to_2026_09_01": 1973593,
+      "trade_dates": 351,
+      "unique_codes": 8253,
+      "duplicate_trade_date_code_keys": 0,
+      "critical_null_rows": 0,
+      "rows_on_2026_09_01": 0,
+      "cli_sync_attempt": {
+        "range": "2026-06-18..2026-09-01",
+        "task_id": "ba5c57b93db94ce7",
+        "status": "failed",
+        "rows_written": 0,
+        "error": "Tushare stk_auction_c permission is not available"
+      },
+      "decision": "BLOCKED_INCOMPLETE_AND_NOT_SYNCABLE"
+    },
+    "ths_hot_snapshot_ts": {
+      "min_trade_date": "2024-01-31",
+      "max_trade_date": "2026-08-18",
+      "rows": 138657,
+      "trade_dates": 258,
+      "unique_codes": 5987,
+      "rows_snapshot_same_trade_date": 3739,
+      "rows_snapshot_next_calendar_date": 789,
+      "rows_snapshot_later_than_next_calendar_date": 134129,
+      "rows_snapshot_before_trade_date_close": 0,
+      "trade_dates_in_2026": 92,
+      "decision": "BLOCKED_SPARSE_AND_LATE_SNAPSHOT"
+    },
+    "dc_hot_snapshot_ts": {
+      "min_trade_date": "2025-05-06",
+      "max_trade_date": "2026-07-17",
+      "rows": 30938,
+      "trade_dates": 48,
+      "unique_codes": 9358,
+      "rows_snapshot_same_trade_date": 1646,
+      "rows_snapshot_next_calendar_date": 2386,
+      "rows_snapshot_later_than_next_calendar_date": 26906,
+      "rows_snapshot_before_trade_date_close": 0,
+      "decision": "BLOCKED_SPARSE_AND_LATE_SNAPSHOT"
+    },
+    "institutional_event_history": {
+      "return": -0.0647,
+      "win_rate": 0.5,
+      "max_drawdown": -0.2022,
+      "mean_weekly_return": -0.002,
+      "evidence": "/Users/lxg/quant/deltafstation/doc/research/CURRENT_V6_HANDOFF.md:2409",
+      "decision": "REJECTED_EXISTING_EXPERIMENT"
+    },
+    "daily_moneyflow_and_chip_history": {
+      "evidence": [
+        "/Users/lxg/quant/deltafstation/research/experiments/NEXT_DIRECTION_20260819.md:7",
+        "/Users/lxg/quant/deltafstation/research/experiments/q70_unused_source_inventory_20260822/CONCLUSION.md:5"
+      ],
+      "decision": "REJECTED_OR_INSUFFICIENT_EXISTING_EVIDENCE"
+    }
+  },
+  "wide_factor_202_used": false,
+  "strategy_or_model_run": false,
+  "result": "NO_CURRENT_SOURCE_AUTHORIZES_A_NEW_STRONG_REGIME_BACKTEST"
+}
