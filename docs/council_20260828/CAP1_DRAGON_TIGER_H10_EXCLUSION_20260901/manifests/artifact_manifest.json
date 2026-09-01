@@ -1,0 +1,54 @@
+{
+  "RESULT.md": {
+    "bytes": 1020,
+    "sha256": "d4f113d1476a9b17492a4e4674bc3845ba8bc95bfe8c3b7b2a5c67dd55d87d45"
+  },
+  "RUN_STATUS.json": {
+    "bytes": 358,
+    "sha256": "f94b5d674678ec82f818db905fc695c43ce6ace1bf4fc1f30f0693a402dc45fd"
+  },
+  "acceptance.json": {
+    "bytes": 811,
+    "sha256": "9f54fca14eb7606d6ca9dd2ac844bab3c6ff2ef5dbf88949206f7e8ea46effb0"
+  },
+  "comparison.json": {
+    "bytes": 1779,
+    "sha256": "8b7153ec5a3bf8a1b1042af503feeb99f531ce938f4eb1cf39e7948701057684"
+  },
+  "configs/control_strategy.yaml": {
+    "bytes": 4314,
+    "sha256": "6d0af91e975a4a4d1e28ce4f508f06c94a3bb6b9e5b6f72db2f366ed5e81404d"
+  },
+  "configs/overlay.yaml": {
+    "bytes": 819,
+    "sha256": "aa61f3a729c7de28a8bb83a0c62f721ee21c7b744d6451899d7f9326bc541bc4"
+  },
+  "control_metrics.json": {
+    "bytes": 2573,
+    "sha256": "6e9836ef07fe32ddfec0d5a626d8dd726f88e481858d55fb32ce851b5dcbb21b"
+  },
+  "event_manifest.json": {
+    "bytes": 996,
+    "sha256": "832bd18864c46906cbedeef3965aea3b69973d34836bf673aac76928947529a9"
+  },
+  "manifests/code_manifest.json": {
+    "bytes": 568,
+    "sha256": "4de5949cdf109dd7b570c4f6d8194d34c89fda6b7efb358535f27a5e9a30c65d"
+  },
+  "overlap_summary.json": {
+    "bytes": 534,
+    "sha256": "c414e670cc2ff2376e9cb900b47a50096fd592bd498a299dfd714a43403719b3"
+  },
+  "overlay_metrics.json": {
+    "bytes": 2573,
+    "sha256": "6e9836ef07fe32ddfec0d5a626d8dd726f88e481858d55fb32ce851b5dcbb21b"
+  },
+  "plan.json": {
+    "bytes": 6516,
+    "sha256": "f3431292aca50c6af4ddff9d0d5ab19318654ef689a6434a14f3268ea11dc543"
+  },
+  "verification.json": {
+    "bytes": 3691,
+    "sha256": "32b20dbee9604620d1bc5238e3e8ceaa0e3e83b7c3bfbeff6c7ae154ea5f5072"
+  }
+}

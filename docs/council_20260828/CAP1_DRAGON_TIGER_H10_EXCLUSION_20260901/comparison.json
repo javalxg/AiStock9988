@@ -1,0 +1,76 @@
+{
+  "base": {
+    "max_drawdown": {
+      "control": -0.08271935304366507,
+      "delta": 0.0,
+      "overlay": -0.08271935304366507
+    },
+    "portfolio_profit_factor": {
+      "control": 2.2535997176874187,
+      "delta": 0.0,
+      "overlay": 2.2535997176874187
+    },
+    "return_excluding_best_week": {
+      "control": 0.20119895619880634,
+      "delta": 0.0,
+      "overlay": 0.20119895619880634
+    },
+    "return_excluding_top3_profit": {
+      "control": 0.16225695558650122,
+      "delta": 0.0,
+      "overlay": 0.16225695558650122
+    },
+    "total_return": {
+      "control": 0.32440303113620117,
+      "delta": 0.0,
+      "overlay": 0.32440303113620117
+    },
+    "trade_count": {
+      "control": 41,
+      "delta": 0.0,
+      "overlay": 41
+    },
+    "trade_win_rate": {
+      "control": 0.5609756097560976,
+      "delta": 0.0,
+      "overlay": 0.5609756097560976
+    }
+  },
+  "stress": {
+    "max_drawdown": {
+      "control": -0.08815739195258665,
+      "delta": 0.0,
+      "overlay": -0.08815739195258665
+    },
+    "portfolio_profit_factor": {
+      "control": 2.057675276012027,
+      "delta": 0.0,
+      "overlay": 2.057675276012027
+    },
+    "return_excluding_best_week": {
+      "control": 0.1656627200636227,
+      "delta": 0.0,
+      "overlay": 0.1656627200636227
+    },
+    "return_excluding_top3_profit": {
+      "control": 0.12863294237400136,
+      "delta": 0.0,
+      "overlay": 0.12863294237400136
+    },
+    "total_return": {
+      "control": 0.2848200792350013,
+      "delta": 0.0,
+      "overlay": 0.2848200792350013
+    },
+    "trade_count": {
+      "control": 41,
+      "delta": 0.0,
+      "overlay": 41
+    },
+    "trade_win_rate": {
+      "control": 0.5609756097560976,
+      "delta": 0.0,
+      "overlay": 0.5609756097560976
+    }
+  }
+}

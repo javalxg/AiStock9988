@@ -1,0 +1,22 @@
+{
+  "event_age_counts": {},
+  "excluded_candidate_rows": 0,
+  "excluded_signal_days": 0,
+  "excluded_symbols": 0,
+  "scenarios": {
+    "base": {
+      "control_entry_count": 41,
+      "executed_control_entries_excluded": 0,
+      "overlay_entry_count": 41,
+      "removed_entry_keys": 0,
+      "replacement_entry_keys": 0
+    },
+    "stress": {
+      "control_entry_count": 41,
+      "executed_control_entries_excluded": 0,
+      "overlay_entry_count": 41,
+      "removed_entry_keys": 0,
+      "replacement_entry_keys": 0
+    }
+  }
+}

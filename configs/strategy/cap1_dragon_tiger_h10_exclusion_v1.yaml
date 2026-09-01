@@ -1,0 +1,33 @@
+identity:
+  overlay_id: cap1_dragon_tiger_h10_exclusion_v1
+  version: 1
+  research_status: historical_diagnostic
+
+control:
+  strategy_id: reset_weak_confirm_v3_cap1_20
+  signal_start: "2026-01-05"
+  signal_end: "2026-08-13"
+  execution_end: "2026-08-28"
+
+event:
+  definition: dragon_tiger_pullback_reclaim_v1_unchanged
+  confirmation_time: session_close
+
+overlay:
+  action: exclude_candidate_preserve_cap1_rank
+  state_window_sessions: 10
+  include_signal_session: true
+  ranked_fallback: true
+
+evaluation:
+  compare_same_bundle_control: true
+  require_higher_return: true
+  require_pf_not_lower: true
+  require_maxdd_not_worse: true
+  portfolio_profit_factor_min: 2.0
+  max_drawdown_abs_max: 0.15
+  return_excluding_best_week_positive: true
+  minimum_closed_trades: 20
+  maximum_positions: 5
+  parameter_sweep: false
+

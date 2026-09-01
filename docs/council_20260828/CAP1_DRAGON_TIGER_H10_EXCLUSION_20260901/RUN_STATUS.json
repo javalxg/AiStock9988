@@ -1,0 +1,11 @@
+{
+  "acceptance_passed": false,
+  "business_data_persisted": false,
+  "completed_at": "2026-09-01T10:03:01.263153+00:00",
+  "control_reproduced": true,
+  "credentials_persisted": false,
+  "overlay_id": "cap1_dragon_tiger_h10_exclusion_v1",
+  "status": "DIAGNOSTIC_COMPLETED",
+  "strategy_id": "reset_weak_confirm_v3_cap1_20",
+  "verification_passed": true
+}

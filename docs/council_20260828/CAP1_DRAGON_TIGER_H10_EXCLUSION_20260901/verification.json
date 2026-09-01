@@ -1,0 +1,142 @@
+{
+  "business_data_persisted": false,
+  "control_reproduction": {
+    "checks": {
+      "base.active_signal_days": {
+        "actual": 56,
+        "expected": 56,
+        "passed": true
+      },
+      "base.entry_attempts": {
+        "actual": 45,
+        "expected": 45,
+        "passed": true
+      },
+      "base.entry_fills": {
+        "actual": 41,
+        "expected": 41,
+        "passed": true
+      },
+      "base.final_nav": {
+        "actual": 1324403.0311362012,
+        "expected": 1324403.0311362012,
+        "passed": true
+      },
+      "base.max_drawdown": {
+        "actual": -0.08271935304366507,
+        "expected": -0.08271935304366507,
+        "passed": true
+      },
+      "base.open_positions_at_end": {
+        "actual": 0,
+        "expected": 0,
+        "passed": true
+      },
+      "base.portfolio_profit_factor": {
+        "actual": 2.2535997176874187,
+        "expected": 2.2535997176874187,
+        "passed": true
+      },
+      "base.return_excluding_best_week": {
+        "actual": 0.20119895619880634,
+        "expected": 0.20119895619880634,
+        "passed": true
+      },
+      "base.return_excluding_top3_profit": {
+        "actual": 0.16225695558650122,
+        "expected": 0.16225695558650122,
+        "passed": true
+      },
+      "base.total_return": {
+        "actual": 0.32440303113620117,
+        "expected": 0.32440303113620117,
+        "passed": true
+      },
+      "base.trade_count": {
+        "actual": 41,
+        "expected": 41,
+        "passed": true
+      },
+      "base.trade_win_rate": {
+        "actual": 0.5609756097560976,
+        "expected": 0.5609756097560976,
+        "passed": true
+      },
+      "base.zero_candidate_days": {
+        "actual": 92,
+        "expected": 92,
+        "passed": true
+      },
+      "stress.active_signal_days": {
+        "actual": 56,
+        "expected": 56,
+        "passed": true
+      },
+      "stress.entry_attempts": {
+        "actual": 45,
+        "expected": 45,
+        "passed": true
+      },
+      "stress.entry_fills": {
+        "actual": 41,
+        "expected": 41,
+        "passed": true
+      },
+      "stress.final_nav": {
+        "actual": 1284820.0792350012,
+        "expected": 1284820.0792350012,
+        "passed": true
+      },
+      "stress.max_drawdown": {
+        "actual": -0.08815739195258665,
+        "expected": -0.08815739195258665,
+        "passed": true
+      },
+      "stress.open_positions_at_end": {
+        "actual": 0,
+        "expected": 0,
+        "passed": true
+      },
+      "stress.portfolio_profit_factor": {
+        "actual": 2.057675276012027,
+        "expected": 2.057675276012027,
+        "passed": true
+      },
+      "stress.return_excluding_best_week": {
+        "actual": 0.1656627200636227,
+        "expected": 0.1656627200636227,
+        "passed": true
+      },
+      "stress.return_excluding_top3_profit": {
+        "actual": 0.12863294237400136,
+        "expected": 0.12863294237400136,
+        "passed": true
+      },
+      "stress.total_return": {
+        "actual": 0.2848200792350013,
+        "expected": 0.2848200792350013,
+        "passed": true
+      },
+      "stress.trade_count": {
+        "actual": 41,
+        "expected": 41,
+        "passed": true
+      },
+      "stress.trade_win_rate": {
+        "actual": 0.5609756097560976,
+        "expected": 0.5609756097560976,
+        "passed": true
+      },
+      "stress.zero_candidate_days": {
+        "actual": 92,
+        "expected": 92,
+        "passed": true
+      }
+    },
+    "passed": true,
+    "sealed_summary_sha256": "3625d5e26df9db82dd4a5dfbf1ebca1816025be6fb4f10b301805952216c7227"
+  },
+  "parameter_sweep": false,
+  "passed": true,
+  "pit_confirmation_not_after_signal": true
+}

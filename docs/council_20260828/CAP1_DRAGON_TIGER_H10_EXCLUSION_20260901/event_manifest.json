@@ -1,0 +1,26 @@
+{
+  "aggregation_contract": {
+    "daily_amount": "single stock-day value; duplicate reasons must agree",
+    "institution": "sum net_buy only where exalter=机构专用",
+    "top_list_net_amount": "not loaded and never summed",
+    "top_list_reason": "sorted distinct set per stock-day"
+  },
+  "business_data_persisted": false,
+  "confirmed_events": 139,
+  "credentials_persisted": false,
+  "end": "2026-08-13",
+  "event_max_date": "2026-08-13",
+  "event_min_date": "2025-12-12",
+  "event_source_end": "2026-08-13",
+  "event_source_start": "2025-12-12",
+  "inconsistent_amount_stock_days": 1104,
+  "source": "quant_db",
+  "start": "2025-12-12",
+  "top_list_rows": 13615,
+  "top_list_sha256": "bfd7f69f599290e28778cbfc20fdeae9e5a4512f3b3f7ad4d6408e7dc13b370e",
+  "top_list_stock_days": 12479,
+  "top_list_trade_dates": 162,
+  "true_institution_rows": 12381,
+  "true_institution_sha256": "d8284f87ac5b3117daeada17f0dc6f60ffdbb63f8260520ecbbdb6691bca87c0",
+  "true_institution_stock_days": 7611
+}
