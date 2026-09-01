@@ -1,0 +1,13 @@
+{
+  "business_data_persisted": false,
+  "created_at": "2026-09-01T09:26:59.973645+00:00",
+  "credentials_persisted": false,
+  "error": "not JSON serializable: mappingproxy",
+  "error_type": "TypeError",
+  "failed_at": "2026-09-01T09:28:34Z",
+  "git_commit": "bd53919d215b0f7ed4b6ed8ca2596b9557a4301f",
+  "run_name": "dragon_tiger_pullback_reclaim_v1_2026",
+  "status": "FAILED",
+  "strategy_hash": "9c69fee436d421891d7f4e7ee0e6be163767e2369874498974e848024bb94070",
+  "strategy_id": "dragon_tiger_pullback_reclaim_v1"
+}

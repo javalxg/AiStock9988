@@ -1,0 +1,93 @@
+identity:
+  strategy_id: dragon_tiger_pullback_reclaim_v1
+  version: 1
+  mode: rules
+  hypothesis_id: event.dragon_tiger_gap_release_second_demand_leg
+  research_status: historical
+
+universe:
+  source: database_stock_basic
+  exclude_suffixes: [.BJ]
+  exclude_pit_st: true
+  require_listed_on_signal: true
+  min_listed_sessions: 120
+
+data_policy:
+  dense_required:
+    selection: [market_daily_ts, adj_factor_ts, stk_limit_ts]
+    training: [market_daily_ts, adj_factor_ts]
+    execution: [market_daily_ts, adj_factor_ts, stk_limit_ts]
+  sparse_event: [stock_st_ts, suspend_d_ts, stk_auction_o_ts, corporate_actions]
+  optional_enrichment: []
+  source_availability:
+    top_list_ts: eod_trade_date_close
+    top_inst_ts: eod_trade_date_close
+  missing_action:
+    selection: exclude_stock_session
+    training: exclude_sample
+    entry: skip_and_ranked_fallback
+    held_position: carry_last_mark_and_retry
+
+decision:
+  frequency: daily
+  session_selector: all
+  decision_time: "15:00:00 Asia/Shanghai"
+  entry_delay_sessions: 1
+
+features:
+  event_confirmed: {provider: event_state, source: dragon_tiger_pullback_reclaim}
+
+stage1:
+  expression:
+    all:
+      - {left: event_confirmed, op: gt, value: 0.0}
+
+ranking:
+  method: event_intensity_then_participation
+  terms:
+    - {feature: institution_intensity, direction: desc, weight: 1.0}
+  tie_breakers: [reclaim_volume_ratio_desc, ts_code_asc]
+
+portfolio:
+  candidate_view_size: 9999
+  candidate_min_daily_view_ratio: 0.0001
+  allow_sparse_candidate_view: true
+  entries_per_decision: 5
+  max_open_positions: 5
+  target_gross_exposure_cap: 1.0
+  sizing: {method: fixed_fraction_of_decision_nav, value: 0.20}
+  duplicate_symbol: skip
+  exit_pending_occupies_slot: true
+
+execution:
+  initial_cash: 1000000.0
+  entry_price: next_session_raw_open
+  hold_sessions_from_fill: 10
+  exit_price: next_tradable_raw_open
+  stop:
+    trigger: close
+    threshold_pct: -0.08
+    execute: next_tradable_open
+    mode: trailing_from_last_close
+  buy_untradable: no_backfill
+  sell_untradable: retain_and_retry
+  lot_size: 100
+  accounting_basis: raw_with_corporate_actions
+  amount_unit: thousand_rmb
+  amount_unit_multiplier: 1000.0
+  adv20_max_participation: 0.02
+  end_policy: mark_open_positions
+  cost_scenarios:
+    base: {slippage_each_side: 0.001, buy_commission: 0.0003, sell_commission: 0.0003, stamp_duty: 0.0005}
+    stress: {slippage_each_side: 0.003, buy_commission: 0.0003, sell_commission: 0.0003, stamp_duty: 0.0005}
+
+acceptance:
+  mean_weekly_return_min: 0.05
+  trade_win_rate_min: 0.70
+  portfolio_profit_factor_min: 2.0
+  max_drawdown_abs_max: 0.15
+  return_excluding_best_week_min_exclusive: 0.0
+  return_excluding_top3_profit_min_exclusive: 0.0
+  minimum_closed_trades: 20
+  minimum_active_signal_days: 20
+  parameter_sweep: false

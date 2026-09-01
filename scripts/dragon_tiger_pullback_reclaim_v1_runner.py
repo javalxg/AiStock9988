@@ -8,6 +8,7 @@ import json
 import shutil
 import subprocess
 import sys
+from collections.abc import Mapping
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -433,6 +434,8 @@ def _write_json(path: Path, payload: Any, *, replace: bool = False) -> None:
 
 
 def _json_default(value: Any) -> Any:
+    if isinstance(value, Mapping):
+        return dict(value)
     if isinstance(value, (pd.Timestamp, datetime)):
         return value.isoformat()
     if isinstance(value, np.generic):
@@ -441,6 +444,8 @@ def _json_default(value: Any) -> Any:
         return str(value)
     if isinstance(value, tuple):
         return list(value)
+    if isinstance(value, (set, frozenset)):
+        return sorted(value)
     raise TypeError(f"not JSON serializable: {type(value).__name__}")
 
 
@@ -453,7 +458,20 @@ def main() -> None:
     parser.add_argument("--event-end", default="auto")
     parser.add_argument("--execution-end", default="auto")
     args = parser.parse_args()
-    result = run(args)
+    try:
+        result = run(args)
+    except Exception as exc:
+        status_path = args.output.resolve() / "RUN_STATUS.json"
+        if status_path.exists():
+            status = json.loads(status_path.read_text(encoding="utf-8"))
+            status.update({
+                "status": "FAILED",
+                "failed_at": datetime.now(timezone.utc).isoformat(),
+                "error_type": type(exc).__name__,
+                "error": str(exc),
+            })
+            _write_json(status_path, status, replace=True)
+        raise
     print(f"run_complete={result}")
 
 
