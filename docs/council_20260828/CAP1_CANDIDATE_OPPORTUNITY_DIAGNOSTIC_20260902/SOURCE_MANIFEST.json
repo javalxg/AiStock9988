@@ -1,0 +1,45 @@
+{
+  "diagnostic": {
+    "scripts/cap1_candidate_opportunity_diagnostic.py": "cd97056347e8ae701ad0b1379c933b495125cf721140a1ddd66ff7ee1d9499ca"
+  },
+  "source_inputs": {
+    "backtests/base/execution_decisions.parquet": {
+      "bytes": 17583,
+      "sealed_hash_verified": true,
+      "sha256": "341c5553b3422bb911c5bdaaf83c7d5f177fbb0e595e905137d5c681a57e9e8f"
+    },
+    "backtests/base/fills.parquet": {
+      "bytes": 21441,
+      "sealed_hash_verified": true,
+      "sha256": "994dccdb868756a00d7d5fd21d4bf517ee79bf0971b846b2a71933ef37e50827"
+    },
+    "backtests/base/positions.parquet": {
+      "bytes": 21757,
+      "sealed_hash_verified": true,
+      "sha256": "b018126ff4d0a6a15a809b4fe831dd84e783e397f9082bbc131d76ee2628bb45"
+    },
+    "ledgers/candidate_ledger.parquet": {
+      "bytes": 2202290,
+      "sealed_hash_verified": true,
+      "sha256": "d71c287f34e2392069d888c83ca1cbd52006536895760ea588ece613fc9ff71d"
+    },
+    "ledgers/execution_panel.parquet": {
+      "bytes": 76614722,
+      "sealed_hash_verified": true,
+      "sha256": "7e49c925288719316fe7eefde40ee048ebab54071c1ea6432ac176e12e0cf11e"
+    },
+    "ledgers/feature_ledger.parquet": {
+      "bytes": 89361016,
+      "sealed_hash_verified": true,
+      "sha256": "c2a75e986ec35599aecd470b552f9e04eb6b463030212e98ac404c4701f9405a"
+    },
+    "manifests/artifact_manifest.json": {
+      "bytes": 10238,
+      "sealed_hash_verified": false,
+      "sha256": "3d087d1ac50888402070b0d97cd6f62e94d199b231fb5ae767b905d3568d6f97"
+    }
+  },
+  "strategy": {
+    "configs/strategy/reset_weak_confirm_v3_cap1_20.yaml": "6d0af91e975a4a4d1e28ce4f508f06c94a3bb6b9e5b6f72db2f366ed5e81404d"
+  }
+}

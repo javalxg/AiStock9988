@@ -1,0 +1,205 @@
+{
+  "all_candidates": {
+    "active_signal_days": 56,
+    "closed_labels": 341,
+    "events": 342,
+    "mean_return": 0.014574410869323432,
+    "median_return": 0.015473177433437124,
+    "return_ge_10_rate": 0.16129032258064516,
+    "stop_rate": 0.12023460410557185,
+    "win_rate": 0.5777126099706745
+  },
+  "constraints": {
+    "parameter_scan_performed": false,
+    "raw_business_data_written": false,
+    "strategy_changed": false,
+    "wide_202_factor_system_used": false,
+    "xgboost_used": false
+  },
+  "exit_reasons": {
+    "STOP_LOSS": {
+      "active_signal_days": 16,
+      "closed_labels": 41,
+      "events": 41,
+      "mean_return": -0.08300462077065078,
+      "median_return": -0.09537093512347194,
+      "return_ge_10_rate": 0.04878048780487805,
+      "stop_rate": 1.0,
+      "win_rate": 0.12195121951219512
+    },
+    "TIME_EXIT": {
+      "active_signal_days": 56,
+      "closed_labels": 300,
+      "events": 300,
+      "mean_return": 0.02791021186011991,
+      "median_return": 0.024909871869730482,
+      "return_ge_10_rate": 0.17666666666666667,
+      "stop_rate": 0.0,
+      "win_rate": 0.64
+    }
+  },
+  "features": {
+    "candidate_rank": {
+      "loser_mean": 6.388888888888889,
+      "spearman_to_return": -0.07520758726443427,
+      "winner_mean": 5.649746192893401,
+      "winner_minus_loser": -0.7391426959954881
+    },
+    "dd20": {
+      "loser_mean": -0.09831628288417811,
+      "spearman_to_return": -0.035156125871558246,
+      "winner_mean": -0.0988610222703575,
+      "winner_minus_loser": -0.0005447393861793826
+    },
+    "dist_ma60": {
+      "loser_mean": -0.14380220654478357,
+      "spearman_to_return": 0.011959906666787722,
+      "winner_mean": -0.14277214060551133,
+      "winner_minus_loser": 0.00103006593927224
+    },
+    "liq20": {
+      "loser_mean": 1257680.630739132,
+      "spearman_to_return": -0.04004461490396358,
+      "winner_mean": 1242898.6780329188,
+      "winner_minus_loser": -14781.95270621311
+    },
+    "mkt_ret_20d": {
+      "loser_mean": -0.05954849261240688,
+      "spearman_to_return": -0.27050607185222014,
+      "winner_mean": -0.08999672854156741,
+      "winner_minus_loser": -0.030448235929160537
+    },
+    "ret1": {
+      "loser_mean": 0.03341789102532598,
+      "spearman_to_return": 0.02462768284772854,
+      "winner_mean": 0.03561985435296309,
+      "winner_minus_loser": 0.002201963327637106
+    },
+    "ret20": {
+      "loser_mean": -0.08956116863303365,
+      "spearman_to_return": 0.05826819074596963,
+      "winner_mean": -0.08622947856786785,
+      "winner_minus_loser": 0.0033316900651658016
+    },
+    "rule_score": {
+      "loser_mean": 0.5858618373120115,
+      "spearman_to_return": 0.006050635277410124,
+      "winner_mean": 0.5869265330254706,
+      "winner_minus_loser": 0.0010646957134591295
+    },
+    "vol20": {
+      "loser_mean": 0.03228117533378929,
+      "spearman_to_return": -0.03006485508233236,
+      "winner_mean": 0.031087843172907696,
+      "winner_minus_loser": -0.0011933321608815946
+    },
+    "volume_ratio_20": {
+      "loser_mean": 1.3849850927728757,
+      "spearman_to_return": -0.04189462789283023,
+      "winner_mean": 1.361475343894793,
+      "winner_minus_loser": -0.02350974887808266
+    }
+  },
+  "naive_replacement": {
+    "comparable_pairs": 17,
+    "comparison_bias": "optimistic_for_replacement: old-position early-liquidation friction is omitted",
+    "decision": "REJECT_NAIVE_FULL_SLOT_WEAK_POSITION_REPLACEMENT",
+    "keep_mean_remaining_return": 0.02264881012235087,
+    "keep_win_rate": 0.5294117647058824,
+    "mean_optimistic_delta": -0.04438579162533967,
+    "replacement_beats_keep_rate": 0.23529411764705882,
+    "replacement_mean_return": -0.021736981502988795,
+    "replacement_win_rate": 0.47058823529411764
+  },
+  "parity": {
+    "engine_closed_trades": 41,
+    "matched_closed_trades": 41,
+    "max_absolute_economic_return_error": 0.0,
+    "passed": true
+  },
+  "rank_buckets": {
+    "rank_11_20": {
+      "active_signal_days": 9,
+      "closed_labels": 59,
+      "events": 59,
+      "mean_return": 0.008928055523480838,
+      "median_return": 0.0014985551154194088,
+      "return_ge_10_rate": 0.1694915254237288,
+      "stop_rate": 0.22033898305084745,
+      "win_rate": 0.5084745762711864
+    },
+    "rank_1_5": {
+      "active_signal_days": 56,
+      "closed_labels": 199,
+      "events": 200,
+      "mean_return": 0.021006398883564543,
+      "median_return": 0.025592425047408884,
+      "return_ge_10_rate": 0.18090452261306533,
+      "stop_rate": 0.08040201005025126,
+      "win_rate": 0.6331658291457286
+    },
+    "rank_6_10": {
+      "active_signal_days": 23,
+      "closed_labels": 83,
+      "events": 83,
+      "mean_return": 0.0031668126834286403,
+      "median_return": -0.0011606772342740435,
+      "return_ge_10_rate": 0.10843373493975904,
+      "stop_rate": 0.14457831325301204,
+      "win_rate": 0.4939759036144578
+    }
+  },
+  "scope": {
+    "execution_end": "2026-08-28",
+    "isolated_candidate_counterfactual": true,
+    "portfolio_backtest": false,
+    "signal_end": "2026-08-11",
+    "signal_start": "2026-02-06",
+    "years_used_for_performance": [
+      2026
+    ]
+  },
+  "selection": {
+    "chosen": {
+      "active_signal_days": 25,
+      "closed_labels": 41,
+      "events": 41,
+      "mean_return": 0.03863460912154371,
+      "median_return": 0.029392102677938237,
+      "return_ge_10_rate": 0.2926829268292683,
+      "stop_rate": 0.04878048780487805,
+      "win_rate": 0.5609756097560976
+    },
+    "entry_slot_available": {
+      "active_signal_days": 27,
+      "closed_labels": 107,
+      "events": 107,
+      "mean_return": 0.017532020310403743,
+      "median_return": -0.000916448669663672,
+      "return_ge_10_rate": 0.19626168224299065,
+      "stop_rate": 0.102803738317757,
+      "win_rate": 0.4953271028037383
+    },
+    "not_chosen": {
+      "active_signal_days": 41,
+      "closed_labels": 300,
+      "events": 301,
+      "mean_return": 0.011286183774853327,
+      "median_return": 0.01484583779048676,
+      "return_ge_10_rate": 0.14333333333333334,
+      "stop_rate": 0.13,
+      "win_rate": 0.58
+    },
+    "portfolio_full": {
+      "active_signal_days": 29,
+      "closed_labels": 234,
+      "events": 235,
+      "mean_return": 0.013221999714641407,
+      "median_return": 0.021689596157189905,
+      "return_ge_10_rate": 0.1452991452991453,
+      "stop_rate": 0.1282051282051282,
+      "win_rate": 0.6153846153846154
+    }
+  },
+  "status": "DIAGNOSTIC_SEEN_2026_HISTORY_NO_STRATEGY_CHANGE"
+}
