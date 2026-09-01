@@ -1,0 +1,10 @@
+{
+  "completed_at": "2026-09-01T17:50:36.875237+00:00",
+  "credentials_persisted": false,
+  "raw_business_data_persisted": false,
+  "status": "COMPLETED_REJECT",
+  "strategy_id": "strong_momentum_breakout_v1",
+  "years_used_for_performance": [
+    2026
+  ]
+}

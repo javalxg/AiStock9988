@@ -1,0 +1,11 @@
+{
+  "configs/strategy/strong_momentum_breakout_v1.yaml": "6560200f299c22a445b1f19838104177b35e30e3cf2d885cf33bb39b370baf38",
+  "docs/council_20260828/STRONG_MOMENTUM_BREAKOUT_V1_PREREG_20260902.md": "c8583775070ca1cab10fd3fc3863e649ad9bfe899095e9f1f1536223bbc9a467",
+  "scripts/rules_summary_runner.py": "f5255e2b58bf8ddedd4aad014e33ac229ad17479fddd75734f15750e58226f40",
+  "src/aistock9988/backtest/engine.py": "4ff7126b61959939225e748dd2b910392ee7c55bd0609a512114777cd64dab47",
+  "src/aistock9988/configuration.py": "8d1a954cee6d473143040eaeacd473f95f3dacf7713cf828c67bed885075aae5",
+  "src/aistock9988/data/bundle.py": "c8ae1360db3e8410b0cdc08a979ff5749147b907776419780f4edc1a9ff38185",
+  "src/aistock9988/features/engine.py": "63395ac19e60556c1abb8f60a972bb7d434f8d086fb8b9bcde04cc2d6b73b1d0",
+  "src/aistock9988/reporting/metrics.py": "d47b3488570029dae93521103c84e886d8e99598c24c03d78fdc91cf063eb593",
+  "src/aistock9988/selection/pipeline.py": "bc790121b8a1802543a39a104bf39def7230bab3dbce4ca14ff570ab230c9521"
+}
