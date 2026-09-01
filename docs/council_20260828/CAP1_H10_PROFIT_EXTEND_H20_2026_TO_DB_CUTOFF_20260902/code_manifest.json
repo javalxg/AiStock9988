@@ -1,0 +1,8 @@
+{
+  "configs/strategy/reset_weak_confirm_v3_cap1_20.yaml": "6d0af91e975a4a4d1e28ce4f508f06c94a3bb6b9e5b6f72db2f366ed5e81404d",
+  "configs/strategy/reset_weak_confirm_v3_cap1_h10_profit_extend_h20_v1.yaml": "b7855ddf5d86697a5d544550ae24fe37b0741b11c99df33b65b4cdb6a212337a",
+  "docs/council_20260828/CAP1_H10_PROFIT_EXTEND_H20_PREREG_20260902.md": "7edbd1f206aacdc62e4afdb99ff73379b67259d5bb3c157e60edf559ff2d3db5",
+  "scripts/cap1_h10_profit_extend_h20_runner.py": "78d6ac1312d75e70aafedace038fb0200ff9034749fecb6121ed7161d457ee01",
+  "src/aistock9988/backtest/engine.py": "e75843b67028e42bfe6f26234862d2244e91137a5dae5f3eebde12f364647c7a",
+  "src/aistock9988/configuration.py": "d1a41221feae9f7e761cb0c4f08639ae6bb450ad03e9b8329585d2a60bef4eec"
+}

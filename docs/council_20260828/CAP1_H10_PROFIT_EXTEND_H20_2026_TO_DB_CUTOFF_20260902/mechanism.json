@@ -1,0 +1,30 @@
+{
+  "base": {
+    "challenger_buy_count": 32,
+    "challenger_only_buy_count": 3,
+    "changed_exit_challenger_mean_return": 0.14920715677613636,
+    "changed_exit_closed_trade_count": 14,
+    "changed_exit_control_mean_return": 0.12062818988156299,
+    "changed_exit_improved_rate": 0.5714285714285714,
+    "control_buy_count": 42,
+    "control_only_buy_count": 13,
+    "control_only_closed_trade_count": 13,
+    "control_only_realized_pnl": 204881.60358980022,
+    "control_only_win_rate": 0.6923076923076923,
+    "shared_buy_count": 29
+  },
+  "stress": {
+    "challenger_buy_count": 32,
+    "challenger_only_buy_count": 3,
+    "changed_exit_challenger_mean_return": 0.14461948972014257,
+    "changed_exit_closed_trade_count": 14,
+    "changed_exit_control_mean_return": 0.11615461085934409,
+    "changed_exit_improved_rate": 0.5714285714285714,
+    "control_buy_count": 42,
+    "control_only_buy_count": 13,
+    "control_only_closed_trade_count": 13,
+    "control_only_realized_pnl": 189808.60260460022,
+    "control_only_win_rate": 0.6923076923076923,
+    "shared_buy_count": 29
+  }
+}

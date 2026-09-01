@@ -126,7 +126,9 @@ def run_backtest(
             "state": "ACTIVE", "shares": shares, "entry_date": day, "entry_price": raw_price,
             "entry_economic_price": economic_price, "total_cost": total_cost,
             "dividends_received": 0.0,
+            "entry_session_index": entry_index,
             "scheduled_exit_index": entry_index + int(strategy.execution["hold_sessions_from_fill"]),
+            "time_exit_extended": False,
             "exit_reason": None, "last_raw_open": float(row.raw_open), "last_raw_close": float(row.raw_close),
             "last_economic_close": float(row.economic_close), "decision_id": order["decision_id"],
             "trailing_reference_economic_close": float(row.economic_close),
@@ -212,9 +214,32 @@ def run_backtest(
                 and not rank_holding_enabled
                 and session_index >= int(pos["scheduled_exit_index"])
             ):
-                pos["state"] = "EXIT_PENDING"
-                pos["exit_reason"] = "TIME_EXIT"
-                event(day, code, "EXIT_TRIGGER", "ACTIVE", "EXIT_PENDING", "TIME_EXIT")
+                extension = strategy.execution.get("time_exit_extension", {})
+                can_extend = (
+                    bool(extension.get("enabled", False))
+                    and not bool(pos["time_exit_extended"])
+                    and float(pos["last_economic_close"])
+                    / float(pos["entry_economic_price"])
+                    - 1.0
+                    > 0.0
+                )
+                if can_extend:
+                    pos["time_exit_extended"] = True
+                    pos["scheduled_exit_index"] = int(pos["entry_session_index"]) + int(
+                        extension["extended_hold_sessions_from_fill"]
+                    )
+                    event(
+                        day,
+                        code,
+                        "TIME_EXIT_EXTENSION",
+                        "ACTIVE",
+                        "ACTIVE",
+                        "PRIOR_CLOSE_UNREALIZED_POSITIVE",
+                    )
+                else:
+                    pos["state"] = "EXIT_PENDING"
+                    pos["exit_reason"] = "TIME_EXIT"
+                    event(day, code, "EXIT_TRIGGER", "ACTIVE", "EXIT_PENDING", "TIME_EXIT")
             if (
                 pos["state"] == "ACTIVE"
                 and hold_pool is not None
@@ -454,6 +479,8 @@ def run_backtest(
                 "decision_id": pos["decision_id"],
                 "last_raw_close": pos["last_raw_close"], "market_value": float(pos["shares"]) * float(pos["last_raw_close"]),
                 "unrealized_return": float(pos["last_economic_close"]) / float(pos["entry_economic_price"]) - 1.0,
+                "time_exit_extended": bool(pos["time_exit_extended"]),
+                "scheduled_exit_index": int(pos["scheduled_exit_index"]),
                 "exit_reason": pos["exit_reason"],
                 "exit_triggers": pos.get("exit_triggers", []),
             })

@@ -1,0 +1,115 @@
+{
+  "passed": false,
+  "promotion_tests": {
+    "base_ex_best_week": false,
+    "base_ex_top3": false,
+    "base_maxdd": false,
+    "base_pf": false,
+    "base_position_cap": true,
+    "base_return": false,
+    "base_win_rate_70": false,
+    "stress_ex_best_week": false,
+    "stress_ex_top3": false,
+    "stress_maxdd": false,
+    "stress_pf": false,
+    "stress_position_cap": true,
+    "stress_return": false,
+    "stress_win_rate_70": false
+  },
+  "scenarios": {
+    "base": {
+      "max_drawdown": {
+        "challenger": -0.11172589003797861,
+        "control": -0.08271935304366507,
+        "delta": -0.029006536994313548
+      },
+      "portfolio_profit_factor": {
+        "challenger": 1.7750599318520686,
+        "control": 2.2535997176874187,
+        "delta": -0.4785397858353502
+      },
+      "return_excluding_best_week": {
+        "challenger": 0.09354093493156745,
+        "control": 0.21218928384217262,
+        "delta": -0.11864834891060516
+      },
+      "return_excluding_top3_profit": {
+        "challenger": 0.027250618927100234,
+        "control": 0.17437453458450114,
+        "delta": -0.1471239156574009
+      },
+      "total_return": {
+        "challenger": 0.2003767620260004,
+        "control": 0.3365206101342011,
+        "delta": -0.13614384810820068
+      },
+      "trade_count": {
+        "challenger": 31,
+        "control": 41,
+        "delta": -10.0
+      },
+      "trade_win_rate": {
+        "challenger": 0.5161290322580645,
+        "control": 0.5609756097560976,
+        "delta": -0.04484657749803311
+      },
+      "weekly_ge_5_count": {
+        "challenger": 3,
+        "control": 3,
+        "delta": 0.0
+      },
+      "weekly_ge_5_ratio": {
+        "challenger": 0.08823529411764706,
+        "control": 0.08823529411764706,
+        "delta": 0.0
+      }
+    },
+    "stress": {
+      "max_drawdown": {
+        "challenger": -0.11686105159966487,
+        "control": -0.08815739195258665,
+        "delta": -0.028703659647078217
+      },
+      "portfolio_profit_factor": {
+        "challenger": 1.6577633514723107,
+        "control": 2.057675276012027,
+        "delta": -0.39991192453971647
+      },
+      "return_excluding_best_week": {
+        "challenger": 0.07148087415812632,
+        "control": 0.17587805629988518,
+        "delta": -0.10439718214175886
+      },
+      "return_excluding_top3_profit": {
+        "challenger": 0.007235217947100914,
+        "control": 0.139892519339601,
+        "delta": -0.1326573013925001
+      },
+      "total_return": {
+        "challenger": 0.17517545182900118,
+        "control": 0.29607965620060117,
+        "delta": -0.12090420437159999
+      },
+      "trade_count": {
+        "challenger": 31,
+        "control": 41,
+        "delta": -10.0
+      },
+      "trade_win_rate": {
+        "challenger": 0.5161290322580645,
+        "control": 0.5609756097560976,
+        "delta": -0.04484657749803311
+      },
+      "weekly_ge_5_count": {
+        "challenger": 3,
+        "control": 3,
+        "delta": 0.0
+      },
+      "weekly_ge_5_ratio": {
+        "challenger": 0.08823529411764706,
+        "control": 0.08823529411764706,
+        "delta": 0.0
+      }
+    }
+  }
+}

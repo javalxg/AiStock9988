@@ -1,0 +1,136 @@
+{
+  "amount_unit_audit": {
+    "declared_unit": "thousand_rmb",
+    "multiplier_to_rmb": 1000.0,
+    "price_volume_amount_ratio_median": 1.0003347342536166,
+    "price_volume_amount_ratio_p01": 0.9627334204530037,
+    "price_volume_amount_ratio_p99": 1.0371102176975244,
+    "sample_rows": 1211460,
+    "sample_trade_date_max": "2026-09-01",
+    "sample_trade_date_min": "2025-10-09",
+    "volume_unit_assumption": "100_shares_per_lot"
+  },
+  "bundle_id": "d44452b9993b4c3ee3629bc40cf710bd2aceddac76a61c649f6098dae8af88a3",
+  "configured_codes": 5838,
+  "corporate_actions_pit_excluded_rows": 0,
+  "corporate_actions_query_start": "2026-01-05",
+  "coverage": {
+    "data_eligibility": {
+      "execution": {
+        "eligible_rows": 1096631,
+        "excluded_rows": 2298,
+        "missing_source_counts": {
+          "adj_factor_ts": 9,
+          "market_daily_ts": 2282,
+          "stk_limit_ts": 570
+        }
+      },
+      "selection": {
+        "eligible_rows": 1096631,
+        "excluded_rows": 2298,
+        "missing_source_counts": {
+          "adj_factor_ts": 9,
+          "market_daily_ts": 2282,
+          "stk_limit_ts": 570
+        }
+      },
+      "training": {
+        "eligible_rows": 1096647,
+        "excluded_rows": 2282,
+        "missing_source_counts": {
+          "adj_factor_ts": 9,
+          "market_daily_ts": 2282
+        }
+      }
+    },
+    "duplicate_execution_keys": 0,
+    "expected_eligible_rows": 1098929,
+    "missing_required_data_rows": 849,
+    "optional_missing_source_counts": {},
+    "status_counts": {
+      "LIMIT_DOWN": 794,
+      "LIMIT_UP": 1811,
+      "MISSING_REQUIRED_DATA": 849,
+      "TRADABLE": 1090858,
+      "ZERO_VOLUME": 4617
+    }
+  },
+  "credentials_persisted": false,
+  "data_policy": {
+    "dense_required": {
+      "execution": [
+        "market_daily_ts",
+        "adj_factor_ts",
+        "stk_limit_ts"
+      ],
+      "selection": [
+        "market_daily_ts",
+        "adj_factor_ts",
+        "stk_limit_ts"
+      ],
+      "training": [
+        "market_daily_ts",
+        "adj_factor_ts"
+      ]
+    },
+    "missing_action": {
+      "entry": "skip_and_ranked_fallback",
+      "held_position": "carry_last_mark_and_retry",
+      "selection": "exclude_stock_session",
+      "training": "exclude_sample"
+    },
+    "optional_enrichment": [],
+    "source_availability": {},
+    "sparse_event": [
+      "stock_st_ts",
+      "suspend_d_ts",
+      "stk_auction_o_ts",
+      "corporate_actions"
+    ]
+  },
+  "eligible_suffix_codes": 5522,
+  "enrichment_rows": {},
+  "execution_end": "2026-09-01",
+  "feature_start": "2025-10-09",
+  "listing_age_policy": {
+    "calendar_end": "2026-09-01",
+    "calendar_start": "1990-12-19",
+    "min_listed_sessions": 120
+  },
+  "shared_snapshot": {
+    "cache_key": null,
+    "cache_root": null,
+    "cache_status": "disabled_db_direct",
+    "materialization": {}
+  },
+  "snapshot_semantics": "source_ingested_time is provenance; event/available time controls PIT",
+  "source_availability_policy": "{}",
+  "source_id": "quant_db",
+  "source_rows": {
+    "adjustment": 1215185,
+    "auction_zero": 6089,
+    "calendar": 221,
+    "calendar_listing": 8716,
+    "corporate_actions": 3625,
+    "daily_limits": 1650440,
+    "market_daily": 1211630,
+    "pit_st": 40251,
+    "security_master": 5838,
+    "suspensions": 0,
+    "universe_codes": 5522
+  },
+  "source_sha256": {
+    "adjustment": "72d573466c0962b8c15858562f76be1579754f380b3f557b3101a769959f8fdf",
+    "auction_zero": "743ee9a51aab58efa878777f4e5082b4c924e8af7d305b272adc4954a12c447f",
+    "calendar": "61442eb7b1f98b51f4b010be1203a3175fcc8c800d0bef15b320972a2611a2d7",
+    "calendar_listing": "bf58e9285da9a8984aed77c4873a2ec1ddd80b87f31a2ab03b0b0e21cd1242a1",
+    "corporate_actions": "499486fc58c34f182928841df622b07a14ccdfd724ce2c8efe117b1772db8ea4",
+    "daily_limits": "716d1c23baa411c774cf98b9f4d4e045cfe3f4b04dfb59367556ca956885cb4d",
+    "market_daily": "32ff4d1b8d4f0eb505d73cb6bba8efa9200b3b1e0f521527c0a4b8088c0363c6",
+    "pit_st": "afc0cfcbd2fc59662de04cf74159c0573f5db98cf2c4f8f2fe550a44f9263d75",
+    "security_master": "65d16f0e4cf0b6381bf8cb3dae9d4bfa2669015313ea87a720e946567be02ac9",
+    "suspensions": "5e3ed91ef841dbadb57a718f2d3bd41b03333b75067dec7882f049ebe9fd6e00",
+    "universe_codes": "6bb36aeca53fd527b0270f67b377090586b187fdeed6460b33126d53184ebfea"
+  },
+  "source_update_time_summary": {}
+}
