@@ -1,0 +1,421 @@
+{
+  "completed_at": "2026-09-01T19:09:24.094544+00:00",
+  "constraints": {
+    "model_repaired": false,
+    "parameter_scan_performed": false,
+    "raw_business_data_written": false,
+    "stock_codes_or_individual_sessions_persisted": false,
+    "strategy_changed": false,
+    "wide_202_factor_system_used": false
+  },
+  "monthly_paired_displacements": [
+    {
+      "challenger_pair_win_rate": 1.0,
+      "closed_pairs": 1,
+      "direct_pairs": 1,
+      "downstream_pairs": 0,
+      "mean_return_delta": 0.1338009361382997,
+      "month": "2026-04",
+      "nonadditive_paired_realized_pnl_delta": 27153.05490029999,
+      "pairs": 1
+    },
+    {
+      "challenger_pair_win_rate": 0.5,
+      "closed_pairs": 2,
+      "direct_pairs": 0,
+      "downstream_pairs": 2,
+      "mean_return_delta": 0.0005258650190482217,
+      "month": "2026-06",
+      "nonadditive_paired_realized_pnl_delta": -3783.129361899948,
+      "pairs": 2
+    },
+    {
+      "challenger_pair_win_rate": 0.0,
+      "closed_pairs": 3,
+      "direct_pairs": 0,
+      "downstream_pairs": 3,
+      "mean_return_delta": -0.08304180603547424,
+      "month": "2026-07",
+      "nonadditive_paired_realized_pnl_delta": -55339.86951079997,
+      "pairs": 3
+    },
+    {
+      "challenger_pair_win_rate": 0.0,
+      "closed_pairs": 2,
+      "direct_pairs": 0,
+      "downstream_pairs": 2,
+      "mean_return_delta": -0.04486280522260844,
+      "month": "2026-08",
+      "nonadditive_paired_realized_pnl_delta": -22772.638469599944,
+      "pairs": 2
+    }
+  ],
+  "nav_bridge": {
+    "bridge_delta": -49063.410921099814,
+    "bridge_identity_error": 2.473825588822365e-10,
+    "categories": {
+      "direct_same_prebuy_state_displacement": {
+        "challenger_trades": 1,
+        "control_trades": 1,
+        "dividends": 0.0,
+        "fees_taxes": -21.38609969999999,
+        "gross_price_pnl": 27174.44100000002,
+        "nav_contribution": 27153.05490030002
+      },
+      "downstream_path_divergence": {
+        "challenger_trades": 7,
+        "control_trades": 7,
+        "dividends": 0.0,
+        "fees_taxes": 20.40865770000005,
+        "gross_price_pnl": -81916.04599999994,
+        "nav_contribution": -81895.63734229993
+      },
+      "shared_sizing_and_path_effect": {
+        "challenger_trades": 34,
+        "control_trades": 34,
+        "dividends": 183.19999999999982,
+        "fees_taxes": -94.00547910000114,
+        "gross_price_pnl": 5589.9770000000135,
+        "nav_contribution": 5679.171520900098
+      }
+    },
+    "challenger_contribution_identity_error": 0.0,
+    "challenger_final_nav": 1287457.199213101,
+    "control_contribution_identity_error": 1.7462298274040222e-10,
+    "control_final_nav": 1336520.6101342011,
+    "final_nav_delta": -49063.41092110006,
+    "passed": true
+  },
+  "paired_displacements": {
+    "challenger_pair_win_rate": 0.25,
+    "closed_pairs": 8,
+    "coverage": {
+      "displaced_events": 8,
+      "pair_coverage": 1.0,
+      "paired_events": 8,
+      "promoted_events": 8,
+      "unpaired_displaced": 0,
+      "unpaired_promoted": 0
+    },
+    "direct_same_prebuy_state": {
+      "challenger_pair_win_rate": 1.0,
+      "closed_pairs": 1,
+      "isolated_pair_metrics_are_portfolio_bridge": false,
+      "mean_return_delta": 0.1338009361382997,
+      "median_return_delta": 0.1338009361382997,
+      "nonadditive_paired_realized_pnl_delta": 27153.05490029999,
+      "pairs": 1,
+      "winner_transitions": {
+        "loser_to_loser": 0,
+        "loser_to_winner": 0,
+        "winner_to_loser": 0,
+        "winner_to_winner": 1
+      }
+    },
+    "downstream_path_divergence": {
+      "challenger_pair_win_rate": 0.14285714285714285,
+      "closed_pairs": 7,
+      "isolated_pair_metrics_are_portfolio_bridge": false,
+      "mean_return_delta": -0.04825704264479188,
+      "median_return_delta": -0.07234465128380663,
+      "nonadditive_paired_realized_pnl_delta": -81895.63734229986,
+      "pairs": 7,
+      "winner_transitions": {
+        "loser_to_loser": 3,
+        "loser_to_winner": 1,
+        "winner_to_loser": 1,
+        "winner_to_winner": 2
+      }
+    },
+    "isolated_pair_metrics_are_portfolio_bridge": false,
+    "mean_return_delta": -0.025499795296905436,
+    "median_return_delta": -0.05853406737433642,
+    "nonadditive_paired_realized_pnl_delta": -54742.58244199987,
+    "pairs": 8,
+    "winner_transitions": {
+      "loser_to_loser": 3,
+      "loser_to_winner": 1,
+      "winner_to_loser": 1,
+      "winner_to_winner": 3
+    }
+  },
+  "prebuy_state_audit": {
+    "challenger_buy_signal_days": 26,
+    "control_buy_signal_days": 26,
+    "downstream_diverged_state_days": 16,
+    "maximum_prebuy_cash_difference": 210159.6152291,
+    "same_prebuy_state_days": 10,
+    "shared_buy_signal_days": 26
+  },
+  "rank_quality": {
+    "challenger": {
+      "all_candidates": {
+        "closed": 341,
+        "events": 341,
+        "mean_return": 0.015862024775696787,
+        "median_return": 0.017667062002037603,
+        "realized_pnl": null,
+        "return_ge_10_rate": 0.16715542521994134,
+        "stop_rate": 0.12609970674486803,
+        "time_exit_rate": 0.873900293255132,
+        "win_rate": 0.5806451612903226
+      },
+      "rank_1_5": {
+        "closed": 199,
+        "events": 199,
+        "mean_return": 0.020381201567075603,
+        "median_return": 0.026721479958890182,
+        "realized_pnl": null,
+        "return_ge_10_rate": 0.17587939698492464,
+        "stop_rate": 0.12060301507537688,
+        "time_exit_rate": 0.8793969849246231,
+        "win_rate": 0.6130653266331658
+      },
+      "rank_6_10": {
+        "closed": 83,
+        "events": 83,
+        "mean_return": 0.028402574812110074,
+        "median_return": 0.018919411906111128,
+        "realized_pnl": null,
+        "return_ge_10_rate": 0.1927710843373494,
+        "stop_rate": 0.060240963855421686,
+        "time_exit_rate": 0.9397590361445783,
+        "win_rate": 0.5903614457831325
+      },
+      "score_spearman_to_return": 0.19660290107708464
+    },
+    "control": {
+      "all_candidates": {
+        "closed": 341,
+        "events": 341,
+        "mean_return": 0.015691336261593383,
+        "median_return": 0.016591092260475282,
+        "realized_pnl": null,
+        "return_ge_10_rate": 0.16129032258064516,
+        "stop_rate": 0.12023460410557185,
+        "time_exit_rate": 0.8797653958944281,
+        "win_rate": 0.5806451612903226
+      },
+      "rank_1_5": {
+        "closed": 199,
+        "events": 199,
+        "mean_return": 0.022130405127331346,
+        "median_return": 0.026721479958890182,
+        "realized_pnl": null,
+        "return_ge_10_rate": 0.18090452261306533,
+        "stop_rate": 0.08040201005025126,
+        "time_exit_rate": 0.9195979899497487,
+        "win_rate": 0.6381909547738693
+      },
+      "rank_6_10": {
+        "closed": 83,
+        "events": 83,
+        "mean_return": 0.004271179670970338,
+        "median_return": -6.107429688206878e-05,
+        "realized_pnl": null,
+        "return_ge_10_rate": 0.10843373493975904,
+        "stop_rate": 0.14457831325301204,
+        "time_exit_rate": 0.8554216867469879,
+        "win_rate": 0.4939759036144578
+      },
+      "score_spearman_to_return": 0.006050635277410123
+    }
+  },
+  "reproduction": {
+    "eight_monthly_models": true,
+    "failed": [],
+    "maximum_absolute_metric_error": 0.0,
+    "model_hashes_match": true,
+    "passed": true
+  },
+  "scope": {
+    "execution_end": "2026-09-01",
+    "historical_2024_2025_portfolio_validation": false,
+    "performance_years": [
+      2026
+    ],
+    "signal_end": "2026-08-28",
+    "signal_start": "2026-01-05",
+    "training_input_end": "2025-12-31",
+    "training_input_start": "2025-01-02"
+  },
+  "selection_attribution": {
+    "challenger_entries": 42,
+    "control_entries": 42,
+    "displaced": {
+      "closed": 8,
+      "events": 8,
+      "mean_return": 0.019084788762147947,
+      "median_return": -0.004508336420389114,
+      "realized_pnl": 28815.743382100132,
+      "return_ge_10_rate": 0.125,
+      "stop_rate": 0.0,
+      "time_exit_rate": 1.0,
+      "win_rate": 0.5
+    },
+    "jaccard": 0.68,
+    "promoted": {
+      "closed": 8,
+      "events": 8,
+      "mean_return": -0.006415006534757489,
+      "median_return": -0.0009870279391067105,
+      "realized_pnl": -25926.839059899736,
+      "return_ge_10_rate": 0.125,
+      "stop_rate": 0.125,
+      "time_exit_rate": 0.875,
+      "win_rate": 0.5
+    },
+    "shared": {
+      "closed": 33,
+      "events": 34,
+      "mean_return": 0.04479456329385859,
+      "median_return": 0.04226821565531247,
+      "realized_pnl": 295587.28775410075,
+      "return_ge_10_rate": 0.3333333333333333,
+      "stop_rate": 0.06060606060606061,
+      "time_exit_rate": 0.9393939393939394,
+      "win_rate": 0.6060606060606061
+    }
+  },
+  "source": {
+    "artifact_count": 14,
+    "artifact_manifest_verified": true,
+    "code_manifest_verified": true,
+    "source_acceptance_passed": false,
+    "source_cutoffs": {
+      "adj_factor_ts": "2026-09-01",
+      "daily_basic_ts": "2026-09-01",
+      "market_daily_ts": "2026-09-01",
+      "stk_limit_ts": "2026-09-01",
+      "stock_factor_pro_ts": "2026-08-28"
+    },
+    "source_cutoffs_verified": true,
+    "source_run": "CAP1_F0_123_EXECUTABLE_RANKER_V1_2026_TO_DB_CUTOFF_20260902",
+    "source_verification_passed": true
+  },
+  "status": "DIAGNOSTIC_COMPLETED_MODEL_REMAINS_REJECTED",
+  "top_promoted_displaced_features": [
+    {
+      "feature": "mfi_bfq_sector_rel",
+      "promoted_minus_displaced_standardized": 0.9550292229222398
+    },
+    {
+      "feature": "bias2_bfq",
+      "promoted_minus_displaced_standardized": 0.9548409548345854
+    },
+    {
+      "feature": "mtm_bfq_sector_rel",
+      "promoted_minus_displaced_standardized": 0.9032234929440747
+    },
+    {
+      "feature": "kdj_k_bfq_sector_rel",
+      "promoted_minus_displaced_standardized": 0.8965610076806914
+    },
+    {
+      "feature": "kdj_bfq_sector_rel",
+      "promoted_minus_displaced_standardized": 0.8956454686181298
+    },
+    {
+      "feature": "wr_bfq_sector_rel",
+      "promoted_minus_displaced_standardized": -0.879007186776235
+    },
+    {
+      "feature": "trma_bfq",
+      "promoted_minus_displaced_standardized": 0.8676459963976011
+    },
+    {
+      "feature": "dmi_pdi_bfq",
+      "promoted_minus_displaced_standardized": 0.8493220038501486
+    },
+    {
+      "feature": "dmi_pdi_bfq_sector_rel",
+      "promoted_minus_displaced_standardized": 0.8457933864982284
+    },
+    {
+      "feature": "cci_bfq_sector_rel",
+      "promoted_minus_displaced_standardized": 0.8382754440240385
+    },
+    {
+      "feature": "kdj_d_bfq_sector_rel",
+      "promoted_minus_displaced_standardized": 0.8302572400456765
+    },
+    {
+      "feature": "turnover_rate_f",
+      "promoted_minus_displaced_standardized": 0.826030778408198
+    },
+    {
+      "feature": "roc_bfq_sector_rel",
+      "promoted_minus_displaced_standardized": 0.8146281875289894
+    },
+    {
+      "feature": "bias1_bfq",
+      "promoted_minus_displaced_standardized": 0.8071774207385632
+    },
+    {
+      "feature": "dmi_adx_bfq_sector_rel",
+      "promoted_minus_displaced_standardized": -0.7903027186131855
+    }
+  ],
+  "top_winner_loser_features": [
+    {
+      "feature": "bias3_bfq_sector_rel",
+      "winner_minus_loser_standardized": 0.5710102402350977
+    },
+    {
+      "feature": "maroc_bfq_sector_rel",
+      "winner_minus_loser_standardized": 0.5297607588057911
+    },
+    {
+      "feature": "emv_bfq_sector_rel",
+      "winner_minus_loser_standardized": 0.4928510967939568
+    },
+    {
+      "feature": "trix_bfq_sector_rel",
+      "winner_minus_loser_standardized": 0.49034329684059225
+    },
+    {
+      "feature": "roc_bfq_sector_rel",
+      "winner_minus_loser_standardized": 0.48846738857588606
+    },
+    {
+      "feature": "brar_ar_bfq_sector_rel",
+      "winner_minus_loser_standardized": 0.4749575224217935
+    },
+    {
+      "feature": "bias2_bfq_sector_rel",
+      "winner_minus_loser_standardized": 0.4554952565530714
+    },
+    {
+      "feature": "vr_bfq_sector_rel",
+      "winner_minus_loser_standardized": 0.4522738137615773
+    },
+    {
+      "feature": "cr_bfq_sector_rel",
+      "winner_minus_loser_standardized": 0.4473881905885635
+    },
+    {
+      "feature": "psyma_bfq_sector_rel",
+      "winner_minus_loser_standardized": 0.4325911141915275
+    },
+    {
+      "feature": "brar_br_bfq_sector_rel",
+      "winner_minus_loser_standardized": 0.4150113885913538
+    },
+    {
+      "feature": "psy_bfq_sector_rel",
+      "winner_minus_loser_standardized": 0.3802395499171079
+    },
+    {
+      "feature": "brar_ar_bfq",
+      "winner_minus_loser_standardized": 0.37369055893411657
+    },
+    {
+      "feature": "maemv_bfq_sector_rel",
+      "winner_minus_loser_standardized": 0.3580454244919649
+    },
+    {
+      "feature": "dmi_pdi_bfq_sector_rel",
+      "winner_minus_loser_standardized": 0.355396939445067
+    }
+  ]
+}

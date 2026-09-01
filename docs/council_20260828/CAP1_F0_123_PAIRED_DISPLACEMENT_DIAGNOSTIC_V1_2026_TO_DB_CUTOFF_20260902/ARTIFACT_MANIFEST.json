@@ -1,0 +1,22 @@
+{
+  "FEATURE_DIAGNOSTICS.json": {
+    "bytes": 64936,
+    "sha256": "48c7594050a93dd06784e926013a54b044bbc4e226eb30e80a7b2770ce6bc3da"
+  },
+  "PREREGISTRATION.md": {
+    "bytes": 4810,
+    "sha256": "9d80f90e65cba1c48b04745bcb347782034f84b8e965efc921591eb8db516a56"
+  },
+  "RESULT.md": {
+    "bytes": 1235,
+    "sha256": "44f1dbb78b0f26f8780b65aec81f55e7f59817217ca9162067dcbc07a627686a"
+  },
+  "SOURCE_MANIFEST.json": {
+    "bytes": 879,
+    "sha256": "ecda01724a3c0be767a6eedf1ab406b8da881d33eedeed81a1862a3fc0c1ae17"
+  },
+  "SUMMARY.json": {
+    "bytes": 12844,
+    "sha256": "3e60ed8c20723693350b56de85edf1d140cd5f209c7a7737aac7412a793290e1"
+  }
+}

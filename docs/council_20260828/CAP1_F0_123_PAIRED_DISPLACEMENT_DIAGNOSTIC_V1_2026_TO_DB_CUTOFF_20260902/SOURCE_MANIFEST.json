@@ -1,0 +1,11 @@
+{
+  "base_runner_sha256": "e19a29a0a7281b2aff279d966c0ea1ebb235ba7e1990fbdb20bd0ef743c803a8",
+  "diagnostic_code_sha256": "291a82b5b440176daab84c8ad308753ae126deee576d731c92d163591240d4b7",
+  "diagnostic_preregistration_sha256": "9d80f90e65cba1c48b04745bcb347782034f84b8e965efc921591eb8db516a56",
+  "feature_manifest_sha256": "99fd7b1afa00ed14377a89fc08fcc513669c7a9737c339080d85f07131d28c62",
+  "source_artifact_manifest_sha256": "fc076d6565ca32ee1a465804edde6f42b257aa220a0b2b3b2e5c044703305735",
+  "source_model_profile_sha256": "1f44fa586254fa15e3206a3c7a9760a4b427713c57b1c7bcb9acb9a6f28cf57f",
+  "source_preregistration_sha256": "34214d15f269d3e1f9b4db8b50eb26c4f0b0b671215df127752285d1c6076be3",
+  "source_run": "CAP1_F0_123_EXECUTABLE_RANKER_V1_2026_TO_DB_CUTOFF_20260902",
+  "source_strategy_sha256": "6d0af91e975a4a4d1e28ce4f508f06c94a3bb6b9e5b6f72db2f366ed5e81404d"
+}
