@@ -1,0 +1,19 @@
+{
+  "base_acceptance_passed": true,
+  "bundle_id": "748b1daa94e01d1d1f05fdda0b02455ab8fd6a43009d794ae94af2f4177fd2ce",
+  "completed_at": "2026-08-31T17:08:34.052936+00:00",
+  "created_at": "2026-08-31T17:06:42.470142+00:00",
+  "credentials_persisted": false,
+  "diagnostic_history": false,
+  "overall_acceptance_passed": true,
+  "python": "3.12.4 (v3.12.4:8e8a4baf65, Jun  6 2024, 17:33:18) [Clang 13.0.0 (clang-1300.0.29.30)]",
+  "research_status": "DIAGNOSTIC_SEEN_HISTORY",
+  "run_name": "RESET_WEAK_CONFIRM_V3_CAP1_20_2026_TO_0828_20260901",
+  "same_bundle_control_included": true,
+  "status": "DIAGNOSTIC_COMPLETED",
+  "strategy_hash": "6b723d32a767b57d45651c8319a6ef285872f645372da41766317a696be2e74a",
+  "strategy_id": "reset_weak_confirm_v3_cap1_20",
+  "strategy_research_status": "historical",
+  "stress_acceptance_passed": true,
+  "verification_passed": true
+}

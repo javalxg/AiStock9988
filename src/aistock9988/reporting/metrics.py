@@ -1,3 +1,4 @@
+"""Portfolio metrics derived from complete V3 fills and daily NAV."""
 from __future__ import annotations
 
 import math
@@ -6,153 +7,151 @@ import numpy as np
 import pandas as pd
 
 
-def summarize_backtest(nav: pd.DataFrame, trades: pd.DataFrame, *, initial_cash: float) -> dict[str, object]:
+def summarize(
+    nav: pd.DataFrame,
+    fills: pd.DataFrame,
+    *,
+    initial_cash: float,
+    positions: pd.DataFrame | None = None,
+    corporate_actions: pd.DataFrame | None = None,
+) -> dict[str, object]:
     if nav.empty:
-        return _empty_metrics(initial_cash)
-    values = pd.to_numeric(nav["nav"], errors="raise")
+        raise ValueError("V3 NAV ledger is empty")
+    ordered = nav.sort_values("trade_date", kind="mergesort").copy()
+    values = pd.to_numeric(ordered["nav"], errors="raise")
     if not np.isfinite(values.to_numpy(dtype=float)).all():
         raise ValueError("NAV contains non-finite values")
-    running_max = values.cummax()
-    drawdown = values / running_max - 1.0
-    sells = trades[trades["side"] == "SELL"].copy() if not trades.empty else pd.DataFrame()
-    wins = None
-    pf = None
-    equal_trade_return = None
-    economic_trade_return = None
-    stop_count = 0
-    stop_gap_loss = 0.0
-    realized_returns: list[float] = []
-    if not sells.empty:
-        # FIFO pairing is deterministic and preserves fee/tax accounting.
-        lots: dict[str, list[dict[str, float]]] = {}
-        realized: list[float] = []
-        returns: list[float] = []
-        for row in trades.sort_values(["trade_date", "order_id"], kind="mergesort").to_dict("records"):
-            code = str(row["ts_code"])
-            shares = float(row["shares"])
-            if row["side"] == "BUY":
-                lots.setdefault(code, []).append({"shares": shares, "cost": float(row["gross_value"] + row["commission"])})
-                continue
-            proceeds = float(row["gross_value"] - row["commission"] - row["stamp_duty"])
-            remaining = shares
-            allocated_cost = 0.0
-            while remaining > 0 and lots.get(code):
-                lot = lots[code][0]
-                take = min(remaining, lot["shares"])
-                allocated_cost += lot["cost"] * take / lot["shares"]
-                lot["shares"] -= take
-                lot["cost"] -= lot["cost"] * take / (lot["shares"] + take)
-                remaining -= take
-                if lot["shares"] <= 1e-12:
-                    lots[code].pop(0)
-            realized.append(proceeds - allocated_cost)
-            if allocated_cost > 0:
-                trade_return = proceeds / allocated_cost - 1.0
-                returns.append(trade_return)
-                realized_returns.append(trade_return)
-            if row.get("economic_return") is not None:
-                economic_trade_return = (economic_trade_return or []) + [float(row["economic_return"])]
-            if row.get("trigger_type") == "STOP_LOSS":
-                stop_count += 1
-                gap = float(row.get("gap_return") or 0.0)
-                stop_gap_loss += min(0.0, gap)
-        pnl = pd.Series(realized, dtype=float)
-        wins = float((pnl > 0).mean()) if len(pnl) else None
-        gains = pnl[pnl > 0].sum()
-        losses = -pnl[pnl < 0].sum()
-        pf = float(gains / losses) if losses else None
-        equal_trade_return = float(pd.Series(returns).mean()) if returns else None
-        if economic_trade_return is not None:
-            economic_trade_return = float(pd.Series(economic_trade_return).mean())
-    base = {"initial_cash": float(initial_cash), "final_nav": float(values.iloc[-1]),
-            "total_return": float(values.iloc[-1] / initial_cash - 1.0),
-            "max_drawdown": float(drawdown.min()), "trade_count": int(len(sells)),
-            "trade_win_rate": wins, "portfolio_profit_factor": pf,
-            "equal_trade_return_ratio": equal_trade_return,
-            "economic_trade_return_ratio": economic_trade_return,
-            "stop_loss_count": stop_count, "stop_loss_gap_loss": float(stop_gap_loss)}
-    base.update(_period_metrics(nav, values, initial_cash=initial_cash))
-    base.update(_cost_metrics(trades, initial_cash=initial_cash))
-    if realized_returns:
-        base["trade_return_excluding_top3_profit"] = _compound_excluding_top_positive(realized_returns, 3)
-    else:
-        base["trade_return_excluding_top3_profit"] = None
-    return base
-
-
-def _empty_metrics(initial_cash: float) -> dict[str, float | int | None]:
-    return {
-        "initial_cash": float(initial_cash), "final_nav": float(initial_cash), "total_return": 0.0,
-        "max_drawdown": 0.0, "trade_count": 0, "trade_win_rate": None,
-        "portfolio_profit_factor": None, "equal_trade_return_ratio": None,
-        "economic_trade_return_ratio": None, "stop_loss_count": 0, "stop_loss_gap_loss": 0.0,
-        "annualized_return": 0.0, "weekly_mean": None, "weekly_median": None,
-        "weekly_std": None, "weekly_positive_ratio": None, "sharpe": None,
-        "sortino": None, "calmar": None, "worst_week": None,
-        "max_consecutive_losing_weeks": 0, "return_excluding_best_week": None,
-        "trade_return_excluding_top3_profit": None, "gross_turnover": 0.0,
-        "fees_and_taxes": 0.0, "gap_fill_count": 0, "gap_loss": 0.0,
-    }
-
-
-def _period_metrics(nav: pd.DataFrame, values: pd.Series, *, initial_cash: float) -> dict[str, object]:
-    dates = pd.to_datetime(nav["trade_date"], errors="raise", utc=True)
-    ordered = pd.DataFrame({"date": dates, "nav": values.to_numpy(dtype=float)}).sort_values("date")
-    daily = ordered["nav"].pct_change()
-    daily = daily.replace([np.inf, -np.inf], np.nan).dropna()
-    sessions = max(1, len(ordered) - 1)
-    annualized = float((ordered["nav"].iloc[-1] / initial_cash) ** (252.0 / sessions) - 1.0)
-    weekly_nav = ordered.assign(period=ordered["date"].dt.tz_localize(None).dt.to_period("W-SUN")).groupby("period", sort=True)["nav"].last()
+    drawdown = values / values.cummax() - 1.0
+    sells = fills[fills["side"].eq("SELL")].copy() if not fills.empty else pd.DataFrame()
+    pnl = pd.to_numeric(sells.get("realized_pnl", pd.Series(dtype=float)), errors="coerce").dropna()
+    gains = float(pnl[pnl > 0].sum())
+    losses = float(-pnl[pnl < 0].sum())
+    dates = pd.to_datetime(ordered["trade_date"], errors="raise", utc=True)
+    weekly_nav = ordered.assign(
+        period=dates.dt.tz_localize(None).dt.to_period("W-SUN")
+    ).groupby("period", sort=True)["nav"].last()
     weekly = weekly_nav.pct_change()
     if len(weekly):
         weekly.iloc[0] = weekly_nav.iloc[0] / initial_cash - 1.0
-    weekly = weekly.astype(float)
-    weekly_mean = float(weekly.mean()) if len(weekly) else None
-    weekly_median = float(weekly.median()) if len(weekly) else None
-    weekly_std = float(weekly.std(ddof=1)) if len(weekly) > 1 else None
-    weekly_positive = float((weekly > 0).mean()) if len(weekly) else None
-    weekly_sharpe = float(weekly.mean() / weekly.std(ddof=1) * math.sqrt(52)) if len(weekly) > 1 and weekly.std(ddof=1) > 0 else None
-    downside = weekly[weekly < 0]
-    weekly_sortino = float(weekly.mean() / downside.std(ddof=1) * math.sqrt(52)) if len(downside) > 1 and downside.std(ddof=1) > 0 else None
-    drawdown = ordered["nav"] / ordered["nav"].cummax() - 1.0
-    max_dd = float(drawdown.min())
-    calmar = float(annualized / abs(max_dd)) if max_dd < 0 else None
-    losses = weekly < 0
-    max_losing = current = 0
-    for loss in losses:
-        current = current + 1 if loss else 0
-        max_losing = max(max_losing, current)
-    excluded = weekly.drop(weekly.idxmax()) if len(weekly) else weekly
-    return {
-        "annualized_return": annualized, "weekly_mean": weekly_mean,
-        "weekly_median": weekly_median, "weekly_std": weekly_std,
-        "weekly_positive_ratio": weekly_positive, "sharpe": weekly_sharpe,
-        "sortino": weekly_sortino, "calmar": calmar,
+    without_best = weekly.drop(weekly.idxmax()) if len(weekly) else weekly
+    positive_pnl = pnl[pnl > 0]
+    top3_index = positive_pnl.nlargest(3).index if len(positive_pnl) else pd.Index([])
+    pnl_excluding_top3 = pnl.drop(index=top3_index) if len(top3_index) else pnl
+    sessions = max(1, len(ordered) - 1)
+    total_return = float(values.iloc[-1] / initial_cash - 1.0)
+    fees = 0.0 if fills.empty else float(
+        pd.to_numeric(fills["commission"], errors="raise").sum()
+        + pd.to_numeric(fills["stamp_duty"], errors="raise").sum()
+    )
+    metrics = {
+        "initial_cash": float(initial_cash),
+        "final_nav": float(values.iloc[-1]),
+        "total_return": total_return,
+        "annualized_return": float((1.0 + total_return) ** (252.0 / sessions) - 1.0),
+        "max_drawdown": float(drawdown.min()),
+        "portfolio_profit_factor": gains / losses if losses > 0 else None,
+        "trade_count": int(len(sells)),
+        "trade_win_rate": float((pnl > 0).mean()) if len(pnl) else None,
+        "realized_net_pnl": float(pnl.sum()) if len(pnl) else 0.0,
+        "trade_pnl_excluding_top3_profit": float(pnl_excluding_top3.sum()) if len(pnl_excluding_top3) else 0.0,
+        "return_excluding_top3_profit": float(pnl_excluding_top3.sum() / initial_cash) if len(pnl_excluding_top3) else 0.0,
+        "return_excluding_best_week": float((1.0 + without_best).prod() - 1.0) if len(without_best) else 0.0,
+        "best_week": float(weekly.max()) if len(weekly) else None,
         "worst_week": float(weekly.min()) if len(weekly) else None,
-        "max_consecutive_losing_weeks": int(max_losing),
-        "return_excluding_best_week": float((1.0 + excluded).prod() - 1.0) if len(excluded) else 0.0,
-        "annual_returns": {
-            str(period): float(group.iloc[-1] / (ordered.loc[ordered["date"] < group.index[0], "nav"].iloc[-1]
-                                                if not ordered.loc[ordered["date"] < group.index[0]].empty else initial_cash) - 1.0)
-            for period, group in ordered.set_index("date")["nav"].groupby(ordered.set_index("date").index.year)
-        },
+        "weekly_positive_ratio": float((weekly > 0).mean()) if len(weekly) else None,
+        "weekly_ge_5_ratio": float((weekly >= 0.05).mean()) if len(weekly) else None,
+        "weekly_ge_5_count": int((weekly >= 0.05).sum()) if len(weekly) else 0,
+        "fees_and_taxes": fees,
+        "gross_turnover": 0.0 if fills.empty else float(pd.to_numeric(fills["gross_value"], errors="raise").sum() / initial_cash),
+        "average_gross_exposure": float(pd.to_numeric(ordered["gross_exposure"], errors="coerce").mean()),
+        "max_open_positions": int(pd.to_numeric(ordered["open_positions"], errors="raise").max()),
+        "sharpe_weekly": (
+            float(weekly.mean() / weekly.std(ddof=1) * math.sqrt(52))
+            if len(weekly) > 1 and weekly.std(ddof=1) > 0 else None
+        ),
+    }
+    if positions is not None and corporate_actions is not None:
+        replay = _replay_without_top3(
+            ordered, fills, positions, corporate_actions, top3_index, initial_cash
+        )
+        # Keep the scalar field used by acceptance while retaining the full
+        # replay audit in a separate object.
+        metrics["return_excluding_top3_profit"] = (
+            float(replay["return"]) if replay.get("available") else float("nan")
+        )
+        metrics["top3_replay"] = replay
+    else:
+        metrics["top3_replay"] = {
+            "available": False,
+            "reason": "position_ledger_not_supplied",
+        }
+    return metrics
+
+
+def _replay_without_top3(
+    nav: pd.DataFrame,
+    fills: pd.DataFrame,
+    positions: pd.DataFrame,
+    corporate_actions: pd.DataFrame,
+    top3_index: pd.Index,
+    initial_cash: float,
+) -> dict[str, object]:
+    """Replay NAV after removing the three largest profitable trade keys."""
+    if not len(top3_index):
+        return {
+            "available": True,
+            "removed_trade_count": 0,
+            "final_nav": float(nav["nav"].iloc[-1]),
+            "return": float(nav["nav"].iloc[-1] / initial_cash - 1.0),
+        }
+    required_fills = {
+        "decision_id", "ts_code", "side", "trade_date", "gross_value",
+        "commission", "stamp_duty",
+    }
+    required_positions = {"decision_id", "ts_code", "trade_date", "market_value"}
+    if not required_fills.issubset(fills.columns) or not required_positions.issubset(positions.columns):
+        return {"available": False, "reason": "trade_identity_columns_missing"}
+    winners = fills.loc[top3_index]
+    keys = set(zip(winners["decision_id"].astype(str), winners["ts_code"].astype(str)))
+    fill_frame = fills.copy()
+    fill_frame["trade_key"] = list(zip(fill_frame["decision_id"].astype(str), fill_frame["ts_code"].astype(str)))
+    removed_fills = fill_frame[fill_frame["trade_key"].isin(keys)]
+    position_frame = positions.copy()
+    position_frame["trade_key"] = list(zip(position_frame["decision_id"].astype(str), position_frame["ts_code"].astype(str)))
+    removed_positions = position_frame[position_frame["trade_key"].isin(keys)]
+    action_frame = corporate_actions.copy()
+    if not action_frame.empty and {"decision_id", "ts_code", "trade_date", "cash_dividend"}.issubset(action_frame.columns):
+        action_frame["trade_key"] = list(zip(action_frame["decision_id"].astype(str), action_frame["ts_code"].astype(str)))
+        removed_actions = action_frame[action_frame["trade_key"].isin(keys)]
+    else:
+        removed_actions = pd.DataFrame(columns=["trade_date", "cash_dividend"])
+
+    dates = pd.to_datetime(nav["trade_date"], errors="raise", utc=True).dt.normalize()
+    contribution = pd.Series(0.0, index=nav.index)
+    for _, fill in removed_fills.iterrows():
+        day = pd.Timestamp(fill["trade_date"])
+        gross = float(fill["gross_value"])
+        fees = float(fill.get("commission", 0.0)) + float(fill.get("stamp_duty", 0.0))
+        signed = -(gross + fees) if str(fill["side"]) == "BUY" else gross - fees
+        contribution.loc[dates >= day] += signed
+    for _, action in removed_actions.iterrows():
+        day = pd.Timestamp(action["trade_date"])
+        contribution.loc[dates >= day] += float(action.get("cash_dividend", 0.0))
+    if not removed_positions.empty:
+        marked = removed_positions.groupby("trade_date", sort=False)["market_value"].sum()
+        marked.index = pd.to_datetime(marked.index, errors="raise", utc=True).normalize()
+        for day, value in marked.items():
+            contribution.loc[dates == day] += float(value)
+    replay_nav = pd.to_numeric(nav["nav"], errors="raise") - contribution
+    if not np.isfinite(replay_nav.to_numpy(dtype=float)).all():
+        return {"available": False, "reason": "non_finite_replayed_nav"}
+    return {
+        "available": True,
+        "removed_trade_count": int(len(keys)),
+        "final_nav": float(replay_nav.iloc[-1]),
+        "return": float(replay_nav.iloc[-1] / initial_cash - 1.0),
+        "max_drawdown": float((replay_nav / replay_nav.cummax() - 1.0).min()),
     }
 
 
-def _cost_metrics(trades: pd.DataFrame, *, initial_cash: float) -> dict[str, object]:
-    if trades.empty:
-        return {"gross_turnover": 0.0, "fees_and_taxes": 0.0, "gap_fill_count": 0, "gap_loss": 0.0}
-    gross = pd.to_numeric(trades.get("gross_value", pd.Series(dtype=float)), errors="coerce").fillna(0.0)
-    commission = pd.to_numeric(trades.get("commission", pd.Series(dtype=float)), errors="coerce").fillna(0.0)
-    duty = pd.to_numeric(trades.get("stamp_duty", pd.Series(dtype=float)), errors="coerce").fillna(0.0)
-    gap = pd.to_numeric(trades.get("gap_return", pd.Series(dtype=float)), errors="coerce")
-    flags = trades.get("gap_flag", pd.Series(False, index=trades.index)).fillna(False).astype(bool)
-    return {"gross_turnover": float(gross.sum() / initial_cash),
-            "fees_and_taxes": float((commission + duty).sum()),
-            "gap_fill_count": int(flags.sum()),
-            "gap_loss": float(gap[flags].clip(upper=0).sum()) if flags.any() else 0.0}
-
-
-def _compound_excluding_top_positive(returns: list[float], count: int) -> float:
-    excluded = set(sorted(range(len(returns)), key=lambda i: returns[i], reverse=True)[:count])
-    return float(np.prod([1.0 + value for index, value in enumerate(returns) if index not in excluded]) - 1.0)
+__all__ = ["summarize"]

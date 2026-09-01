@@ -1,0 +1,18 @@
+{
+  "active_signal_days": 56,
+  "candidate_view_rows": 342,
+  "daily_max_stage1": 38,
+  "daily_median_stage1": 0.0,
+  "daily_min_stage1": 0,
+  "feature_ready_rows": 615929,
+  "feature_warmup_days": 0,
+  "market_coverage_fail_days": 0,
+  "scored_rows": 817256,
+  "selection_data_excluded_rows": 50661,
+  "signal_dates": 148,
+  "stage1_pass_rows": 365,
+  "stage1_ranking_data_missing_rows": 0,
+  "training_data_excluded_rows": 50509,
+  "universe_warmup_days": 0,
+  "zero_candidate_days": 92
+}

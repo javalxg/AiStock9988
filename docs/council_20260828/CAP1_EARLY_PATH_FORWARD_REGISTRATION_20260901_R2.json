@@ -1,0 +1,50 @@
+{
+  "code_manifest": {
+    "files": {
+      "configs/strategy/cap1_early_path_forward_overlay.yaml": "3ef19f1445819e8e29dc1d586a5dbefe91dae05d588a9e41b4497074ccc7a005",
+      "configs/strategy/reset_weak_confirm_v3_cap1_20_forward.yaml": "c722534b7d1eb9d048110d132d6c55e03c63fa211608a4ce3d47b69ba3082801",
+      "docs/council_20260828/CAP1_EARLY_PATH_FORWARD_PREREG_20260901.md": "706de2d131cfe6444424097461b8c0493a991ee037ad8faf50aa805fccedbdf3",
+      "scripts/quiet_forward_preflight.py": "96b42b85646ee1a8b3c6591fc06930a318684a462dfad737a006789c6c8d239e",
+      "scripts/quiet_forward_rollup_runner.py": "fdbce22f16e9609609806ed545bf24afe0d8ccd7f6ba9a643ddeb0f334dc5780",
+      "scripts/quiet_forward_shadow_runner.py": "b38a0dc6f7877b5c457794c19e70c1ff5eb40c09b0a3827337ab64c8303fae87",
+      "src/aistock9988/backtest/__init__.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "src/aistock9988/backtest/engine.py": "4ff7126b61959939225e748dd2b910392ee7c55bd0609a512114777cd64dab47",
+      "src/aistock9988/config.py": "5610260e2b2db016494673116e17ba221c2dd3adee533119c650af2fc28ce5f4",
+      "src/aistock9988/configuration.py": "8d1a954cee6d473143040eaeacd473f95f3dacf7713cf828c67bed885075aae5",
+      "src/aistock9988/data/__init__.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "src/aistock9988/data/availability.py": "5f6a623eda15d0a037b7fb1a4120d285a307ec972d524c3e4daeec40a0e403de",
+      "src/aistock9988/data/bundle.py": "c8ae1360db3e8410b0cdc08a979ff5749147b907776419780f4edc1a9ff38185",
+      "src/aistock9988/data/corporate_actions_source.py": "69c401413367286647a854cedd419579534e3bb5269cdbadcb1b1753fb67a813",
+      "src/aistock9988/data/quantdb.py": "9d7f40a93df6b8e84a796793e7dc12d585494ed971a28b760ca32e231040545a",
+      "src/aistock9988/features/__init__.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "src/aistock9988/features/engine.py": "63395ac19e60556c1abb8f60a972bb7d434f8d086fb8b9bcde04cc2d6b73b1d0",
+      "src/aistock9988/forward/__init__.py": "a213f0bdc9ddc67a4a753d4ad5f7a708bd9dca729a46034619d8b282acba6a4d",
+      "src/aistock9988/forward/early_path.py": "6625306dc7daa371f93d721a1e7d18655e51c4e590984c7ffe8f6a9943cc364f",
+      "src/aistock9988/forward/lockbox.py": "04a0ba3d2a9c603d260de80c1a7a0654b87a5b900aac2bd46f5ee7917c7a77ca",
+      "src/aistock9988/planning.py": "d2bba158cddcd7cef81024f1ad557b3c35a27089f276957f9d86e77464585d4f",
+      "src/aistock9988/reporting/__init__.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "src/aistock9988/reporting/metrics.py": "d47b3488570029dae93521103c84e886d8e99598c24c03d78fdc91cf063eb593",
+      "src/aistock9988/selection/__init__.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "src/aistock9988/selection/pipeline.py": "bc790121b8a1802543a39a104bf39def7230bab3dbce4ca14ff570ab230c9521",
+      "src/aistock9988/time/session.py": "45180dce30785297874cbb85a18edeb1a1f6e988dde7b6afdc3cc4c3203d9863"
+    },
+    "manifest_sha256": "c6c8ca04b8ac2947100eaf3bb5cc6e302c16bc700723c160b2ccb49d8d5f8599",
+    "schema_version": "code-manifest-v2"
+  },
+  "control_strategy_config_sha256": "ce2e61c82fd07e434ffed85b94d1b368a66480c1f6da77d270d44e281a1e128b",
+  "control_strategy_id": "reset_weak_confirm_v3_cap1_20_forward",
+  "created_at": "2026-09-01T07:37:54.115732+00:00",
+  "factor_value_wide_ts_used": false,
+  "forward_start": "2026-09-01",
+  "historical_backtest_executed": false,
+  "overlay_config_sha256": "5f967470de19401793903af40c3e0796d950df9605b4ab6760f19d9d86c805bb",
+  "overlay_id": "cap1_early_path_forward",
+  "overlay_prereg_sha256": "706de2d131cfe6444424097461b8c0493a991ee037ad8faf50aa805fccedbdf3",
+  "registration_file_excluded_from_code_manifest": true,
+  "registration_schema_version": "cap1-early-path-registration-v2",
+  "review_sha256": {
+    "CAP1_EARLY_PATH_FORWARD_PREREG_DEEPSEEK_REVIEW_20260901.md": "7fb1b41ff7bdf4618c295d58f74aa4c2ad4c9d04252021fc3cf2524a89519b42",
+    "CAP1_EARLY_PATH_IMPLEMENTATION_REVIEW_20260901.md": "afea97fd216ce4e83e73dcbed9d42db729978637fba7d3f68fc96e3539e96c70"
+  },
+  "status": "PREREGISTERED_NOT_STARTED"
+}

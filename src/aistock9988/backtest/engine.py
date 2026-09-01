@@ -1,430 +1,552 @@
-"""Small, deterministic event-driven backtest engine.
+"""Canonical deterministic event-driven engine for formal backtests.
 
-The engine consumes frozen selection signals and an explicit raw/economic
-execution-price panel. Limit-state checks always use raw prices; orders and
-NAV use the configured accounting basis.
+All experiments use :func:`run_backtest` with the frozen candidate, selection,
+and execution contracts. This package exposes one engine only.
 """
 from __future__ import annotations
 
+import hashlib
 from dataclasses import dataclass
-from typing import Callable
+from typing import Any
 
+import numpy as np
 import pandas as pd
 
-from ..execution.prices import validate_execution_panel
-from ..execution.corporate_actions import CorporateAction, apply_action
-from ..execution.intraday import find_stop_execution
-from ..execution.risk import evaluate_close_stop_loss
-from ..data.minute_source import normalize_minute_panel
-from ..time.session import session_close, session_open
+from ..configuration import StrategyConfig
+
+
+class BacktestDataError(RuntimeError):
+    pass
 
 
 @dataclass(frozen=True)
-class BacktestConfig:
-    initial_cash: float = 1_000_000.0
-    max_positions: int = 2
-    hold_sessions: int = 5
-    stop_loss_pct: float | None = None
-    take_profit_pct: float | None = None
-    stop_loss_mode: str = "close_next_session_open"
-    accounting_price_basis: str = "raw"
-    corporate_actions_mode: str = "auto"
-    progress_callback: Callable[[int, int, pd.Timestamp], None] | None = None
-    order_id_prefix: str = "bt"
-    buy_commission: float = 0.0003
-    sell_commission: float = 0.0003
-    stamp_duty: float = 0.0005
-    lot_size: int = 1
-    buy_slippage: float = 0.0
-    sell_slippage: float = 0.0
+class CostScenario:
+    name: str
+    slippage_each_side: float
+    buy_commission: float
+    sell_commission: float
+    stamp_duty: float
 
 
-def run_backtest(signals: pd.DataFrame, prices: pd.DataFrame, *, config: BacktestConfig = BacktestConfig(),
-                 corporate_actions: pd.DataFrame | None = None,
-                 minute_prices: pd.DataFrame | None = None) -> dict[str, pd.DataFrame]:
-    """Run a causal long-only backtest and return auditable ledgers.
+def run_backtest(
+    *,
+    candidate_ledger: pd.DataFrame,
+    selection_ledger: pd.DataFrame,
+    execution_panel: pd.DataFrame,
+    corporate_actions: pd.DataFrame,
+    strategy: StrategyConfig,
+    execution_sessions: tuple[str, ...],
+    scenario_name: str,
+) -> dict[str, pd.DataFrame]:
+    scenario = _scenario(strategy, scenario_name)
+    sessions = pd.DatetimeIndex(pd.to_datetime(execution_sessions, utc=True)).normalize()
+    execution = execution_panel[execution_panel["trade_date"].isin(sessions)].copy()
+    if execution.duplicated(["trade_date", "ts_code"]).any():
+        raise ValueError("execution panel contains duplicate security/session keys")
+    by_key = execution.set_index(["trade_date", "ts_code"])
+    candidate_view = candidate_ledger[candidate_ledger["candidate_status"].eq("IN_VIEW")].copy()
+    candidate_map = {
+        day: group.sort_values(["candidate_rank", "ts_code"], kind="mergesort")
+        for day, group in candidate_view.groupby("asof", sort=True)
+    }
+    # Rank holding uses the complete model-ranked candidate snapshot, not only
+    # the gated entry view. This keeps Top5 hold semantics separate from the
+    # Top2 entry pool while remaining optional for other strategies.
+    rank_cfg = strategy.execution.get("rank_holding", {})
+    if bool(rank_cfg.get("enabled", False)) and "hold_rank" not in candidate_ledger.columns:
+        raise ValueError("rank_holding is enabled but candidate ledger has no hold_rank column")
+    hold_map = {
+        day: group.sort_values(["hold_rank", "ts_code"], kind="mergesort")
+        for day, group in candidate_ledger.groupby("asof", sort=True)
+        if "hold_rank" in group.columns
+    }
+    rank_holding_enabled = bool(rank_cfg.get("enabled", False))
+    selection_map = {row.asof: row for row in selection_ledger.itertuples(index=False)}
+    actions = _action_map(corporate_actions)
 
-    ``signals`` must contain ``asof``, ``ts_code`` and ``candidate_rank``.
-    ``prices`` must contain one raw OHLC row per security/session with
-    ``trade_date``, ``raw_open`` and ``raw_close``.
-    """
-    _validate_config(config)
-    required_signal = {"asof", "ts_code", "candidate_rank", "selected", "selection_decision_id", "policy_id"}
-    required_price = {"trade_date", "ts_code", "raw_open", "raw_close"}
-    if missing := required_signal - set(signals.columns):
-        raise ValueError(f"signals missing columns: {sorted(missing)}")
-    if missing := required_price - set(prices.columns):
-        raise ValueError(f"prices missing columns: {sorted(missing)}")
-    sig = signals.copy()
-    if not sig["selected"].isin([True, False]).all():
-        raise ValueError("selection ledger selected must be boolean")
-    sig = sig[sig["selected"]].copy()
-    px = prices.copy()
-    required_economic = {"economic_open", "economic_high", "economic_low", "economic_close", "raw_high", "raw_low", "adj_factor"}
-    if not required_economic <= set(px.columns):
-        raise ValueError("prices must provide the explicit raw/economic execution contract")
-    px = validate_execution_panel(px)
-    minute = normalize_minute_panel(minute_prices) if minute_prices is not None else None
-    if config.stop_loss_mode == "intraday_5min" and minute is None:
-        raise ValueError("intraday_5min stop-loss mode requires minute_prices")
-    if config.stop_loss_mode == "close_next_session_open" and minute is not None:
-        raise ValueError("close_next_session_open cannot receive minute_prices; choose intraday_5min explicitly")
-    action_mode = ("apply" if config.accounting_price_basis == "raw" else "skip") \
-        if config.corporate_actions_mode == "auto" else config.corporate_actions_mode
-    if config.accounting_price_basis == "economic" and action_mode == "apply":
-        raise ValueError("economic accounting cannot apply corporate actions twice")
-    actions = _prepare_actions(corporate_actions) if action_mode == "apply" else {}
-    sig["asof"] = _dates(sig["asof"])
-    px["trade_date"] = _dates(px["trade_date"])
-    for col in ("raw_open", "raw_close"):
-        px[col] = pd.to_numeric(px[col], errors="raise")
-        if (px[col] <= 0).any():
-            raise ValueError(f"{col} must be positive")
-    if px.duplicated(["trade_date", "ts_code"]).any():
-        raise ValueError("prices contain duplicate security/session keys")
-    sessions = sorted(px["trade_date"].unique())
-    by_key = px.set_index(["trade_date", "ts_code"])
-    cash = float(config.initial_cash)
-    positions: dict[str, dict] = {}
-    trades: list[dict] = []
-    orders: list[dict] = []
-    nav_rows: list[dict] = []
-    action_rows: list[dict] = []
-    signal_map = {d: g.sort_values(["candidate_rank", "ts_code"], kind="mergesort")
-                  for d, g in sig.groupby("asof", sort=True)}
-
+    initial_cash = float(strategy.execution["initial_cash"])
+    cash = initial_cash
+    positions: dict[str, dict[str, Any]] = {}
+    orders: list[dict[str, Any]] = []
+    fills: list[dict[str, Any]] = []
+    position_events: list[dict[str, Any]] = []
+    position_rows: list[dict[str, Any]] = []
+    nav_rows: list[dict[str, Any]] = []
+    execution_decisions: list[dict[str, Any]] = []
+    action_rows: list[dict[str, Any]] = []
     order_sequence = 0
+    event_sequence = 0
 
-    def new_order(day, code, side, shares, reason, *, decision_session=None,
-                  trigger_price=None, trigger_return=None, trigger_type=None,
-                  reference_raw_close=None, reference_economic_close=None):
+    def event(day: pd.Timestamp, code: str, event_type: str, state_before: str, state_after: str, reason: str) -> None:
+        nonlocal event_sequence
+        event_sequence += 1
+        position_events.append({
+            "event_id": f"evt-{scenario.name}-{event_sequence:08d}", "trade_date": day,
+            "ts_code": code, "event_type": event_type, "state_before": state_before,
+            "state_after": state_after, "reason": reason,
+        })
+
+    def new_order(day: pd.Timestamp, decision_id: str, code: str, side: str, requested: float, reason: str) -> dict[str, Any]:
         nonlocal order_sequence
         order_sequence += 1
-        order_id = f"{config.order_id_prefix}-{order_sequence:08d}"
-        order = {
-            "order_id": order_id, "ts_code": code, "side": side,
-            "decision_session": decision_session if decision_session is not None else day,
-            "trigger_session": decision_session if trigger_type else None,
-            "trigger_type": trigger_type, "trigger_price": trigger_price,
-            "trigger_return": trigger_return, "requested_shares": shares,
-            "reference_raw_close": reference_raw_close,
-            "reference_economic_close": reference_economic_close,
-            "status": "PENDING", "execution_session": None,
-            "execution_price": None, "execution_economic_price": None,
-            "gap_return": None, "filled_shares": 0,
-            "final_reason": reason, "last_attempt_reason": None,
+        row = {
+            "order_id": f"v3-{scenario.name}-{order_sequence:08d}", "decision_id": decision_id,
+            "decision_session": day, "ts_code": code, "side": side,
+            "requested_shares": float(requested), "status": "CREATED", "reason": reason,
+            "execution_session": pd.NaT, "execution_price": np.nan, "filled_shares": 0.0,
         }
-        orders.append(order)
-        return order
+        orders.append(row)
+        return row
 
-    def execute(day, code, side, price, shares, reason, order, *, economic_price, raw_price,
-                entry_economic_price=None):
+    def reject(order: dict[str, Any], day: pd.Timestamp, reason: str) -> None:
+        order.update(status="REJECTED", execution_session=day, reason=reason)
+
+    def fill_buy(order: dict[str, Any], day: pd.Timestamp, code: str, shares: float, row: pd.Series) -> None:
         nonlocal cash
-        gross = price * shares
-        commission = gross * (config.buy_commission if side == "BUY" else config.sell_commission)
-        duty = gross * config.stamp_duty if side == "SELL" else 0.0
-        cash_change = -(gross + commission) if side == "BUY" else gross - commission - duty
-        cash += cash_change
-        order["status"] = "FILLED"
-        order["execution_session"] = day
-        order["execution_price"] = price
-        order["execution_economic_price"] = economic_price
-        if order.get("reference_raw_close") is not None:
-            order["gap_return_raw"] = raw_price / order["reference_raw_close"] - 1.0
-        if order.get("reference_economic_close") is not None:
-            order["gap_return_economic"] = economic_price / order["reference_economic_close"] - 1.0
-        order["gap_return"] = (order.get("gap_return_raw") if config.accounting_price_basis == "raw"
-                                else order.get("gap_return_economic"))
-        order["filled_shares"] = shares
-        order["final_reason"] = reason
-        trades.append({"order_id": order["order_id"], "trade_date": day, "ts_code": code, "side": side, "price": price,
-                       "shares": shares, "gross_value": gross, "commission": commission,
-                       "stamp_duty": duty, "cash_after": cash, "reason": reason,
-                       "trigger_type": order.get("trigger_type"),
-                       "trigger_session": order.get("trigger_session"),
-                       "trigger_price": order.get("trigger_price"),
-                       "trigger_return": order.get("trigger_return"),
-                       "execution_economic_price": economic_price,
-                       "economic_return": (economic_price / entry_economic_price - 1.0
-                                           if entry_economic_price is not None else None),
-                       "gap_return": order.get("gap_return"),
-                       "gap_return_raw": order.get("gap_return_raw"),
-                       "gap_return_economic": order.get("gap_return_economic"),
-                       "gap_flag": bool(order.get("gap_return") is not None and abs(order["gap_return"]) > 1e-12)})
-        return gross + commission if side == "BUY" else gross - commission - duty
+        raw_price = float(row.raw_open) * (1.0 + scenario.slippage_each_side)
+        economic_price = float(row.economic_open) * (1.0 + scenario.slippage_each_side)
+        gross = raw_price * shares
+        commission = gross * scenario.buy_commission
+        total_cost = gross + commission
+        if total_cost > cash + 1e-8:
+            raise AssertionError("buy fill exceeds available cash")
+        cash -= total_cost
+        order.update(status="FILLED", execution_session=day, execution_price=raw_price, filled_shares=shares)
+        fills.append({
+            "order_id": order["order_id"], "decision_id": order["decision_id"], "trade_date": day,
+            "ts_code": code, "side": "BUY", "price": raw_price, "shares": shares,
+            "entry_date": day,
+            "gross_value": gross, "commission": commission, "stamp_duty": 0.0,
+            "cash_after": cash, "reason": "SIGNAL_ENTRY", "trigger_type": None,
+            "economic_price": economic_price, "economic_return": np.nan,
+            "realized_pnl": np.nan, "gap_return": np.nan, "gap_flag": False,
+        })
+        entry_index = sessions.get_indexer([day])[0]
+        positions[code] = {
+            "state": "ACTIVE", "shares": shares, "entry_date": day, "entry_price": raw_price,
+            "entry_economic_price": economic_price, "total_cost": total_cost,
+            "dividends_received": 0.0,
+            "scheduled_exit_index": entry_index + int(strategy.execution["hold_sessions_from_fill"]),
+            "exit_reason": None, "last_raw_open": float(row.raw_open), "last_raw_close": float(row.raw_close),
+            "last_economic_close": float(row.economic_close), "decision_id": order["decision_id"],
+            "trailing_reference_economic_close": float(row.economic_close),
+            "exit_triggers": [],
+        }
+        event(day, code, "ENTRY_FILL", "ENTRY_ATTEMPTED", "ACTIVE", "SIGNAL_ENTRY")
 
-    for i, day in enumerate(sessions):
-        # Company actions are applied before the day's mark and execution.
+    def fill_sell(order: dict[str, Any], day: pd.Timestamp, code: str, row: pd.Series) -> None:
+        nonlocal cash
+        pos = positions[code]
+        exit_price_mode = str(strategy.execution.get("exit_price", "next_tradable_raw_open"))
+        if exit_price_mode == "same_session_raw_close":
+            raw_value = row.raw_close
+            economic_value = row.economic_close
+        else:
+            raw_value = row.raw_open
+            economic_value = row.economic_open
+        if pd.isna(raw_value) or pd.isna(economic_value):
+            raise BacktestDataError(f"exit price unavailable: {day.date()} {code} {exit_price_mode}")
+        raw_price = float(raw_value) * (1.0 - scenario.slippage_each_side)
+        economic_price = float(economic_value) * (1.0 - scenario.slippage_each_side)
+        shares = float(pos["shares"])
+        gross = raw_price * shares
+        commission = gross * scenario.sell_commission
+        duty = gross * scenario.stamp_duty
+        proceeds = gross - commission - duty
+        cash += proceeds
+        realized = proceeds + float(pos["dividends_received"]) - float(pos["total_cost"])
+        order.update(status="FILLED", execution_session=day, execution_price=raw_price, filled_shares=shares)
+        fills.append({
+            "order_id": order["order_id"], "decision_id": order["decision_id"], "trade_date": day,
+            "ts_code": code, "side": "SELL", "price": raw_price, "shares": shares,
+            "entry_date": pos["entry_date"],
+            "gross_value": gross, "commission": commission, "stamp_duty": duty,
+            "cash_after": cash, "reason": str(pos["exit_reason"]), "trigger_type": str(pos["exit_reason"]),
+            "economic_price": economic_price,
+            "economic_return": economic_price / float(pos["entry_economic_price"]) - 1.0,
+            "realized_pnl": realized,
+            "gap_return": economic_price / float(pos["last_economic_close"]) - 1.0,
+            "gap_flag": True,
+            "exit_triggers": list(pos.get("exit_triggers", [])),
+        })
+        event(day, code, "EXIT_FILL", "EXIT_PENDING", "CLOSED", str(pos["exit_reason"]))
+        del positions[code]
+
+    for session_index, day in enumerate(sessions):
+        previous = sessions[session_index - 1] if session_index else None
+        hold_pool: set[str] | None = None
+        if rank_holding_enabled and previous in selection_map:
+            # Every prior signal must have a sealed hold snapshot.  An empty
+            # snapshot is a valid abstention and therefore means no symbol is
+            # retained; a missing snapshot is a broken ledger contract.
+            if previous not in hold_map:
+                raise ValueError(f"rank_holding snapshot missing for signal {previous.date()}")
+            hold_n = max(1, int(rank_cfg.get("hold_buffer_n", 5)))
+            hold_rows = hold_map[previous]
+            hold_pool = set(
+                hold_rows.loc[hold_rows["hold_rank"].le(hold_n), "ts_code"].astype(str)
+            )
         for action in actions.get(day, []):
-            pos = positions.get(action.ts_code)
-            if pos is None:
+            code = str(action["ts_code"])
+            if code not in positions:
                 continue
-            dividend = apply_action(pos, action)
+            pos = positions[code]
+            shares_before = float(pos["shares"])
+            dividend = shares_before * float(action["cash_dividend"])
             cash += dividend
-            action_rows.append({"trade_date": day, "ts_code": action.ts_code,
-                                "split_ratio": action.split_ratio, "cash_dividend": dividend,
-                                "cash_after": cash})
-        # Decisions made at yesterday's close become executable at today's open.
-        for code, pos in list(positions.items()):
-            stop = evaluate_close_stop_loss(
-                entry_economic_price=pos["entry_economic_price"],
-                mark_economic_price=pos["last_economic_close"],
-                stop_loss_pct=None if config.stop_loss_mode == "intraday_5min" else config.stop_loss_pct,
-                trigger_session=previous_session(sessions, i),
-            )
-            take_profit = config.take_profit_pct is not None and (
-                pos["last_economic_close"] / pos["entry_economic_price"] - 1.0
-                >= config.take_profit_pct
-            )
-            should_exit = pos.get("exit_order") is not None or (pos["exit_due"] == day) or stop.triggered or take_profit
-            if should_exit and pos.get("exit_order") is None:
-                trigger_type = "STOP_LOSS" if stop.triggered else "TAKE_PROFIT" if take_profit else "SCHEDULED_EXIT"
-                trigger_price = stop.trigger_price if stop.triggered else pos["last_economic_close"]
-                trigger_return = stop.trigger_return if stop.triggered else pos["last_economic_close"] / pos["entry_economic_price"] - 1.0
-                pos["exit_order"] = new_order(
-                    day, code, "SELL", pos["shares"], "awaiting_next_tradable_session",
-                    decision_session=previous_session(sessions, i),
-                    trigger_price=trigger_price, trigger_return=trigger_return,
-                    trigger_type=trigger_type, reference_raw_close=pos["last_close"],
-                    reference_economic_close=pos["last_economic_close"],
-                )
-            order = pos.get("exit_order")
-            if should_exit:
-                row = by_key.loc[(day, code)] if (day, code) in by_key.index else None
-                if row is not None and _visible_at(row, session_open(day), "open_available_time") and not bool(row.is_suspended) and not bool(row.is_limit_down):
-                    execute(day, code, "SELL", _accounting_price(row, config.accounting_price_basis, "open") * (1.0 - config.sell_slippage), pos["shares"],
-                            "stop_loss_exit" if order.get("trigger_type") == "STOP_LOSS" else "scheduled_or_rule_exit", order,
-                            economic_price=float(row.economic_open) * (1.0 - config.sell_slippage),
-                            raw_price=float(row.raw_open) * (1.0 - config.sell_slippage), entry_economic_price=pos["entry_economic_price"])
-                    del positions[code]
-                elif row is not None:
-                    order["last_attempt_reason"] = "not_pit_visible" if not _visible_at(row, session_open(day), "open_available_time") else "suspended" if bool(row.is_suspended) else "limit_down"
-                    order["final_reason"] = "pending_non_tradable"
-                else:
-                    order["last_attempt_reason"] = "missing_execution_price"
-                    order["final_reason"] = "pending_missing_price"
+            pos["dividends_received"] += dividend
+            pos["shares"] = shares_before * float(action["split_ratio"])
+            pos["entry_price"] = float(pos["entry_price"]) / float(action["split_ratio"])
+            action_rows.append({
+                "trade_date": day, "ts_code": code, "shares_before": shares_before,
+                "shares_after": pos["shares"], "split_ratio": action["split_ratio"],
+                "cash_dividend": dividend, "cash_after": cash,
+                "decision_id": pos["decision_id"], "entry_date": pos["entry_date"],
+            })
+            event(day, code, "CORPORATE_ACTION", pos["state"], pos["state"], str(action.get("action_type", "ACTION")))
 
-        # The signal observed on asof is filled on the next available session.
-        previous = sessions[i - 1] if i else None
-        if previous in signal_map:
-            available = signal_map[previous]
-            slots = config.max_positions - len(positions)
-            entries = available.head(max(0, slots)).copy()
-            if "target_weight" in entries and (pd.to_numeric(entries["target_weight"], errors="coerce") > 0).all():
-                weights = pd.to_numeric(entries["target_weight"], errors="raise")
-                weights = weights / weights.sum()
-            elif len(entries):
-                weights = pd.Series(1.0 / len(entries), index=entries.index)
-            else:
-                weights = pd.Series(dtype=float)
-            entry_cash = cash
-            for entry_index, signal in entries.iterrows():
-                code = str(signal["ts_code"])
-                if code in positions or (day, code) not in by_key.index:
-                    continue
-                row = by_key.loc[(day, code)]
-                if not _visible_at(row, session_open(day), "open_available_time") or bool(row.is_suspended) or bool(row.is_limit_up):
-                    order = new_order(previous, code, "BUY", 0, "not_tradable_at_open", decision_session=previous)
-                    order["status"] = "REJECTED"
-                    order["last_attempt_reason"] = "not_pit_visible" if not _visible_at(row, session_open(day), "open_available_time") else "suspended" if bool(row.is_suspended) else "limit_up"
-                    continue
-                price = _accounting_price(row, config.accounting_price_basis, "open") * (1.0 + config.buy_slippage)
-                cash_fraction = float(signal.get("cash_fraction", 1.0))
-                if not 0 < cash_fraction <= 1:
-                    raise ValueError("signal cash_fraction must be in (0, 1]")
-                budget = min(cash, entry_cash * cash_fraction * float(weights.loc[entry_index]))
-                unit_cost = price * (1.0 + config.buy_commission)
-                shares = int((budget / unit_cost) // config.lot_size) * config.lot_size
-                if shares <= 0:
-                    continue
-                order = new_order(previous, code, "BUY", shares, "signal_entry", decision_session=previous)
-                execute(day, code, "BUY", price, shares, "signal_entry", order,
-                        economic_price=float(row.economic_open) * (1.0 + config.buy_slippage),
-                        raw_price=float(row.raw_open) * (1.0 + config.buy_slippage), entry_economic_price=None)
-                exit_idx = i + config.hold_sessions
-                positions[code] = {"shares": shares, "entry_price": price, "entry_economic_price": float(row.economic_open), "entry_date": day,
-                                   "exit_due": sessions[exit_idx] if exit_idx < len(sessions) else None,
-                                   "last_close": float(row.raw_close), "last_economic_close": float(row.economic_close)}
-                positions[code]["exit_order"] = None
-
-        for code, pos in positions.items():
-            pos["prior_close_for_intraday"] = pos["last_close"]
-            pos["prior_economic_close_for_intraday"] = pos["last_economic_close"]
-            if (day, code) in by_key.index:
-                row = by_key.loc[(day, code)]
-                if _visible_at(row, session_close(day), "close_available_time"):
-                    pos["last_close"] = float(row.raw_close)
-                    pos["last_economic_close"] = float(row.economic_close)
-        # With minute data, stop-loss decisions are made inside the current
-        # session. A position cannot be sold on its entry session (A-share T+1).
-        if config.stop_loss_mode == "intraday_5min" and config.stop_loss_pct is not None:
-            for code, pos in list(positions.items()):
-                if pos["entry_date"] >= day or pos.get("exit_order") is not None:
-                    continue
-                bars = minute[(minute["trade_date"] == day) & (minute["ts_code"].astype(str) == code)]
-                bars = bars[bars["available_time"] <= session_close(day)]
-                if bars.empty:
-                    continue
-                stop_result = find_stop_execution(
-                    bars, entry_economic_price=pos["entry_economic_price"],
-                    stop_loss_pct=config.stop_loss_pct, start_time=day,
-                )
-                if stop_result.status == "NOT_TRIGGERED":
-                    continue
-                pos["exit_order"] = new_order(
-                    day, code, "SELL", pos["shares"], stop_result.reason,
-                    decision_session=day, trigger_price=stop_result.trigger_economic_price,
-                    trigger_return=config.stop_loss_pct, trigger_type="STOP_LOSS",
-                    reference_raw_close=pos["prior_close_for_intraday"],
-                    reference_economic_close=pos["prior_economic_close_for_intraday"],
-                )
-                if stop_result.status == "FILLED":
-                    fill_row = bars[bars["trade_time"] == stop_result.execution_time].iloc[0]
-                    execute(day, code, "SELL", float(stop_result.execution_raw_price), pos["shares"],
-                            "intraday_stop_loss", pos["exit_order"],
-                            economic_price=float(fill_row.economic_open), raw_price=float(stop_result.execution_raw_price),
-                            entry_economic_price=pos["entry_economic_price"])
-                    del positions[code]
-                else:
-                    pos["exit_order"]["last_attempt_reason"] = stop_result.reason
-                    pos["exit_order"]["final_reason"] = "pending_intraday_non_tradable"
-        mark = 0.0
-        for code, pos in positions.items():
-            row = by_key.loc[(day, code)] if (day, code) in by_key.index else None
-            mark_price = (_accounting_price(row, config.accounting_price_basis, "close")
-                          if row is not None and _visible_at(row, session_close(day), "close_available_time")
-                          else pos["last_close"])
-            mark += pos["shares"] * mark_price
-        nav_rows.append({"trade_date": day, "cash": cash, "market_value": mark, "nav": cash + mark,
-                         "open_positions": len(positions)})
-        if cash < -1e-8:
-            raise AssertionError(f"accounting invariant violated: negative cash on {day}: {cash}")
-        if abs(nav_rows[-1]["nav"] - nav_rows[-1]["cash"] - nav_rows[-1]["market_value"]) > 1e-8:
-            raise AssertionError(f"accounting invariant violated: NAV identity on {day}")
-        if config.progress_callback is not None:
-            config.progress_callback(i + 1, len(sessions), day)
-
-    # Final liquidation is explicitly marked and uses the last available close.
-    final_day = sessions[-1]
-    residual = []
-    for code, pos in list(positions.items()):
-        if (final_day, code) in by_key.index:
-            row = by_key.loc[(final_day, code)]
-            close_visible = _visible_at(row, session_close(final_day), "close_available_time")
-            a_share_t1 = pos["entry_date"] < final_day
-            if close_visible and a_share_t1 and not bool(row.is_suspended) and not bool(row.is_limit_down):
-                order = pos.get("exit_order") or new_order(final_day, code, "SELL", pos["shares"],
-                                                            "end_of_test_liquidation", decision_session=final_day,
-                                                            trigger_type="END_OF_TEST", reference_raw_close=pos["last_close"],
-                                                            reference_economic_close=pos["last_economic_close"])
-                execute(final_day, code, "SELL", _accounting_price(row, config.accounting_price_basis, "close") * (1.0 - config.sell_slippage), pos["shares"], "end_of_test_liquidation", order,
-                        economic_price=float(row.economic_close) * (1.0 - config.sell_slippage),
-                        raw_price=float(row.raw_close) * (1.0 - config.sell_slippage), entry_economic_price=pos["entry_economic_price"])
-                del positions[code]
+        for code in list(positions):
+            pos = positions[code]
+            if (
+                pos["state"] == "ACTIVE"
+                and not rank_holding_enabled
+                and session_index >= int(pos["scheduled_exit_index"])
+            ):
+                pos["state"] = "EXIT_PENDING"
+                pos["exit_reason"] = "TIME_EXIT"
+                event(day, code, "EXIT_TRIGGER", "ACTIVE", "EXIT_PENDING", "TIME_EXIT")
+            if (
+                pos["state"] == "ACTIVE"
+                and hold_pool is not None
+                and code not in hold_pool
+            ):
+                pos["state"] = "EXIT_PENDING"
+                pos["exit_reason"] = "RANK_EXIT"
+                pos["exit_triggers"] = ["RANK_EXIT"]
+                event(day, code, "EXIT_TRIGGER", "ACTIVE", "EXIT_PENDING", "RANK_EXIT")
+            if pos["state"] != "EXIT_PENDING":
                 continue
-        if pos.get("exit_order") is not None:
-            pos["exit_order"]["status"] = "EXPIRED"
-            pos["exit_order"]["final_reason"] = "unclosed_non_tradable"
-        residual_row = {"trade_date": final_day, "ts_code": code, "shares": pos["shares"],
-                        "raw_mark_price": pos["last_close"],
-                        "economic_mark_price": pos["last_economic_close"],
-                        "accounting_mark_price": (pos["last_economic_close"]
-                                                   if config.accounting_price_basis == "economic" else pos["last_close"]),
-                        "accounting_price_basis": config.accounting_price_basis,
-                        "reason": "unclosed_non_tradable"}
-        if ((final_day, code) in by_key.index and
-                _visible_at(by_key.loc[(final_day, code)], session_close(final_day), "close_available_time")):
-            final_row = by_key.loc[(final_day, code)]
-            residual_row.update(raw_mark_price=float(final_row.raw_close),
-                                economic_mark_price=float(final_row.economic_close),
-                                accounting_mark_price=float(_accounting_price(final_row, config.accounting_price_basis, "close")))
-        residual.append(residual_row)
-    if nav_rows and trades and not positions:
-        nav_rows[-1]["cash"] = cash
-        nav_rows[-1]["market_value"] = 0.0
-        nav_rows[-1]["nav"] = cash
-        nav_rows[-1]["open_positions"] = 0
-    if nav_rows and positions:
-        mark = sum(pos["shares"] * (_accounting_price(by_key.loc[(final_day, code)], config.accounting_price_basis, "close")
-                   if (final_day, code) in by_key.index and
-                   _visible_at(by_key.loc[(final_day, code)], session_close(final_day), "close_available_time")
-                   else pos["last_close"])
-                   for code, pos in positions.items())
-        nav_rows[-1]["cash"] = cash
-        nav_rows[-1]["market_value"] = mark
-        nav_rows[-1]["nav"] = cash + mark
-        nav_rows[-1]["open_positions"] = len(positions)
-    return {"trades": pd.DataFrame(trades), "orders": pd.DataFrame(orders), "nav": pd.DataFrame(nav_rows),
-            "positions": pd.DataFrame(residual), "corporate_actions": pd.DataFrame(action_rows)}
+            # Same-session-close contracts settle every pending exit after
+            # today's open buys. This prevents a close sale (including a
+            # retry from an earlier data gap) from funding the same day's
+            # open purchase.
+            if str(strategy.execution.get("exit_price", "next_tradable_raw_open")) == "same_session_raw_close":
+                continue
+            decision_id = str(pos["decision_id"])
+            order = new_order(day, decision_id, code, "SELL", float(pos["shares"]), str(pos["exit_reason"]))
+            row = _execution_row(by_key, day, code)
+            status = str(row.execution_status)
+            if status == "MISSING_REQUIRED_DATA":
+                reject(order, day, "SELL_MISSING_REQUIRED_DATA")
+                event(day, code, "EXIT_RETRY", "EXIT_PENDING", "EXIT_PENDING", status)
+                continue
+            if status in {"SUSPENDED", "LIMIT_DOWN", "ZERO_VOLUME", "OUT_OF_UNIVERSE"}:
+                reject(order, day, f"SELL_{status}")
+                event(day, code, "EXIT_RETRY", "EXIT_PENDING", "EXIT_PENDING", status)
+                continue
+            fill_sell(order, day, code, row)
+
+        if previous in selection_map and previous in candidate_map:
+            decision = selection_map[previous]
+            candidates = candidate_map[previous]
+            slots = max(0, int(strategy.portfolio["max_open_positions"]) - len(positions))
+            desired = min(int(decision.desired_entries), slots)
+            filled = 0
+            current_open_value = _open_market_value(positions, by_key, day)
+            decision_nav = float(nav_rows[-1]["nav"]) if nav_rows else initial_cash
+            exposure_budget = max(0.0, float(strategy.portfolio["target_gross_exposure_cap"]) * decision_nav - current_open_value)
+            weight_basis = str(getattr(decision, "target_weight_basis", "decision_nav"))
+            if weight_basis not in {"decision_nav", "available_cash"}:
+                raise ValueError(f"unsupported target_weight_basis: {weight_basis}")
+            cash_fraction_policy = float(getattr(decision, "cash_fraction_policy", 1.0))
+            if not 0.0 < cash_fraction_policy <= 1.0:
+                raise ValueError("cash_fraction_policy must be in (0,1]")
+            cash_pool = cash
+            applied_cash_fraction = 1.0
+            no_backfill = str(strategy.execution.get("buy_untradable", "")) == "no_backfill"
+            attempted_buy_candidates = []
+            if no_backfill:
+                # Determine the candidates that can actually be executed at
+                # T+1 before applying the weak-breadth single-survivor cap.
+                for candidate in candidates.itertuples(index=False):
+                    code = str(candidate.ts_code)
+                    if code in positions:
+                        continue
+                    row = _execution_row(by_key, day, code)
+                    if str(row.execution_status) not in {"MISSING_REQUIRED_DATA", "SUSPENDED", "LIMIT_UP", "ZERO_VOLUME", "OUT_OF_UNIVERSE"}:
+                        attempted_buy_candidates.append(code)
+                    if len(attempted_buy_candidates) >= desired:
+                        break
+                breadth = pd.to_numeric(candidates.get("market_breadth", pd.Series(dtype=float)), errors="coerce").dropna()
+                breadth_now = float(breadth.iloc[0]) if not breadth.empty else np.nan
+                if len(attempted_buy_candidates) == 1 and np.isfinite(breadth_now) and breadth_now < float(strategy.ranking.get("q70_gate", {}).get("market_breadth_min", 0.40)):
+                    cash_pool *= cash_fraction_policy
+                    applied_cash_fraction = cash_fraction_policy
+            if weight_basis == "available_cash":
+                exposure_budget = min(exposure_budget, cash_pool)
+            attempted: set[str] = set()
+            for attempt_no, candidate in enumerate(candidates.itertuples(index=False), start=1):
+                if filled >= desired:
+                    break
+                if no_backfill and attempt_no > desired:
+                    break
+                code = str(candidate.ts_code)
+                if code in attempted:
+                    continue
+                attempted.add(code)
+                row = _execution_row(by_key, day, code)
+                status = str(row.execution_status)
+                chosen = False
+                reason = ""
+                if code in positions:
+                    reason = "DUPLICATE_POSITION"
+                elif status == "MISSING_REQUIRED_DATA":
+                    reason = "BUY_MISSING_REQUIRED_DATA"
+                elif status in {"SUSPENDED", "LIMIT_UP", "ZERO_VOLUME", "OUT_OF_UNIVERSE"}:
+                    reason = f"BUY_{status}"
+                else:
+                    price = float(row.raw_open) * (1.0 + scenario.slippage_each_side)
+                    candidate_weight = getattr(candidate, "target_weight", np.nan)
+                    if pd.notna(candidate_weight):
+                        if weight_basis == "available_cash":
+                            target_budget = max(0.0, float(candidate_weight)) * cash_pool
+                        else:
+                            target_budget = max(0.0, float(candidate_weight)) * decision_nav
+                    else:
+                        if weight_basis == "available_cash":
+                            raise ValueError(
+                                f"available_cash candidate {code} is missing target_weight"
+                            )
+                        target_budget = float(decision.target_weight_each) * decision_nav
+                    budget = min(target_budget, exposure_budget, cash)
+                    unit_cost = price * (1.0 + scenario.buy_commission)
+                    lot = int(strategy.execution["lot_size"])
+                    shares = int((budget / unit_cost) // lot) * lot
+                    adv_row = _execution_row(by_key, previous, code)
+                    adv_value = float(adv_row.adv20_amount) * float(strategy.execution["amount_unit_multiplier"])
+                    if np.isfinite(adv_value):
+                        cap_shares = int(
+                            (adv_value * float(strategy.execution["adv20_max_participation"]) / unit_cost) // lot
+                        ) * lot
+                        shares = min(shares, max(0, cap_shares))
+                    if shares <= 0:
+                        reason = "INSUFFICIENT_BUDGET_OR_CAPACITY"
+                    else:
+                        order = new_order(previous, str(decision.decision_id), code, "BUY", shares, "SIGNAL_ENTRY")
+                        fill_buy(order, day, code, shares, row)
+                        spent = float(fills[-1]["gross_value"] + fills[-1]["commission"])
+                        exposure_budget = max(0.0, exposure_budget - spent)
+                        filled += 1
+                        chosen = True
+                        reason = "FILLED"
+                execution_decisions.append({
+                    "decision_id": str(decision.decision_id), "signal_session": previous,
+                    "execution_session": day, "attempt_no": attempt_no, "candidate_rank": int(candidate.candidate_rank),
+                    "ts_code": code, "execution_status": status, "chosen": chosen,
+                    "reject_reason": reason, "candidate_snapshot_id": str(candidate.candidate_snapshot_id),
+                    # Preserve optional second-stage evidence without making
+                    # the baseline ledger depend on those columns.
+                    "stage1_rank": getattr(candidate, "stage1_rank", np.nan),
+                    "selected_status": getattr(candidate, "selected_status", None),
+                    "model_score": getattr(candidate, "model_score", np.nan),
+                    "interaction_strength": getattr(candidate, "interaction_strength", np.nan),
+                    "alpha_percentile": getattr(candidate, "alpha_percentile", np.nan),
+                    "interaction_percentile": getattr(candidate, "interaction_percentile", np.nan),
+                    "stage2_score": getattr(candidate, "stage2_score", np.nan),
+                    "alpha_power_weight": getattr(candidate, "alpha_power_weight", np.nan),
+                    "target_weight": getattr(candidate, "target_weight", np.nan),
+                    "target_weight_basis": weight_basis,
+                    "cash_fraction_applied": applied_cash_fraction,
+                })
+
+        for code, pos in list(positions.items()):
+            row = _execution_row(by_key, day, code)
+            status = str(row.execution_status)
+            data_eligible = bool(row.execution_data_eligible)
+            if not data_eligible:
+                event(day, code, "HELD_DATA_GAP", pos["state"], pos["state"], str(row.missing_required_execution))
+                continue
+            previous_economic_close = float(pos["last_economic_close"])
+            previous_raw_open = float(pos["last_raw_open"])
+            previous_raw_close = float(pos["last_raw_close"])
+            if pd.notna(row.raw_open):
+                pos["last_raw_open"] = float(row.raw_open)
+            if pd.notna(row.raw_close):
+                pos["last_raw_close"] = float(row.raw_close)
+            if pd.notna(row.economic_close):
+                pos["last_economic_close"] = float(row.economic_close)
+            if pos["state"] == "ACTIVE":
+                stop_cfg = strategy.execution["stop"]
+                stop_pct = float(stop_cfg["threshold_pct"])
+                stop_mode = str(stop_cfg.get("mode", "from_entry"))
+                if stop_mode == "trailing_from_last_close":
+                    pos["trailing_reference_economic_close"] = previous_economic_close
+                    reference = previous_economic_close
+                else:
+                    reference = float(pos["entry_economic_price"])
+                if float(pos["last_economic_close"]) / reference - 1.0 <= stop_pct:
+                    pos["state"] = "EXIT_PENDING"
+                    pos["exit_reason"] = "STOP_LOSS"
+                    pos["exit_triggers"] = [f"STOP_LOSS({stop_mode})"]
+                    event(day, code, "EXIT_TRIGGER", "ACTIVE", "EXIT_PENDING", "STOP_LOSS")
+                else:
+                    take_profit_pct = strategy.execution.get("take_profit_pct")
+                    if (
+                        take_profit_pct is not None
+                        and float(pos["last_economic_close"]) / float(pos["entry_economic_price"]) - 1.0
+                        >= float(take_profit_pct)
+                    ):
+                        pos["state"] = "EXIT_PENDING"
+                        pos["exit_reason"] = "TAKE_PROFIT"
+                        pos["exit_triggers"] = ["TAKE_PROFIT"]
+                        event(day, code, "EXIT_TRIGGER", "ACTIVE", "EXIT_PENDING", "TAKE_PROFIT")
+                    else:
+                        technical = _technical_exit_trigger(
+                            strategy.execution.get("sell_conditions", ()),
+                            previous_raw_open,
+                            previous_raw_close,
+                            row,
+                        )
+                        if technical is not None:
+                            pos["state"] = "EXIT_PENDING"
+                            pos["exit_reason"] = "TECHNICAL_EXIT"
+                            pos["exit_triggers"] = [f"TECHNICAL_EXIT({technical})"]
+                            event(day, code, "EXIT_TRIGGER", "ACTIVE", "EXIT_PENDING", technical)
+
+        # Some contracts (including delta's q70 contract) execute an exit on
+        # the same session close that produced the trigger.  The first exit
+        # pass above remains the next-open path for positions that were
+        # already pending; this pass closes newly-triggered positions without
+        # introducing a second backtest engine.
+        if str(strategy.execution.get("exit_price", "next_tradable_raw_open")) == "same_session_raw_close":
+            for code, pos in list(positions.items()):
+                if pos["state"] != "EXIT_PENDING":
+                    continue
+                row = _execution_row(by_key, day, code)
+                status = str(row.execution_status)
+                order = new_order(day, str(pos["decision_id"]), code, "SELL", float(pos["shares"]), str(pos["exit_reason"]))
+                if status == "MISSING_REQUIRED_DATA":
+                    reject(order, day, "SELL_MISSING_REQUIRED_DATA")
+                    event(day, code, "EXIT_RETRY", "EXIT_PENDING", "EXIT_PENDING", status)
+                    continue
+                if status in {"SUSPENDED", "LIMIT_DOWN", "ZERO_VOLUME", "OUT_OF_UNIVERSE"}:
+                    reject(order, day, f"SELL_{status}")
+                    event(day, code, "EXIT_RETRY", "EXIT_PENDING", "EXIT_PENDING", status)
+                    continue
+                try:
+                    fill_sell(order, day, code, row)
+                except BacktestDataError:
+                    reject(order, day, "SELL_MISSING_EXIT_PRICE")
+                    event(day, code, "EXIT_RETRY", "EXIT_PENDING", "EXIT_PENDING", "MISSING_EXIT_PRICE")
+
+        market_value = sum(float(pos["shares"]) * float(pos["last_raw_close"]) for pos in positions.values())
+        nav = cash + market_value
+        if cash < -1e-8 or abs(nav - cash - market_value) > 1e-8:
+            raise AssertionError("NAV accounting identity failed")
+        nav_rows.append({
+            "trade_date": day, "cash": cash, "market_value": market_value, "nav": nav,
+            "open_positions": len(positions), "gross_exposure": market_value / nav if nav > 0 else np.nan,
+        })
+        for code, pos in positions.items():
+            position_rows.append({
+                "trade_date": day, "ts_code": code, "state": pos["state"], "shares": pos["shares"],
+                "entry_date": pos["entry_date"], "entry_price": pos["entry_price"],
+                "decision_id": pos["decision_id"],
+                "last_raw_close": pos["last_raw_close"], "market_value": float(pos["shares"]) * float(pos["last_raw_close"]),
+                "unrealized_return": float(pos["last_economic_close"]) / float(pos["entry_economic_price"]) - 1.0,
+                "exit_reason": pos["exit_reason"],
+                "exit_triggers": pos.get("exit_triggers", []),
+            })
+
+    for code, pos in positions.items():
+        event(sessions[-1], code, "END_MARK", pos["state"], "OPEN_MARK", "EXECUTION_END")
+
+    return {
+        "orders": pd.DataFrame(orders),
+        "fills": pd.DataFrame(fills),
+        "position_events": pd.DataFrame(position_events),
+        "positions": pd.DataFrame(position_rows),
+        "nav": pd.DataFrame(nav_rows),
+        "execution_decisions": pd.DataFrame(execution_decisions),
+        "corporate_actions": pd.DataFrame(action_rows),
+        "open_positions": pd.DataFrame([
+            {"ts_code": code, **{key: value for key, value in pos.items() if key != "decision_id"}}
+            for code, pos in positions.items()
+        ]),
+    }
 
 
-def _dates(values: pd.Series) -> list[pd.Timestamp]:
-    out = pd.to_datetime(values, utc=True).dt.normalize()
-    return out.tolist()
+def _scenario(strategy: StrategyConfig, name: str) -> CostScenario:
+    raw = strategy.execution["cost_scenarios"].get(name)
+    if raw is None:
+        raise ValueError(f"unknown cost scenario: {name}")
+    return CostScenario(
+        name=name,
+        slippage_each_side=float(raw["slippage_each_side"]),
+        buy_commission=float(raw["buy_commission"]),
+        sell_commission=float(raw["sell_commission"]),
+        stamp_duty=float(raw["stamp_duty"]),
+    )
 
 
-def _validate_config(config: BacktestConfig) -> None:
-    if config.initial_cash <= 0 or config.max_positions <= 0 or config.hold_sessions <= 0 or config.lot_size <= 0:
-        raise ValueError("cash, positions, hold_sessions and lot_size must be positive")
-    if config.buy_slippage < 0 or config.sell_slippage < 0:
-        raise ValueError("slippage must be non-negative")
-    if config.stop_loss_pct is not None and (config.stop_loss_pct >= 0 or config.stop_loss_pct <= -1):
-        raise ValueError("stop_loss_pct must be negative, greater than -1, and expressed as a ratio")
-    if config.take_profit_pct is not None and config.take_profit_pct <= 0:
-        raise ValueError("take_profit_pct must be positive and expressed as a ratio")
-    if config.stop_loss_mode not in {"close_next_session_open", "intraday_5min"}:
-        raise ValueError("stop_loss_mode must be close_next_session_open or intraday_5min")
-    if config.accounting_price_basis not in {"raw", "economic"}:
-        raise ValueError("accounting_price_basis must be raw or economic")
-    if config.corporate_actions_mode not in {"auto", "apply", "skip"}:
-        raise ValueError("corporate_actions_mode must be auto, apply or skip")
-    if config.accounting_price_basis == "economic" and config.corporate_actions_mode == "apply":
-        raise ValueError("economic accounting cannot apply corporate actions twice")
-    if not config.order_id_prefix or any(ch not in "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_" for ch in config.order_id_prefix):
-        raise ValueError("order_id_prefix must contain only safe ASCII characters")
+def _execution_row(by_key: pd.DataFrame, day: pd.Timestamp, code: str) -> pd.Series:
+    try:
+        row = by_key.loc[(day, code)]
+    except KeyError as exc:
+        raise BacktestDataError(f"execution key absent from coverage grid: {day.date()} {code}") from exc
+    if isinstance(row, pd.DataFrame):
+        raise ValueError(f"duplicate execution key: {day.date()} {code}")
+    return row
 
 
-def previous_session(sessions: list[pd.Timestamp], index: int) -> pd.Timestamp | None:
-    return sessions[index - 1] if index > 0 else None
-
-
-def _accounting_price(row: object, basis: str, field: str) -> float:
-    """Select the explicit accounting price; limit-state checks remain raw."""
-    column = f"{basis}_{field}"
-    value = float(getattr(row, column))
-    if not pd.notna(value) or value <= 0:
-        raise ValueError(f"{column} must be finite and positive")
+def _open_market_value(positions: dict[str, dict[str, Any]], by_key: pd.DataFrame, day: pd.Timestamp) -> float:
+    value = 0.0
+    for code, pos in positions.items():
+        row = _execution_row(by_key, day, code)
+        price = float(row.raw_open) if pd.notna(row.raw_open) else float(pos["last_raw_close"])
+        value += float(pos["shares"]) * price
     return value
 
 
-def _visible_at(row: object, timestamp: pd.Timestamp, column: str = "available_time") -> bool:
-    available = pd.Timestamp(getattr(row, column))
-    if available.tzinfo is None:
-        available = available.tz_localize("UTC")
-    return available <= timestamp
-
-
-def _prepare_actions(frame: pd.DataFrame | None) -> dict[pd.Timestamp, list[CorporateAction]]:
-    if frame is None or frame.empty:
+def _action_map(frame: pd.DataFrame) -> dict[pd.Timestamp, list[dict[str, Any]]]:
+    if frame.empty:
         return {}
-    required = {"ts_code", "ex_date", "split_ratio", "cash_dividend", "available_time"}
-    missing = required - set(frame.columns)
-    if missing:
-        raise ValueError(f"corporate actions missing columns: {sorted(missing)}")
-    out: dict[pd.Timestamp, list[CorporateAction]] = {}
-    for row in frame.to_dict("records"):
-        if pd.isna(row["available_time"]):
-            raise ValueError("corporate action available_time must be non-null")
-        action = CorporateAction(str(row["ts_code"]), str(pd.Timestamp(row["ex_date"]).date()),
-                                 float(row["split_ratio"]), float(row["cash_dividend"]),
-                                 str(row["available_time"]) if row.get("available_time") is not None else None)
-        day = pd.Timestamp(action.ex_date, tz="UTC")
-        available = pd.Timestamp(action.available_time)
-        if available.tzinfo is None:
-            available = available.tz_localize("UTC")
-        else:
-            available = available.tz_convert("UTC")
-        if available > session_open(day):
-            raise ValueError("corporate action is not known before ex-date market open")
-        out.setdefault(day, []).append(action)
-    return out
+    out = frame.copy()
+    out["ex_date"] = pd.to_datetime(out["ex_date"], errors="raise", utc=True).dt.normalize()
+    return {day: group.to_dict("records") for day, group in out.groupby("ex_date", sort=True)}
+
+
+def _technical_exit_trigger(
+    names: Any,
+    previous_open: float,
+    previous_close: float,
+    row: pd.Series,
+) -> str | None:
+    """Evaluate close-known candle exits without consulting future sessions."""
+    if not names or not np.isfinite(previous_open) or not np.isfinite(previous_close):
+        return None
+    current_open = float(row.raw_open) if pd.notna(row.raw_open) else np.nan
+    current_high = float(row.raw_high) if pd.notna(row.raw_high) else np.nan
+    current_close = float(row.raw_close) if pd.notna(row.raw_close) else np.nan
+    if not np.isfinite(current_open) or not np.isfinite(current_high) or not np.isfinite(current_close):
+        return None
+    for name in names:
+        name = str(name)
+        if name == "shadow_upper":
+            body = abs(current_close - current_open)
+            upper_shadow = current_high - max(current_close, current_open)
+            if body > 0 and upper_shadow > body * 2:
+                return name
+        elif name == "yin_bao_yang":
+            if (
+                np.isfinite(previous_open)
+                and current_close < current_open
+                and previous_close > previous_open
+                and current_open >= previous_close
+                and current_close <= previous_open
+            ):
+                return name
+    return None
+
+
+__all__ = ["BacktestDataError", "CostScenario", "run_backtest"]

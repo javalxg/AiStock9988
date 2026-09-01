@@ -1,0 +1,53 @@
+{
+  "research_status": "DIAGNOSTIC_SEEN_HISTORY_NO_STRATEGY_CHANGE",
+  "source_run": "docs/council_20260828/RESET_WEAK_CONFIRM_V3_CAP1_20_2026_TO_0828_20260901",
+  "trade_count": 41,
+  "winner_count": 23,
+  "loser_count": 18,
+  "win_rate": 0.5609756097560976,
+  "base": {
+    "total_return": 0.32440303113620117,
+    "profit_factor": 2.2535997176874187,
+    "max_drawdown": -0.08271935304366507,
+    "return_excluding_best_week": 0.20119895619880634,
+    "return_excluding_top3": 0.16225695558650122
+  },
+  "stress": {
+    "total_return": 0.2848200792350013,
+    "profit_factor": 2.057675276012027,
+    "max_drawdown": -0.08815739195258665,
+    "return_excluding_best_week": 0.1656627200636227,
+    "return_excluding_top3": 0.12863294237400136
+  },
+  "pnl": {
+    "total_realized": 324403.0311362009,
+    "winner_realized": 583180.2361396006,
+    "loser_realized": -258777.2050033996,
+    "top3_realized": 162146.07554969998,
+    "top3_share_of_net_pnl": 0.49982910141682
+  },
+  "path": {
+    "winner_e2_mean": 0.03364983778390074,
+    "loser_e2_mean": -0.028562781229688916,
+    "winner_held_close_mfe_mean": 0.15029095601888975,
+    "loser_held_close_mfe_mean": 0.010956965360899122,
+    "winner_held_close_mae_mean": -0.004011553866799942,
+    "loser_held_close_mae_mean": -0.07814293117886664,
+    "e2_positive_trade_count": 22,
+    "e2_positive_win_rate": 0.8181818181818182,
+    "e2_nonpositive_trade_count": 19,
+    "e2_nonpositive_win_rate": 0.2631578947368421,
+    "e2_spearman_to_final_return": 0.5729965156794425,
+    "winner_post_exit_open_5_mean": 0.02495019833810992,
+    "winner_post_exit_open_10_mean": 0.042679226937925065,
+    "loser_post_exit_open_5_mean": -0.005019520991691164,
+    "loser_post_exit_open_10_mean": -0.028267191929044498
+  },
+  "constraints": {
+    "parameter_scan_performed": false,
+    "historical_overlay_backtest_performed": false,
+    "cap_contract_changed": false,
+    "xgboost_used": false,
+    "wide_202_factor_system_used": false
+  }
+}

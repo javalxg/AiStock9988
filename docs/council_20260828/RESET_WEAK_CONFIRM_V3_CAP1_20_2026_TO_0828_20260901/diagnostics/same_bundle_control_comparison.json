@@ -1,0 +1,79 @@
+{
+  "bundle_id": "748b1daa94e01d1d1f05fdda0b02455ab8fd6a43009d794ae94af2f4177fd2ce",
+  "scenarios": {
+    "base": {
+      "max_drawdown": {
+        "challenger": -0.08271935304366507,
+        "control": -0.042952489113155745,
+        "delta": -0.03976686393050932
+      },
+      "portfolio_profit_factor": {
+        "challenger": 2.2535997176874187,
+        "control": 2.2264720783449565,
+        "delta": 0.027127639342462206
+      },
+      "return_excluding_best_week": {
+        "challenger": 0.20119895619880634,
+        "control": 0.0927880093324216,
+        "delta": 0.10841094686638475
+      },
+      "return_excluding_top3_profit": {
+        "challenger": 0.16225695558650122,
+        "control": 0.07288823784430054,
+        "delta": 0.08936871774220068
+      },
+      "total_return": {
+        "challenger": 0.32440303113620117,
+        "control": 0.14915915690590054,
+        "delta": 0.17524387423030063
+      },
+      "trade_count": {
+        "challenger": 41,
+        "control": 41,
+        "delta": 0.0
+      },
+      "trade_win_rate": {
+        "challenger": 0.5609756097560976,
+        "control": 0.5609756097560976,
+        "delta": 0.0
+      }
+    },
+    "stress": {
+      "max_drawdown": {
+        "challenger": -0.08815739195258665,
+        "control": -0.045996552325546114,
+        "delta": -0.042160839627040536
+      },
+      "portfolio_profit_factor": {
+        "challenger": 2.057675276012027,
+        "control": 2.003230224228313,
+        "delta": 0.05444505178371406
+      },
+      "return_excluding_best_week": {
+        "challenger": 0.1656627200636227,
+        "control": 0.07443062327518768,
+        "delta": 0.09123209678843502
+      },
+      "return_excluding_top3_profit": {
+        "challenger": 0.12863294237400136,
+        "control": 0.05539012746040073,
+        "delta": 0.07324281491360063
+      },
+      "total_return": {
+        "challenger": 0.2848200792350013,
+        "control": 0.1286172196774007,
+        "delta": 0.1562028595576006
+      },
+      "trade_count": {
+        "challenger": 41,
+        "control": 41,
+        "delta": 0.0
+      },
+      "trade_win_rate": {
+        "challenger": 0.5609756097560976,
+        "control": 0.5609756097560976,
+        "delta": 0.0
+      }
+    }
+  }
+}

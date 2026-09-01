@@ -1,0 +1,52 @@
+{
+  "inputs": {
+    "backtests/base/fills.parquet": {
+      "sha256": "994dccdb868756a00d7d5fd21d4bf517ee79bf0971b846b2a71933ef37e50827",
+      "bytes": 21441,
+      "sealed_hash_verified": true
+    },
+    "backtests/base/positions.parquet": {
+      "sha256": "b018126ff4d0a6a15a809b4fe831dd84e783e397f9082bbc131d76ee2628bb45",
+      "bytes": 21757,
+      "sealed_hash_verified": true
+    },
+    "backtests/stress/fills.parquet": {
+      "sha256": "f40270c682cd39f98a9b7e304c97c0d21051fd0cc232c0ffaa46a05170a04f07",
+      "bytes": 21420,
+      "sealed_hash_verified": true
+    },
+    "backtests/base/execution_decisions.parquet": {
+      "sha256": "341c5553b3422bb911c5bdaaf83c7d5f177fbb0e595e905137d5c681a57e9e8f",
+      "bytes": 17583,
+      "sealed_hash_verified": true
+    },
+    "ledgers/feature_ledger.parquet": {
+      "sha256": "c2a75e986ec35599aecd470b552f9e04eb6b463030212e98ac404c4701f9405a",
+      "bytes": 89361016,
+      "sealed_hash_verified": true
+    },
+    "ledgers/execution_panel.parquet": {
+      "sha256": "7e49c925288719316fe7eefde40ee048ebab54071c1ea6432ac176e12e0cf11e",
+      "bytes": 76614722,
+      "sealed_hash_verified": true
+    },
+    "backtests/base/metrics.json": {
+      "sha256": "739ca987e41039ec2991ef41a33aa94122eb2de5a6f4eb4ae18139eeb369cfaa",
+      "bytes": 1656,
+      "sealed_hash_verified": true
+    },
+    "backtests/stress/metrics.json": {
+      "sha256": "c72a83c6eea7082f3ec54415082fce5db05423423b221a325c3104b6d0b490bc",
+      "bytes": 1646,
+      "sealed_hash_verified": true
+    },
+    "manifests/artifact_manifest.json": {
+      "sha256": "3d087d1ac50888402070b0d97cd6f62e94d199b231fb5ae767b905d3568d6f97",
+      "bytes": 10238,
+      "sealed_hash_verified": false
+    }
+  },
+  "diagnostic_code": {
+    "scripts/cap1_trade_mechanism_diagnostic.py": "8ece9cd796cc24750f966c4851d449d995f070276f7e7e2cc396306f14951c24"
+  }
+}

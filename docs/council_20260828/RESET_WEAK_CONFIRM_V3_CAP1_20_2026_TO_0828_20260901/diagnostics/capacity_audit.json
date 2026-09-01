@@ -1,0 +1,46 @@
+{
+  "blocking_failures": [],
+  "passed": true,
+  "scenarios": {
+    "base": {
+      "actual_gross_exposure_max": 0.9969195488855658,
+      "actual_gross_exposure_mean": 0.4934514069332424,
+      "actual_open_positions_max": 5,
+      "adv_limit_breaches": 0,
+      "adv_participation_limit": 0.02,
+      "adv_participation_max": 0.0004329020616772814,
+      "adv_participation_median": 0.0002691340937424571,
+      "adv_participation_p95": 0.00041970597337916924,
+      "blocking_failures": [],
+      "buy_fill_count": 41,
+      "buy_fills_missing_valid_adv": 0,
+      "buy_fills_missing_valid_gross_value": 0,
+      "cash_min": 3409.914338600647,
+      "entry_rejection_counts": {
+        "DUPLICATE_POSITION": 4
+      },
+      "target_gross_cap": 1.0,
+      "target_weight_each": 0.2
+    },
+    "stress": {
+      "actual_gross_exposure_max": 0.9982515487411694,
+      "actual_gross_exposure_mean": 0.49330723784357644,
+      "actual_open_positions_max": 5,
+      "adv_limit_breaches": 0,
+      "adv_participation_limit": 0.02,
+      "adv_participation_max": 0.00042466699385037236,
+      "adv_participation_median": 0.0002685565290972291,
+      "adv_participation_p95": 0.0004076444072816169,
+      "blocking_failures": [],
+      "buy_fill_count": 41,
+      "buy_fills_missing_valid_adv": 0,
+      "buy_fills_missing_valid_gross_value": 0,
+      "cash_min": 1934.713270100503,
+      "entry_rejection_counts": {
+        "DUPLICATE_POSITION": 4
+      },
+      "target_gross_cap": 1.0,
+      "target_weight_each": 0.2
+    }
+  }
+}

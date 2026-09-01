@@ -1,0 +1,37 @@
+identity:
+  overlay_id: cap1_early_path_forward
+  version: 1
+  research_status: forward_only
+  forward_start: "2026-09-01"
+
+control:
+  strategy_id: reset_weak_confirm_v3_cap1_20_forward
+
+path:
+  observation_sessions: 3
+  confirm_pct: 0.03
+  break_pct: -0.05
+  entry_reference: raw_open
+  trigger_fields: [raw_high, raw_low]
+  same_session_both: ambiguous_follow_control
+  missing_data: unscorable_follow_control
+  control_exit_before_window: follow_control
+  exit: next_tradable_raw_open
+
+paired_capital:
+  inherit_control_buys: true
+  allow_shadow_only_buys: false
+  resize_control_buys: false
+  restrict_early_proceeds_until_control_exit: true
+  reserve_slot_until_control_exit: true
+  fail_on_negative_unrestricted_cash: true
+
+evaluation:
+  minimum_control_weeks: 26
+  minimum_control_trades: 60
+  minimum_break_events: 15
+  terminal_weeks: 52
+  terminal_control_trades: 120
+  portfolio_profit_factor_min: 2.0
+  max_drawdown_abs_max: 0.15
+  parameter_sweep: false
