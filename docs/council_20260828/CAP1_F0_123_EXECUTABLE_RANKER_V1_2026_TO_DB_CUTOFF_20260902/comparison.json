@@ -1,0 +1,76 @@
+{
+  "base": {
+    "max_drawdown": {
+      "challenger": -0.08271935304366507,
+      "control": -0.08271935304366507,
+      "delta": 0.0
+    },
+    "portfolio_profit_factor": {
+      "challenger": 1.9064327874072498,
+      "control": 2.2535997176874187,
+      "delta": -0.347166930280169
+    },
+    "return_excluding_best_week": {
+      "challenger": 0.16144623808814274,
+      "control": 0.21218928384217262,
+      "delta": -0.05074304575402988
+    },
+    "return_excluding_top3_profit": {
+      "challenger": 0.12113133299290113,
+      "control": 0.17437453458450114,
+      "delta": -0.05324320159160001
+    },
+    "total_return": {
+      "challenger": 0.287457199213101,
+      "control": 0.3365206101342011,
+      "delta": -0.049063410921100115
+    },
+    "trade_count": {
+      "challenger": 41,
+      "control": 41,
+      "delta": 0
+    },
+    "trade_win_rate": {
+      "challenger": 0.5609756097560976,
+      "control": 0.5609756097560976,
+      "delta": 0.0
+    }
+  },
+  "stress": {
+    "max_drawdown": {
+      "challenger": -0.08815739195258687,
+      "control": -0.08815739195258665,
+      "delta": -2.220446049250313e-16
+    },
+    "portfolio_profit_factor": {
+      "challenger": 1.7517561250509663,
+      "control": 2.057675276012027,
+      "delta": -0.3059191509610608
+    },
+    "return_excluding_best_week": {
+      "challenger": 0.12602984860889888,
+      "control": 0.17587805629988518,
+      "delta": -0.0498482076909863
+    },
+    "return_excluding_top3_profit": {
+      "challenger": 0.08763539902760087,
+      "control": 0.139892519339601,
+      "delta": -0.05225712031200014
+    },
+    "total_return": {
+      "challenger": 0.24664870493000102,
+      "control": 0.29607965620060117,
+      "delta": -0.049430951270600154
+    },
+    "trade_count": {
+      "challenger": 41,
+      "control": 41,
+      "delta": 0
+    },
+    "trade_win_rate": {
+      "challenger": 0.5609756097560976,
+      "control": 0.5609756097560976,
+      "delta": 0.0
+    }
+  }
+}
