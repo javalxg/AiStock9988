@@ -6,6 +6,7 @@
 | `backend/core/alpha/ml/stock_xgb_walkforward.py` | `src/aistock9988/models/` | 部分实现 | 重新实现，不复制旧 runner；绑定冻结 F0 和标签契约 |
 | 旧数据加载器 | `src/aistock9988/data/` | 已有骨架 | 只读连接、查询哈希、PIT 审计、快照清单 |
 | 历史 q70 source-parity 高收益配置（生产化参考契约） | `configs/experiments/q70_source_parity_t10_20260822.yaml` | 已登记，待专用 runner 验证 | 以 +365.63% 完整成熟边界为参考；+386.02% 仅历史终端参考；禁止旧 ledger、Stage2；使用 5 分钟生产级执行 |
+| `top_list_ts` / `top_inst_ts` 龙虎榜事件数据契约（不迁移旧策略代码） | 独立的龙虎榜事件加载、去重、状态机和 V3 回测接线 | 设计审查中，未实现 | 只聚合 `exalter='机构专用'` 的 `net_buy`；`top_list` 原因保留集合且禁止跨原因累加 `net_amount`；事件截止日独立绑定；直接 T+1 追榜已否决，只允许预注册的回落-承接机制 |
 
 ## 行业相对特征迁移规则
 
