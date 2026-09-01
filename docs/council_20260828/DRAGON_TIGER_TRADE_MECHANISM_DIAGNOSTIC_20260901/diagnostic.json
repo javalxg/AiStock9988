@@ -1,0 +1,375 @@
+{
+  "base_trade_diagnostic": {
+    "candidate_rank_summary": [
+      {
+        "candidate_rank": 1,
+        "mean_economic_return": -0.014664729281724848,
+        "total_realized_pnl": -224850.27715129865,
+        "trades": 63,
+        "win_rate": 0.3968253968253968
+      },
+      {
+        "candidate_rank": 2,
+        "mean_economic_return": -0.005648561925364141,
+        "total_realized_pnl": -15960.685221299675,
+        "trades": 13,
+        "win_rate": 0.3076923076923077
+      },
+      {
+        "candidate_rank": 3,
+        "mean_economic_return": -0.12110639566836245,
+        "total_realized_pnl": -21319.150244799966,
+        "trades": 1,
+        "win_rate": 0.0
+      }
+    ],
+    "closed_trades": 77,
+    "entry_month_summary": [
+      {
+        "entry_month": "2026-01",
+        "mean_economic_return": -0.0318842992648544,
+        "total_realized_pnl": -66213.25105569977,
+        "trades": 10,
+        "win_rate": 0.2
+      },
+      {
+        "entry_month": "2026-02",
+        "mean_economic_return": -0.06082270255960014,
+        "total_realized_pnl": -100894.13176879977,
+        "trades": 9,
+        "win_rate": 0.1111111111111111
+      },
+      {
+        "entry_month": "2026-03",
+        "mean_economic_return": 0.028041730495215952,
+        "total_realized_pnl": 24722.402040700035,
+        "trades": 9,
+        "win_rate": 0.4444444444444444
+      },
+      {
+        "entry_month": "2026-04",
+        "mean_economic_return": 0.04662370967838336,
+        "total_realized_pnl": 59552.21422010026,
+        "trades": 8,
+        "win_rate": 0.75
+      },
+      {
+        "entry_month": "2026-05",
+        "mean_economic_return": 0.07005884006927021,
+        "total_realized_pnl": 125029.29589010013,
+        "trades": 10,
+        "win_rate": 0.5
+      },
+      {
+        "entry_month": "2026-06",
+        "mean_economic_return": -0.022537904998575876,
+        "total_realized_pnl": -59659.5024819996,
+        "trades": 10,
+        "win_rate": 0.5
+      },
+      {
+        "entry_month": "2026-07",
+        "mean_economic_return": -0.08415847450349506,
+        "total_realized_pnl": -241591.7671082997,
+        "trades": 16,
+        "win_rate": 0.3125
+      },
+      {
+        "entry_month": "2026-08",
+        "mean_economic_return": -0.0012414680593698436,
+        "total_realized_pnl": -3075.3723534998426,
+        "trades": 5,
+        "win_rate": 0.2
+      }
+    ],
+    "exit_reason_summary": [
+      {
+        "exit_reason": "STOP_LOSS",
+        "mean_economic_return": -0.052208757364263454,
+        "mean_holding_sessions": 5.057142857142857,
+        "total_realized_pnl": -327982.61892399914,
+        "trades": 35,
+        "win_rate": 0.3142857142857143
+      },
+      {
+        "exit_reason": "TIME_EXIT",
+        "mean_economic_return": 0.016878353864344272,
+        "mean_holding_sessions": 10.0,
+        "total_realized_pnl": 65852.50630660084,
+        "trades": 42,
+        "win_rate": 0.42857142857142855
+      }
+    ],
+    "losses": 48,
+    "outcome_summary": {
+      "LOSS": {
+        "features": {
+          "candidate_rank": {
+            "mean": 1.2291666666666667,
+            "median": 1.0
+          },
+          "economic_return": {
+            "mean": -0.0982315758780199,
+            "median": -0.09452690488175391
+          },
+          "holding_sessions": {
+            "mean": 7.458333333333333,
+            "median": 9.5
+          },
+          "institution_intensity": {
+            "mean": 0.029437846039013515,
+            "median": 0.021173823608801857
+          },
+          "opening_gap_return": {
+            "mean": 0.026281515920887354,
+            "median": 0.019402414682233804
+          },
+          "pullback_delay_sessions": {
+            "mean": 1.4375,
+            "median": 1.0
+          },
+          "pullback_to_reclaim_sessions": {
+            "mean": 2.3125,
+            "median": 2.0
+          },
+          "reclaim_delay_sessions": {
+            "mean": 3.75,
+            "median": 4.0
+          },
+          "reclaim_volume_ratio": {
+            "mean": 1.8652954432924982,
+            "median": 1.3591796331018826
+          }
+        },
+        "total_realized_pnl": -861355.147702999,
+        "trades": 48,
+        "win_rate": 0.0
+      },
+      "WIN": {
+        "features": {
+          "candidate_rank": {
+            "mean": 1.1379310344827587,
+            "median": 1.0
+          },
+          "economic_return": {
+            "mean": 0.12402413781717908,
+            "median": 0.10223197168366882
+          },
+          "holding_sessions": {
+            "mean": 8.241379310344827,
+            "median": 10.0
+          },
+          "institution_intensity": {
+            "mean": 0.028862302092054225,
+            "median": 0.026689429340807466
+          },
+          "opening_gap_return": {
+            "mean": 0.025695748896811414,
+            "median": 0.01700318809776835
+          },
+          "pullback_delay_sessions": {
+            "mean": 1.5517241379310345,
+            "median": 1.0
+          },
+          "pullback_to_reclaim_sessions": {
+            "mean": 2.1379310344827585,
+            "median": 2.0
+          },
+          "reclaim_delay_sessions": {
+            "mean": 3.689655172413793,
+            "median": 4.0
+          },
+          "reclaim_volume_ratio": {
+            "mean": 1.4155901220907878,
+            "median": 1.2173617704178528
+          }
+        },
+        "total_realized_pnl": 599225.0350856006,
+        "trades": 29,
+        "win_rate": 1.0
+      }
+    },
+    "winner_loser_comparisons": {
+      "candidate_rank": {
+        "winner_mean_minus_loser_mean": -0.09123563218390807,
+        "winner_median_minus_loser_median": 0.0
+      },
+      "economic_return": {
+        "winner_mean_minus_loser_mean": 0.22225571369519898,
+        "winner_median_minus_loser_median": 0.19675887656542274
+      },
+      "holding_sessions": {
+        "winner_mean_minus_loser_mean": 0.7830459770114944,
+        "winner_median_minus_loser_median": 0.5
+      },
+      "institution_intensity": {
+        "winner_mean_minus_loser_mean": -0.00057554394695929,
+        "winner_median_minus_loser_median": 0.005515605732005609
+      },
+      "opening_gap_return": {
+        "winner_mean_minus_loser_mean": -0.0005857670240759401,
+        "winner_median_minus_loser_median": -0.0023992265844654526
+      },
+      "pullback_delay_sessions": {
+        "winner_mean_minus_loser_mean": 0.11422413793103448,
+        "winner_median_minus_loser_median": 0.0
+      },
+      "pullback_to_reclaim_sessions": {
+        "winner_mean_minus_loser_mean": -0.17456896551724155,
+        "winner_median_minus_loser_median": 0.0
+      },
+      "reclaim_delay_sessions": {
+        "winner_mean_minus_loser_mean": -0.06034482758620685,
+        "winner_median_minus_loser_median": 0.0
+      },
+      "reclaim_volume_ratio": {
+        "winner_mean_minus_loser_mean": -0.44970532120171036,
+        "winner_median_minus_loser_median": -0.14181786268402985
+      }
+    },
+    "wins": 29
+  },
+  "business_data_persisted": false,
+  "parameter_search_performed": false,
+  "reproduction": {
+    "checks": {
+      "backtest.base.corporate_actions": {
+        "expected_rows": 2,
+        "expected_sha256": "134a6764a2acd8ea81066004af8ffc233053a574b568abebe1657c5c394fe984",
+        "passed": true,
+        "rows": 2,
+        "sha256": "134a6764a2acd8ea81066004af8ffc233053a574b568abebe1657c5c394fe984"
+      },
+      "backtest.base.execution_decisions": {
+        "expected_rows": 79,
+        "expected_sha256": "6718c2824d4472d1f021fface62292c548d5d8322ede11425dc9d89f64bb39b2",
+        "passed": true,
+        "rows": 79,
+        "sha256": "6718c2824d4472d1f021fface62292c548d5d8322ede11425dc9d89f64bb39b2"
+      },
+      "backtest.base.fills": {
+        "expected_rows": 156,
+        "expected_sha256": "e1d5390b5d98ec5bbc96df9f3e62b129f158e73e374db574662cd295e08fa596",
+        "passed": true,
+        "rows": 156,
+        "sha256": "e1d5390b5d98ec5bbc96df9f3e62b129f158e73e374db574662cd295e08fa596"
+      },
+      "backtest.base.nav": {
+        "expected_rows": 161,
+        "expected_sha256": "11204a170d2f175dbf3acf9eca76aabcd12d77e8eccddad2d82585c365e1f69e",
+        "passed": true,
+        "rows": 161,
+        "sha256": "11204a170d2f175dbf3acf9eca76aabcd12d77e8eccddad2d82585c365e1f69e"
+      },
+      "backtest.base.open_positions": {
+        "expected_rows": 2,
+        "expected_sha256": "9224578a02f71cab4df12a74ca6a65bc4d7a0afa0546844e502360ffba62a614",
+        "passed": true,
+        "rows": 2,
+        "sha256": "9224578a02f71cab4df12a74ca6a65bc4d7a0afa0546844e502360ffba62a614"
+      },
+      "backtest.base.orders": {
+        "expected_rows": 158,
+        "expected_sha256": "aeaeab652daf3de0e1278637886bac7267d5e1c9231a6ac7f4027939c16f3b04",
+        "passed": true,
+        "rows": 158,
+        "sha256": "aeaeab652daf3de0e1278637886bac7267d5e1c9231a6ac7f4027939c16f3b04"
+      },
+      "backtest.base.position_events": {
+        "expected_rows": 239,
+        "expected_sha256": "d3fbfa33ed1b4406e563f030fa8d19ab62d045af910bb2fae65a3f710a4c4a2d",
+        "passed": true,
+        "rows": 239,
+        "sha256": "d3fbfa33ed1b4406e563f030fa8d19ab62d045af910bb2fae65a3f710a4c4a2d"
+      },
+      "backtest.base.positions": {
+        "expected_rows": 612,
+        "expected_sha256": "92b0281070eff7bccaf08b103cc8aa1598af8e803a18ad5e0f141a15fb6e4017",
+        "passed": true,
+        "rows": 612,
+        "sha256": "92b0281070eff7bccaf08b103cc8aa1598af8e803a18ad5e0f141a15fb6e4017"
+      },
+      "backtest.stress.corporate_actions": {
+        "expected_rows": 2,
+        "expected_sha256": "e72530adc9a31dae5854e372c0783d50266e5d7f99a96977fd801ab3d8d5e185",
+        "passed": true,
+        "rows": 2,
+        "sha256": "e72530adc9a31dae5854e372c0783d50266e5d7f99a96977fd801ab3d8d5e185"
+      },
+      "backtest.stress.execution_decisions": {
+        "expected_rows": 79,
+        "expected_sha256": "6718c2824d4472d1f021fface62292c548d5d8322ede11425dc9d89f64bb39b2",
+        "passed": true,
+        "rows": 79,
+        "sha256": "6718c2824d4472d1f021fface62292c548d5d8322ede11425dc9d89f64bb39b2"
+      },
+      "backtest.stress.fills": {
+        "expected_rows": 156,
+        "expected_sha256": "9a3107bd248125936a94e1f290bee75441971e4e33f667a6a660ecf975190acc",
+        "passed": true,
+        "rows": 156,
+        "sha256": "9a3107bd248125936a94e1f290bee75441971e4e33f667a6a660ecf975190acc"
+      },
+      "backtest.stress.nav": {
+        "expected_rows": 161,
+        "expected_sha256": "eb6c8c3d014da6ea50fba536840a33847ff094f221fff92098b61c33dcfcfaef",
+        "passed": true,
+        "rows": 161,
+        "sha256": "eb6c8c3d014da6ea50fba536840a33847ff094f221fff92098b61c33dcfcfaef"
+      },
+      "backtest.stress.open_positions": {
+        "expected_rows": 2,
+        "expected_sha256": "a5ac6887a62307270f1057395c59b8da15113051076b141289520e47ccf8e5ee",
+        "passed": true,
+        "rows": 2,
+        "sha256": "a5ac6887a62307270f1057395c59b8da15113051076b141289520e47ccf8e5ee"
+      },
+      "backtest.stress.orders": {
+        "expected_rows": 158,
+        "expected_sha256": "a9ad85e554afbc24f77c6fdb4fe3f31cf904ad53fb47ca5453cce1f3f8131067",
+        "passed": true,
+        "rows": 158,
+        "sha256": "a9ad85e554afbc24f77c6fdb4fe3f31cf904ad53fb47ca5453cce1f3f8131067"
+      },
+      "backtest.stress.position_events": {
+        "expected_rows": 239,
+        "expected_sha256": "e9bbc030194130683fbba3278f1db1fd42551616643dc0e05ccc6e0984728a42",
+        "passed": true,
+        "rows": 239,
+        "sha256": "e9bbc030194130683fbba3278f1db1fd42551616643dc0e05ccc6e0984728a42"
+      },
+      "backtest.stress.positions": {
+        "expected_rows": 612,
+        "expected_sha256": "f72409710958f3168c7fd0133ff164a5c25b7949b0a715dceae9c111b86c888d",
+        "passed": true,
+        "rows": 612,
+        "sha256": "f72409710958f3168c7fd0133ff164a5c25b7949b0a715dceae9c111b86c888d"
+      },
+      "event_and_selection.candidate": {
+        "expected_rows": 127,
+        "expected_sha256": "10f63eb686aa4898f1a96c2fcb2e647bc81bb596ae2274172ccc0917cece609a",
+        "passed": true,
+        "rows": 127,
+        "sha256": "10f63eb686aa4898f1a96c2fcb2e647bc81bb596ae2274172ccc0917cece609a"
+      },
+      "event_and_selection.selection": {
+        "expected_rows": 156,
+        "expected_sha256": "d9844f7e2f58fbd48072d43bf47fbfffbced441ee332e58b1412884ff047514c",
+        "passed": true,
+        "rows": 156,
+        "sha256": "d9844f7e2f58fbd48072d43bf47fbfffbced441ee332e58b1412884ff047514c"
+      },
+      "event_and_selection.state": {
+        "expected_rows": 11714,
+        "expected_sha256": "7055448bb775537f8c746663f59adc246d532cc77680a8bd7de957f10b995d8a",
+        "passed": true,
+        "rows": 11714,
+        "sha256": "7055448bb775537f8c746663f59adc246d532cc77680a8bd7de957f10b995d8a"
+      }
+    },
+    "passed": true,
+    "sealed_manifest_sha256": "61a1124a3327c83d34a61e0a777622a0d31ee86494d2cbd57f9b030a138819e3"
+  },
+  "source_result_sha256": "82e57c82708fadc7ae86790341dbc25aef63ee2a52a9db6bf220dad62f90a81e",
+  "source_run": "docs/council_20260828/DRAGON_TIGER_PULLBACK_RECLAIM_V1_2026_TO_DB_CUTOFF_20260901_R2"
+}
