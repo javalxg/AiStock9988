@@ -1,0 +1,12 @@
+{
+  "configs/strategy/reset_weak_confirm_v3_cap1_20.yaml": "6d0af91e975a4a4d1e28ce4f508f06c94a3bb6b9e5b6f72db2f366ed5e81404d",
+  "configs/strategy/reset_weak_confirm_v3_cap1_e2_nonpositive_exit_v1.yaml": "2900750d74ae5469a9c7e553a1f858e8787df4aaee7fc13af7308fc6c34b943b",
+  "docs/council_20260828/CAP1_E2_NONPOSITIVE_EXIT_V1_PREREG_20260902.md": "80231bc26433b1d0a256710a9ebd0088c1f912d85a891763a3fe3f1d3fa32a42",
+  "scripts/rules_summary_runner.py": "2d8243e8617956fd071f3b977b64633811337b8827a50c289bf091bb3849dfa3",
+  "src/aistock9988/backtest/engine.py": "b53b3730c127447ef7f03a799d42f8efc145fadf0a886da9715acfeb58f3e081",
+  "src/aistock9988/configuration.py": "652a0367e432210e2923dd1085869a56c1eb8f5f99f34e0d8b6e29158b7d1f00",
+  "src/aistock9988/data/bundle.py": "c8ae1360db3e8410b0cdc08a979ff5749147b907776419780f4edc1a9ff38185",
+  "src/aistock9988/features/engine.py": "63395ac19e60556c1abb8f60a972bb7d434f8d086fb8b9bcde04cc2d6b73b1d0",
+  "src/aistock9988/reporting/metrics.py": "d47b3488570029dae93521103c84e886d8e99598c24c03d78fdc91cf063eb593",
+  "src/aistock9988/selection/pipeline.py": "bc790121b8a1802543a39a104bf39def7230bab3dbce4ca14ff570ab230c9521"
+}

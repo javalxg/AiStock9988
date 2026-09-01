@@ -1,0 +1,10 @@
+{
+  "active_signal_days": 57,
+  "candidate_view_rows": 343,
+  "date_level_data_gap_days": [],
+  "score_signal_dates": 160,
+  "selection_data_excluded_rows": 54725,
+  "signal_dates": 160,
+  "stage1_pass_rows": 366,
+  "zero_candidate_days": 103
+}

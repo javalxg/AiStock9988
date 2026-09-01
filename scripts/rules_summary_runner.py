@@ -114,11 +114,8 @@ def _validate_control_contract(
         if challenger_dict[section] != control_dict[section]:
             raise ValueError(f"challenger changes frozen control section: {section}")
     challenger_execution = dict(challenger_dict["execution"])
-    early_path = challenger_execution.pop("early_path_exit", None)
-    if challenger_execution != control_dict["execution"]:
-        raise ValueError("challenger changes execution beyond early_path_exit")
-    if early_path is None:
-        raise ValueError("challenger does not define early_path_exit")
+    if challenger_execution == control_dict["execution"]:
+        raise ValueError("challenger does not change the execution contract")
 
 
 def _run_scenarios(
@@ -157,11 +154,6 @@ def _run_scenarios(
                 if not result["execution_decisions"].empty
                 else 0,
                 "open_positions_at_end": int(len(result["open_positions"])),
-                "early_path_exit_count": int(
-                    result["fills"]["reason"].eq("EARLY_PATH_EXIT").sum()
-                )
-                if not result["fills"].empty
-                else 0,
             }
         )
         summary["acceptance"] = _acceptance(summary, strategy)
@@ -291,11 +283,6 @@ def run(
         raise FileExistsError(f"immutable output directory is not empty: {output}")
     strategy = StrategyConfig.from_yaml(strategy_path)
     control = StrategyConfig.from_yaml(control_path) if control_path is not None else None
-    early_path_enabled = bool(
-        strategy.execution.get("early_path_exit", {}).get("enabled", False)
-    )
-    if early_path_enabled and control is None:
-        raise ValueError("early_path_exit experiments require --control")
     if control is not None:
         _validate_control_contract(strategy, control)
     sources = set(strategy.data_policy["dense_required"]["selection"]) | set(
@@ -425,7 +412,7 @@ def run(
         control_base = control_metrics["base"]
         control_stress = control_metrics["stress"]
         comparison_text = f"""
-## Unchanged CAP1 control
+## Control comparison
 
 | Scenario | Control return | Challenger return | Control PF | Challenger PF | Control MaxDD | Challenger MaxDD | Control win rate | Challenger win rate |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|
@@ -455,13 +442,10 @@ an out-of-sample claim.
 | Stress | {stress['total_return']:+.2%} | {stress['portfolio_profit_factor']:.3f} | {stress['max_drawdown']:.2%} | {stress['trade_win_rate']:.1%} | {stress['return_excluding_best_week']:+.2%} | {stress['return_excluding_top3_profit']:+.2%} | {stress['weekly_ge_5_count']} ({stress['weekly_ge_5_ratio']:.1%}) | {stress['trade_count']} | {stress['open_positions_at_end']} | {stress['acceptance']['passed']} |
 {comparison_text}
 
-The challenger executed {base['early_path_exit_count']} Base and
-{stress['early_path_exit_count']} Stress early-path exits.
-
 ## Decision
 
 Absolute Base/Stress acceptance passed: `{absolute_passed}`. Relative promotion
-against unchanged CAP1 passed: `{promotion_passed}`. Final decision passed:
+against the supplied control passed: `{promotion_passed}`. Final decision passed:
 `{passed}`. A failed fixed rule is retained unchanged as evidence and must not
 be repaired by a threshold, weight, TopN, holding-period, gate, or model scan.
 """

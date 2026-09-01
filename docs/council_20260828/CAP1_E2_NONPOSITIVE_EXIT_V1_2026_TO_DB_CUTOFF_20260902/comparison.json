@@ -1,0 +1,101 @@
+{
+  "promotion": {
+    "base_ex_best_week_higher": false,
+    "base_ex_top3_higher": false,
+    "base_maxdd_not_worse": true,
+    "base_pf_higher": false,
+    "base_return_higher": false,
+    "stress_ex_best_week_higher": false,
+    "stress_ex_top3_higher": false,
+    "stress_maxdd_not_worse": true,
+    "stress_pf_higher": false,
+    "stress_return_higher": false
+  },
+  "promotion_passed": false,
+  "scenarios": {
+    "base": {
+      "max_drawdown": {
+        "challenger": -0.06953117883106807,
+        "control": -0.08271935304366507,
+        "delta": 0.013188174212596993
+      },
+      "portfolio_profit_factor": {
+        "challenger": 1.5701036048312564,
+        "control": 2.2535997176874187,
+        "delta": -0.6834961128561623
+      },
+      "return_excluding_best_week": {
+        "challenger": 0.10949258769721815,
+        "control": 0.21218928384217262,
+        "delta": -0.10269669614495447
+      },
+      "return_excluding_top3_profit": {
+        "challenger": 0.047499810665601494,
+        "control": 0.17437453458450114,
+        "delta": -0.12687472391889965
+      },
+      "total_return": {
+        "challenger": 0.19184304294750154,
+        "control": 0.3365206101342011,
+        "delta": -0.14467756718669955
+      },
+      "trade_count": {
+        "challenger": 59,
+        "control": 41,
+        "delta": 18.0
+      },
+      "trade_win_rate": {
+        "challenger": 0.3898305084745763,
+        "control": 0.5609756097560976,
+        "delta": -0.17114510128152133
+      },
+      "weekly_ge_5_count": {
+        "challenger": 2,
+        "control": 3,
+        "delta": -1.0
+      }
+    },
+    "stress": {
+      "max_drawdown": {
+        "challenger": -0.08033022893414021,
+        "control": -0.08815739195258665,
+        "delta": 0.007827163018446437
+      },
+      "portfolio_profit_factor": {
+        "challenger": 1.3806802778449228,
+        "control": 2.057675276012027,
+        "delta": -0.6769949981671044
+      },
+      "return_excluding_best_week": {
+        "challenger": 0.06299024919643403,
+        "control": 0.17587805629988518,
+        "delta": -0.11288780710345114
+      },
+      "return_excluding_top3_profit": {
+        "challenger": 0.00010367473820083184,
+        "control": 0.139892519339601,
+        "delta": -0.13978884460140018
+      },
+      "total_return": {
+        "challenger": 0.138819185571601,
+        "control": 0.29607965620060117,
+        "delta": -0.15726047062900017
+      },
+      "trade_count": {
+        "challenger": 59,
+        "control": 41,
+        "delta": 18.0
+      },
+      "trade_win_rate": {
+        "challenger": 0.3898305084745763,
+        "control": 0.5609756097560976,
+        "delta": -0.17114510128152133
+      },
+      "weekly_ge_5_count": {
+        "challenger": 2,
+        "control": 3,
+        "delta": -1.0
+      }
+    }
+  }
+}

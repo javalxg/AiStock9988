@@ -212,21 +212,6 @@ class StrategyConfig:
         take_profit = execution.get("take_profit_pct")
         if take_profit is not None and float(take_profit) < 0:
             raise ValueError("execution.take_profit_pct must be non-negative when enabled")
-        early_path = _mapping(
-            execution.get("early_path_exit", {}), "execution.early_path_exit"
-        )
-        if bool(early_path.get("enabled", False)):
-            expected_early_path = {
-                "enabled": True,
-                "observation_sessions_from_fill": 3,
-                "condition": "e2_close_nonpositive_vs_entry",
-                "execute": "next_tradable_open",
-                "missing_data": "follow_control",
-            }
-            if _thaw(early_path) != expected_early_path:
-                raise ValueError(
-                    "execution.early_path_exit differs from the frozen E2 contract"
-                )
         sell_conditions = execution.get("sell_conditions", ())
         if not isinstance(sell_conditions, (list, tuple)):
             raise ValueError("execution.sell_conditions must be a list")

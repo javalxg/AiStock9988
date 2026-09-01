@@ -1,0 +1,12 @@
+{
+  "absolute_acceptance_passed": false,
+  "completed_at": "2026-09-01T18:06:17.039432+00:00",
+  "credentials_persisted": false,
+  "raw_business_data_persisted": false,
+  "relative_promotion_passed": false,
+  "status": "COMPLETED_REJECT",
+  "strategy_id": "reset_weak_confirm_v3_cap1_e2_nonpositive_exit_v1",
+  "years_used_for_performance": [
+    2026
+  ]
+}

@@ -1,0 +1,18 @@
+{
+  "checks": {
+    "all_signal_dates_scored": true,
+    "base_buy_t_plus_one": true,
+    "base_execution_end": true,
+    "base_position_cap": true,
+    "candidate_view_cap": true,
+    "feature_pit": true,
+    "feature_unique": true,
+    "no_date_level_data_gaps": true,
+    "score_unique": true,
+    "stress_buy_t_plus_one": true,
+    "stress_execution_end": true,
+    "stress_position_cap": true
+  },
+  "failed": [],
+  "passed": true
+}
