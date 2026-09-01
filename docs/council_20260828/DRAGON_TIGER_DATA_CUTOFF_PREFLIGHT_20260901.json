@@ -1,0 +1,49 @@
+{
+  "audit_date": "2026-09-01",
+  "database": "quant_db",
+  "mode": "read_only_metadata_and_key_coverage",
+  "signal_sources": {
+    "top_list_ts": {
+      "min_trade_date_2026": "2026-01-05",
+      "max_trade_date_2026": "2026-08-18",
+      "rows_2026": 12774,
+      "trade_dates_2026": 151
+    },
+    "top_inst_ts": {
+      "min_trade_date_2026": "2026-01-05",
+      "max_trade_date_2026": "2026-08-18",
+      "rows_2026": 105947,
+      "trade_dates_2026": 151
+    }
+  },
+  "dense_execution_sources": {
+    "market_daily_ts": {
+      "max_trade_date_2026": "2026-09-01",
+      "rows_2026": 885352,
+      "trade_dates_2026": 161
+    },
+    "adj_factor_ts": {
+      "max_trade_date_2026": "2026-09-01",
+      "rows_2026": 887970,
+      "trade_dates_2026": 161
+    },
+    "stk_limit_ts": {
+      "max_trade_date_2026": "2026-09-01",
+      "rows_2026": 1208750,
+      "trade_dates_2026": 161
+    }
+  },
+  "recent_joint_key_coverage": {
+    "range": "2026-08-18..2026-09-01",
+    "trade_dates": 11,
+    "result": "PASS",
+    "contract": "For every recent trade_date, market_daily_ts stock keys exactly match adj_factor_ts and stk_limit_ts stock keys",
+    "daily_stock_key_range": [5541, 5551]
+  },
+  "frozen_run_boundary": {
+    "event_signal_end": "2026-08-18",
+    "execution_and_mark_end": "2026-09-01",
+    "late_open_positions": "retain_and_mark_at_execution_cutoff",
+    "no_event_rows_after_signal_end": true
+  }
+}
