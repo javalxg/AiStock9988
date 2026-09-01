@@ -126,6 +126,7 @@ def run_backtest(
             "state": "ACTIVE", "shares": shares, "entry_date": day, "entry_price": raw_price,
             "entry_economic_price": economic_price, "total_cost": total_cost,
             "dividends_received": 0.0,
+            "entry_session_index": entry_index,
             "scheduled_exit_index": entry_index + int(strategy.execution["hold_sessions_from_fill"]),
             "exit_reason": None, "last_raw_open": float(row.raw_open), "last_raw_close": float(row.raw_close),
             "last_economic_close": float(row.economic_close), "decision_id": order["decision_id"],
@@ -412,6 +413,29 @@ def run_backtest(
                             pos["exit_reason"] = "TECHNICAL_EXIT"
                             pos["exit_triggers"] = [f"TECHNICAL_EXIT({technical})"]
                             event(day, code, "EXIT_TRIGGER", "ACTIVE", "EXIT_PENDING", technical)
+                early_path = strategy.execution.get("early_path_exit", {})
+                observation_index = int(
+                    early_path.get("observation_sessions_from_fill", 0)
+                ) - 1
+                if (
+                    pos["state"] == "ACTIVE"
+                    and bool(early_path.get("enabled", False))
+                    and session_index - int(pos["entry_session_index"])
+                    == observation_index
+                    and float(pos["last_economic_close"])
+                    <= float(pos["entry_economic_price"])
+                ):
+                    pos["state"] = "EXIT_PENDING"
+                    pos["exit_reason"] = "EARLY_PATH_EXIT"
+                    pos["exit_triggers"] = ["EARLY_PATH_EXIT(E2_NONPOSITIVE)"]
+                    event(
+                        day,
+                        code,
+                        "EXIT_TRIGGER",
+                        "ACTIVE",
+                        "EXIT_PENDING",
+                        "EARLY_PATH_EXIT(E2_NONPOSITIVE)",
+                    )
 
         # Some contracts (including delta's q70 contract) execute an exit on
         # the same session close that produced the trigger.  The first exit
