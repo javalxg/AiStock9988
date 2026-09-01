@@ -1,0 +1,79 @@
+identity:
+  model_profile_id: f0_123_executable_forward_v2
+  version: 2
+
+feature_set:
+  id: feature.f0_123.v1
+  manifest: configs/feature_sets/f0_123_columns.json
+  expected_columns: 123
+  column_order_hash: 7f88c8912cd268a1bedd5034768ab73827bdce8f8d2f3870fe8fac3c26aa9e39
+  transform: daily_cross_section_percentile_zscore
+  minimum_non_null_features: 61
+  maximum_training_rows_per_date: 1500
+  missing_values: xgboost_native_nan_no_imputation
+
+timeline:
+  history_start: "2024-01-02"
+  forward_not_before: "2026-09-02"
+  observed_through: "2026-09-01"
+  train_window_months: 12
+  retrain: monthly_first_eligible_signal
+  decision_schedule: capacity_aligned_every_10_sessions
+  schedule_anchor: first_fully_covered_session_on_or_after_forward_not_before
+
+label:
+  profile: label.executable_path_open_open_t10_base.v1
+  entry_delay_sessions: 1
+  hold_sessions_from_fill: 10
+  stop_threshold_pct: -0.08
+  stop_execute: next_sellable_open
+  clamp_return: false
+
+model:
+  family: xgboost_ranker
+  objective: rank:pairwise
+  n_estimators: 200
+  max_depth: 6
+  learning_rate: 0.05
+  min_child_weight: 5
+  subsample: 0.8
+  colsample_bytree: 0.8
+  reg_alpha: 1.0
+  reg_lambda: 1.0
+  random_state: 42
+  n_jobs: 1
+  tree_method: hist
+
+selection:
+  full_market_scoring: true
+  candidate_view_size: 20
+  entries_per_decision: 5
+  ranking: model_score_desc
+  factor_gate: none
+  probability_gate: none
+
+data_readiness:
+  required_sources:
+    - market_daily_ts
+    - adj_factor_ts
+    - stk_limit_ts
+    - stock_factor_pro_ts
+    - daily_basic_ts
+  minimum_f0_to_market_row_ratio: 0.95
+  minimum_daily_basic_to_market_row_ratio: 0.95
+  sparse_sources_do_not_define_cutoff:
+    - stock_st_ts
+    - suspend_d_ts
+    - stk_auction_o_ts
+
+evaluation:
+  forward_only: true
+  minimum_closed_trades: 60
+  maximum_positions: 5
+  trade_win_rate_min: 0.70
+  portfolio_profit_factor_min: 2.0
+  max_drawdown_abs_max: 0.15
+  return_excluding_best_week_min_exclusive: 0.0
+  return_excluding_top3_min_exclusive: 0.0
+  paired_control: cap1_20_same_forward_sessions
+  parameter_sweep: false

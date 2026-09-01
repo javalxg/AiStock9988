@@ -1,0 +1,28 @@
+{
+  "calendar_resolved_signal_rows": 246745,
+  "entry_rejected_rows": 1855,
+  "label_rows": 244671,
+  "labels_clamped": false,
+  "maximum_exit_retry_sessions": 165,
+  "maximum_label_return": 1.9309109158023445,
+  "mean_label_return": 0.01230547872153878,
+  "mean_stop_crossing_return": -0.10615418075121003,
+  "mean_stop_label_return": -0.1101605995431849,
+  "minimum_label_return": -0.9186626015129765,
+  "profile": {
+    "buy_commission": 0.0003,
+    "buy_slippage": 0.001,
+    "entry_delay_sessions": 1,
+    "hold_sessions_from_fill": 10,
+    "id": "label.executable_path_open_open_t10_base.v1",
+    "sell_commission": 0.0003,
+    "sell_slippage": 0.001,
+    "stamp_duty": 0.0005,
+    "stop_threshold_pct": -0.08
+  },
+  "requested_rows": 246745,
+  "retried_exit_rows": 1725,
+  "stop_rows": 35565,
+  "time_exit_rows": 209106,
+  "unresolved_exit_rows": 219
+}

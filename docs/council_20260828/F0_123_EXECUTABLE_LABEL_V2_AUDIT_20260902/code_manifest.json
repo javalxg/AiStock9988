@@ -1,0 +1,5 @@
+{
+  "scripts/executable_label_contract_audit.py": "5b65a603d772e43ca3364b9ed118b651552159726bf5ceaf1415c4bce787dfb6",
+  "src/aistock9988/backtest/engine.py": "4ff7126b61959939225e748dd2b910392ee7c55bd0609a512114777cd64dab47",
+  "src/aistock9988/labeling/executable_path.py": "bf320f6f9f0e2be5f04d1ebce6f9e4137b731927baa19add0783c86a2643b9ac"
+}

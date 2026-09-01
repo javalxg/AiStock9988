@@ -1,0 +1,15 @@
+{
+  "checks": {
+    "all_sample_entries_filled": true,
+    "all_sample_exits_filled": true,
+    "economic_returns_match": true,
+    "entry_dates_match": true,
+    "exit_dates_match": true,
+    "trigger_types_match": true
+  },
+  "maximum_absolute_economic_return_error": 0.0,
+  "passed": true,
+  "sample_rows": 12,
+  "stop_rows": 6,
+  "time_exit_rows": 6
+}

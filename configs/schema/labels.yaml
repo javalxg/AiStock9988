@@ -11,3 +11,17 @@ profiles:
     maturity_sessions: 11
     entry_price: economic_open
     exit_price: economic_open
+  - id: label.executable_path_open_open_t10_base.v1
+    entry_delay_sessions: 1
+    hold_sessions_from_fill: 10
+    stop_trigger: economic_close_from_actual_fill
+    stop_threshold_pct: -0.08
+    stop_execute: next_sellable_economic_open
+    time_exit: entry_plus_10_sessions_next_sellable_economic_open
+    costs:
+      buy_slippage: 0.001
+      sell_slippage: 0.001
+      buy_commission: 0.0003
+      sell_commission: 0.0003
+      stamp_duty: 0.0005
+    clamp_return: false

@@ -1,0 +1,18 @@
+{
+  "business_data_persisted": false,
+  "completed_at": "2026-09-01T16:17:34.987922+00:00",
+  "credentials_persisted": false,
+  "parity_passed": true,
+  "profile": {
+    "buy_commission": 0.0003,
+    "buy_slippage": 0.001,
+    "entry_delay_sessions": 1,
+    "hold_sessions_from_fill": 10,
+    "id": "label.executable_path_open_open_t10_base.v1",
+    "sell_commission": 0.0003,
+    "sell_slippage": 0.001,
+    "stamp_duty": 0.0005,
+    "stop_threshold_pct": -0.08
+  },
+  "status": "LABEL_AUDIT_COMPLETED"
+}

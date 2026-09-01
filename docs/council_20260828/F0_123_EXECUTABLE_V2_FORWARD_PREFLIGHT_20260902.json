@@ -1,0 +1,102 @@
+{
+  "business_data_persisted": false,
+  "checked_at": "2026-09-01T16:27:40.053896+00:00",
+  "credentials_persisted": false,
+  "feature_order_hash": "7f88c8912cd268a1bedd5034768ab73827bdce8f8d2f3870fe8fac3c26aa9e39",
+  "feature_set_id": "feature.f0_123.v1",
+  "first_eligible_forward_signal": null,
+  "forward_not_before": "2026-09-02",
+  "latest_dense_required_cutoff": "2026-08-28",
+  "model_profile_id": "f0_123_executable_forward_v2",
+  "observed_through": "2026-09-01",
+  "recent_session_coverage": [
+    {
+      "adj_rows": 5542,
+      "basic_rows": 5541,
+      "f0_rows": 5541,
+      "limit_rows": 5542,
+      "market_rows": 5542,
+      "trade_date": "2026-08-19"
+    },
+    {
+      "adj_rows": 5542,
+      "basic_rows": 5541,
+      "f0_rows": 5541,
+      "limit_rows": 5542,
+      "market_rows": 5542,
+      "trade_date": "2026-08-20"
+    },
+    {
+      "adj_rows": 5549,
+      "basic_rows": 5543,
+      "f0_rows": 5543,
+      "limit_rows": 5549,
+      "market_rows": 5549,
+      "trade_date": "2026-08-21"
+    },
+    {
+      "adj_rows": 5547,
+      "basic_rows": 5545,
+      "f0_rows": 5545,
+      "limit_rows": 5547,
+      "market_rows": 5547,
+      "trade_date": "2026-08-24"
+    },
+    {
+      "adj_rows": 5548,
+      "basic_rows": 5546,
+      "f0_rows": 5546,
+      "limit_rows": 5548,
+      "market_rows": 5548,
+      "trade_date": "2026-08-25"
+    },
+    {
+      "adj_rows": 5548,
+      "basic_rows": 5547,
+      "f0_rows": 5547,
+      "limit_rows": 5548,
+      "market_rows": 5548,
+      "trade_date": "2026-08-26"
+    },
+    {
+      "adj_rows": 5548,
+      "basic_rows": 5547,
+      "f0_rows": 5547,
+      "limit_rows": 5548,
+      "market_rows": 5548,
+      "trade_date": "2026-08-27"
+    },
+    {
+      "adj_rows": 5551,
+      "basic_rows": 5547,
+      "f0_rows": 5547,
+      "limit_rows": 5551,
+      "market_rows": 5551,
+      "trade_date": "2026-08-28"
+    },
+    {
+      "adj_rows": 5549,
+      "basic_rows": 5545,
+      "f0_rows": 0,
+      "limit_rows": 5549,
+      "market_rows": 5549,
+      "trade_date": "2026-08-31"
+    },
+    {
+      "adj_rows": 5548,
+      "basic_rows": 5546,
+      "f0_rows": 0,
+      "limit_rows": 5548,
+      "market_rows": 5548,
+      "trade_date": "2026-09-01"
+    }
+  ],
+  "source_cutoffs": {
+    "adj_factor_ts": "2026-09-01",
+    "daily_basic_ts": "2026-09-01",
+    "market_daily_ts": "2026-09-01",
+    "stk_limit_ts": "2026-09-01",
+    "stock_factor_pro_ts": "2026-08-28"
+  },
+  "status": "WAITING_FOR_COMMON_F0"
+}
