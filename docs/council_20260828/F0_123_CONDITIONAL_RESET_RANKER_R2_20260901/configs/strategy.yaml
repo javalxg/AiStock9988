@@ -1,0 +1,109 @@
+identity:
+  strategy_id: reset_weak_confirm_v3_conditional_f0_123_v1
+  version: 1
+  mode: rules
+  hypothesis_id: stage1.reset_state_then_f0_123_conditional_rank
+  research_status: historical
+
+universe:
+  source: database_stock_basic
+  exclude_suffixes: [.BJ]
+  exclude_pit_st: true
+  require_listed_on_signal: true
+  min_listed_sessions: 120
+
+data_policy:
+  dense_required:
+    selection: [market_daily_ts, adj_factor_ts, stk_limit_ts]
+    training: [market_daily_ts, adj_factor_ts]
+    execution: [market_daily_ts, adj_factor_ts, stk_limit_ts]
+  sparse_event: [stock_st_ts, suspend_d_ts, stk_auction_o_ts, corporate_actions]
+  optional_enrichment: []
+  source_availability: {}
+  missing_action:
+    selection: exclude_stock_session
+    training: exclude_sample
+    entry: skip_and_ranked_fallback
+    held_position: carry_last_mark_and_retry
+
+decision:
+  frequency: daily
+  session_selector: all
+  decision_time: "15:00:00 Asia/Shanghai"
+  entry_delay_sessions: 1
+
+features:
+  ma5: {provider: sma, source: economic_close, window_sessions: 5}
+  ma60: {provider: sma, source: economic_close, window_sessions: 60}
+  ret1: {provider: return, source: economic_close, window_sessions: 1}
+  ret20: {provider: return, source: economic_close, window_sessions: 20}
+  ret60: {provider: return, source: economic_close, window_sessions: 60}
+  dd20: {provider: rolling_drawdown, source: economic_high, window_sessions: 20}
+  vol20: {provider: realized_volatility, source: ret1, window_sessions: 20}
+  liq20: {provider: rolling_median, source: amount, window_sessions: 20}
+  volume_ratio_20: {provider: ratio, numerator: amount, denominator: liq20}
+  prev3_high: {provider: prior_rolling_max, source: economic_close, window_sessions: 3}
+  dist_ma60: {provider: ratio_minus_one, source: economic_close, denominator: ma60}
+  dist_ma60_abs_005: {provider: absolute_distance, source: dist_ma60, center: 0.05}
+  mkt_ret_20d: {provider: market_return, source: economic_close, window_sessions: 20}
+
+stage1:
+  expression:
+    all:
+      - {left: dist_ma60, op: le, value: -0.10}
+      - {left: mkt_ret_20d, op: lt, value: 0.0}
+      - {left: ret20, op: lt, value: 0.0}
+      - {left: liq20, op: ge, value: 500000.0}
+
+ranking:
+  method: weighted_cross_sectional_rank
+  terms:
+    - {feature: dist_ma60, direction: asc, weight: 0.25}
+    - {feature: ret1, direction: desc, weight: 0.20}
+    - {feature: vol20, direction: asc, weight: 0.15}
+    - {feature: ret20, direction: desc, weight: 0.10}
+    - {feature: liq20, direction: desc, weight: 0.10}
+    - {feature: volume_ratio_abs_115, direction: asc, weight: 0.20}
+  tie_breakers: [rule_score_desc, ts_code_asc]
+
+portfolio:
+  candidate_view_size: 20
+  candidate_min_daily_view_ratio: 0.80
+  allow_sparse_candidate_view: true
+  entries_per_decision: 5
+  max_open_positions: 5
+  target_gross_exposure_cap: 1.0
+  sizing: {method: fixed_fraction_of_decision_nav, value: 0.20}
+  duplicate_symbol: skip
+  exit_pending_occupies_slot: true
+
+execution:
+  initial_cash: 1000000.0
+  entry_price: next_session_raw_open
+  hold_sessions_from_fill: 10
+  exit_price: next_tradable_raw_open
+  stop:
+    trigger: close
+    threshold_pct: -0.08
+    execute: next_tradable_open
+    mode: trailing_from_last_close
+  buy_untradable: same_decision_ranked_replacement
+  sell_untradable: retain_and_retry
+  lot_size: 100
+  accounting_basis: raw_with_corporate_actions
+  amount_unit: thousand_rmb
+  amount_unit_multiplier: 1000.0
+  adv20_max_participation: 0.02
+  end_policy: mark_open_positions
+  cost_scenarios:
+    base: {slippage_each_side: 0.001, buy_commission: 0.0003, sell_commission: 0.0003, stamp_duty: 0.0005}
+    stress: {slippage_each_side: 0.003, buy_commission: 0.0003, sell_commission: 0.0003, stamp_duty: 0.0005}
+
+acceptance:
+  portfolio_profit_factor_min: 2.0
+  max_drawdown_abs_max: 0.15
+  return_excluding_best_week_min_exclusive: 0.0
+  minimum_closed_trades: 20
+  minimum_active_signal_days: 20
+  max_feature_warmup_days: 80
+  parameter_sweep: false

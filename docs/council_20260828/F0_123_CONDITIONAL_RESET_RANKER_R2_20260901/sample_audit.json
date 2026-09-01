@@ -1,0 +1,186 @@
+{
+  "combined_stage1_rows": 21841,
+  "f0_audit": {
+    "candidate_f0_sha256": "86846136e19421edd536b36aa768f8641f9f840e128b6b70344bd14a4d70df59",
+    "f0_eligible_ratio": 1.0,
+    "f0_eligible_rows": 21841,
+    "months": [
+      {
+        "candidate_f0_sha256": "028263fc2d830bda7d22f479d9ee8512ed7c2f1f8c49f0300086128a774b4084",
+        "f0_eligible_rows": 1240,
+        "month": "2025-01",
+        "source_rows": 96687,
+        "stage1_matches": 1240
+      },
+      {
+        "candidate_f0_sha256": "b1e2d696999d78b8c31a0b6a46944bc32295c161d74cd3b9699371201dd33bfb",
+        "f0_eligible_rows": 46,
+        "month": "2025-02",
+        "source_rows": 96856,
+        "stage1_matches": 46
+      },
+      {
+        "candidate_f0_sha256": "935508180d56af86f8b342bfed72a3bd4c2ba7ba7d88e2cb18abfd1a70b334ba",
+        "f0_eligible_rows": 91,
+        "month": "2025-03",
+        "source_rows": 113008,
+        "stage1_matches": 91
+      },
+      {
+        "candidate_f0_sha256": "ce06a9326e11bc396c6e610667d6de58bde4d24db2f7a1bf9bd5dcaae223879d",
+        "f0_eligible_rows": 1909,
+        "month": "2025-04",
+        "source_rows": 113104,
+        "stage1_matches": 1909
+      },
+      {
+        "candidate_f0_sha256": "5b6cc1d69052735f3d660c079363c5cee3157112f912151705557a7f65262239",
+        "f0_eligible_rows": 53,
+        "month": "2025-05",
+        "source_rows": 102310,
+        "stage1_matches": 53
+      },
+      {
+        "candidate_f0_sha256": "16e68f574c784e09dc400c9228fd6b3a1e4f0900297a7f50976fcccd47848512",
+        "f0_eligible_rows": 38,
+        "month": "2025-06",
+        "source_rows": 107923,
+        "stage1_matches": 38
+      },
+      {
+        "candidate_f0_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "f0_eligible_rows": 0,
+        "month": "2025-07",
+        "source_rows": 124292,
+        "stage1_matches": 0
+      },
+      {
+        "candidate_f0_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "f0_eligible_rows": 0,
+        "month": "2025-08",
+        "source_rows": 113599,
+        "stage1_matches": 0
+      },
+      {
+        "candidate_f0_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "f0_eligible_rows": 0,
+        "month": "2025-09",
+        "source_rows": 119229,
+        "stage1_matches": 0
+      },
+      {
+        "candidate_f0_sha256": "5543a5af1334a88a8cafe9c1c4abf837c5a0b93483b3c8c423254c47dad22176",
+        "f0_eligible_rows": 231,
+        "month": "2025-10",
+        "source_rows": 92281,
+        "stage1_matches": 231
+      },
+      {
+        "candidate_f0_sha256": "aa30b0b566a361b75380900e42062b265b68a1626969d687d68747ad3ea20b16",
+        "f0_eligible_rows": 549,
+        "month": "2025-11",
+        "source_rows": 108751,
+        "stage1_matches": 549
+      },
+      {
+        "candidate_f0_sha256": "36244d1c8a6ac0cf3bbd0da22e04544ecabb5900cbcfe1fd51685d9126d7681c",
+        "f0_eligible_rows": 556,
+        "month": "2025-12",
+        "source_rows": 125243,
+        "stage1_matches": 556
+      },
+      {
+        "candidate_f0_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "f0_eligible_rows": 0,
+        "month": "2026-01",
+        "source_rows": 109217,
+        "stage1_matches": 0
+      },
+      {
+        "candidate_f0_sha256": "7a977203ce5aa20e4189daeb8d843fad284f299f07a1ab49e9da0d2eaf0defa7",
+        "f0_eligible_rows": 181,
+        "month": "2026-02",
+        "source_rows": 76572,
+        "stage1_matches": 181
+      },
+      {
+        "candidate_f0_sha256": "d03df5609526fbac68ca37383396cd4883946149994a590fb911793929d97aeb",
+        "f0_eligible_rows": 2514,
+        "month": "2026-03",
+        "source_rows": 120531,
+        "stage1_matches": 2514
+      },
+      {
+        "candidate_f0_sha256": "75bc8692d16b3ed527e117cf13afe1b4d0e2737d9ce535d71e3c3066a792460e",
+        "f0_eligible_rows": 1308,
+        "month": "2026-04",
+        "source_rows": 115278,
+        "stage1_matches": 1308
+      },
+      {
+        "candidate_f0_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "f0_eligible_rows": 0,
+        "month": "2026-05",
+        "source_rows": 98957,
+        "stage1_matches": 0
+      },
+      {
+        "candidate_f0_sha256": "8120e9a57a6bce2bb3f7123cb229755dc0049e4459a62a262f0940c9bba00e3c",
+        "f0_eligible_rows": 3615,
+        "month": "2026-06",
+        "source_rows": 115718,
+        "stage1_matches": 3615
+      },
+      {
+        "candidate_f0_sha256": "49b2087bc3b259d5b10954f3db71bc7e2244ae4c6142a07cce3e08d9d6e3184b",
+        "f0_eligible_rows": 7567,
+        "month": "2026-07",
+        "source_rows": 126993,
+        "stage1_matches": 7567
+      },
+      {
+        "candidate_f0_sha256": "c3cef7c7d311a696e8fdb5816feb13892cdd3eb5ad7dc07aa747548ddf945504",
+        "f0_eligible_rows": 1943,
+        "month": "2026-08",
+        "source_rows": 38699,
+        "stage1_matches": 1943
+      }
+    ],
+    "stage1_rows": 21841
+  },
+  "f0_eligible_ratio": 1.0,
+  "f0_eligible_rows": 21841,
+  "prediction_period": {
+    "active_stage1_sessions": 77,
+    "bundle_id": "b0c928269ce91a392d7b23d005847da22a1d309957a0d042d67c6861c6f3616f",
+    "execution_end": "2026-09-01",
+    "mature_price_rows": 17112,
+    "maximum_daily_stage1": 609,
+    "mean_label": 0.035165575658114956,
+    "median_daily_stage1": 204.0,
+    "missing_or_ineligible_label_rows": 16,
+    "positive_label_rate": 0.5932678821879382,
+    "signal_end": "2026-08-17",
+    "signal_sessions": 150,
+    "signal_start": "2026-01-05",
+    "stage1_rows": 17128
+  },
+  "prediction_rows": 17128,
+  "prediction_sessions": 77,
+  "train_period": {
+    "active_stage1_sessions": 76,
+    "bundle_id": "ffadd808f3af5df3de78dd5fe7582f47e51777957e54573aeb323bc9400d05d9",
+    "execution_end": "2026-01-19",
+    "mature_price_rows": 4711,
+    "maximum_daily_stage1": 213,
+    "mean_label": 0.046514317757556566,
+    "median_daily_stage1": 47.0,
+    "missing_or_ineligible_label_rows": 2,
+    "positive_label_rate": 0.7425175122054766,
+    "signal_end": "2025-12-31",
+    "signal_sessions": 243,
+    "signal_start": "2025-01-02",
+    "stage1_rows": 4713
+  },
+  "training_label_rows": 21823
+}

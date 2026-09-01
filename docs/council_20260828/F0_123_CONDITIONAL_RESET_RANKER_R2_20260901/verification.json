@@ -1,0 +1,29 @@
+{
+  "checks": {
+    "challenger_base_cash_nonnegative": true,
+    "challenger_base_execution_end": true,
+    "challenger_base_nav_identity": true,
+    "challenger_base_next_session_entries": true,
+    "challenger_base_position_cap": true,
+    "challenger_stress_cash_nonnegative": true,
+    "challenger_stress_execution_end": true,
+    "challenger_stress_nav_identity": true,
+    "challenger_stress_next_session_entries": true,
+    "challenger_stress_position_cap": true,
+    "control_base_cash_nonnegative": true,
+    "control_base_execution_end": true,
+    "control_base_nav_identity": true,
+    "control_base_next_session_entries": true,
+    "control_base_position_cap": true,
+    "control_stress_cash_nonnegative": true,
+    "control_stress_execution_end": true,
+    "control_stress_nav_identity": true,
+    "control_stress_next_session_entries": true,
+    "control_stress_position_cap": true,
+    "eight_monthly_models": true,
+    "model_bytes_deterministic": true,
+    "no_skipped_months": true
+  },
+  "failed": [],
+  "passed": true
+}

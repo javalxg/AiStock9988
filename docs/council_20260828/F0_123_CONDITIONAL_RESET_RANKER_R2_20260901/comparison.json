@@ -1,0 +1,76 @@
+{
+  "base": {
+    "max_drawdown": {
+      "challenger": -0.38080730861740275,
+      "control": -0.40827580557840737,
+      "delta": 0.027468496961004618
+    },
+    "portfolio_profit_factor": {
+      "challenger": 0.7790665198804098,
+      "control": 0.905523135180947,
+      "delta": -0.1264566153005372
+    },
+    "return_excluding_best_week": {
+      "challenger": -0.2736043708096141,
+      "control": -0.2268983901976479,
+      "delta": -0.04670598061196618
+    },
+    "return_excluding_top3_profit": {
+      "challenger": -0.313355346834999,
+      "control": -0.29748066816949814,
+      "delta": -0.015874678665500852
+    },
+    "total_return": {
+      "challenger": -0.13191093412419896,
+      "control": -0.06558496114089807,
+      "delta": -0.0663259729833009
+    },
+    "trade_count": {
+      "challenger": 58,
+      "control": 56,
+      "delta": 2
+    },
+    "trade_win_rate": {
+      "challenger": 0.3793103448275862,
+      "control": 0.4107142857142857,
+      "delta": -0.03140394088669951
+    }
+  },
+  "stress": {
+    "max_drawdown": {
+      "challenger": -0.3893638997750095,
+      "control": -0.42140934005544883,
+      "delta": 0.03204544028043932
+    },
+    "portfolio_profit_factor": {
+      "challenger": 0.7247040991939621,
+      "control": 0.8466824913857298,
+      "delta": -0.12197839219176776
+    },
+    "return_excluding_best_week": {
+      "challenger": -0.30617981276826045,
+      "control": -0.2607623294948985,
+      "delta": -0.045417483273361925
+    },
+    "return_excluding_top3_profit": {
+      "challenger": -0.3471020385423993,
+      "control": -0.33255548381419875,
+      "delta": -0.014546554728200545
+    },
+    "total_return": {
+      "challenger": -0.1681163532099993,
+      "control": -0.10824738558919877,
+      "delta": -0.05986896762080052
+    },
+    "trade_count": {
+      "challenger": 58,
+      "control": 56,
+      "delta": 2
+    },
+    "trade_win_rate": {
+      "challenger": 0.3793103448275862,
+      "control": 0.375,
+      "delta": 0.004310344827586188
+    }
+  }
+}

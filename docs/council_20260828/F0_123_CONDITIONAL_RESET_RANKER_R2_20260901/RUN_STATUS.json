@@ -1,0 +1,10 @@
+{
+  "acceptance_passed": false,
+  "business_data_persisted": false,
+  "completed_at": "2026-09-01T12:43:26.719215+00:00",
+  "credentials_persisted": false,
+  "model_profile_id": "f0_123_conditional_reset_v1",
+  "status": "DIAGNOSTIC_COMPLETED",
+  "strategy_id": "reset_weak_confirm_v3_conditional_f0_123_v1",
+  "verification_passed": true
+}
