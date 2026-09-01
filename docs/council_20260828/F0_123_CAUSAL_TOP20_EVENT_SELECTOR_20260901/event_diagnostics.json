@@ -1,0 +1,21 @@
+{
+  "challenger_top5": {
+    "event_rate": 0.18064516129032257,
+    "events": 28,
+    "mean_label_return": 0.007609646062425891,
+    "rows": 155,
+    "top20_event_recall": 0.28865979381443296
+  },
+  "control_top5": {
+    "event_rate": 0.15436241610738255,
+    "events": 23,
+    "mean_label_return": 0.003927205926753152,
+    "rows": 149,
+    "top20_event_recall": 0.23711340206185566
+  },
+  "event_rate_lift": 0.02628274518294002,
+  "event_recall_lift": 0.0515463917525773,
+  "labeled_top20_rows": 608,
+  "top20_event_rate": 0.15953947368421054,
+  "top20_events": 97
+}

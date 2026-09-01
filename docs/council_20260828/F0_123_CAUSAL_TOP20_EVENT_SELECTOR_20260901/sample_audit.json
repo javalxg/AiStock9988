@@ -1,0 +1,91 @@
+{
+  "all_signal_sessions": 84,
+  "causal_top20_keys_sha256": "a5b7c7ccc040a0ec4b78b0cba41634b4085621fc06cb28dcc6017881393b5a0e",
+  "causal_top20_rows": 1680,
+  "forward_signal_sessions": 31,
+  "historical_signal_sessions": 53,
+  "label_audit": {
+    "calendar_horizon_rows": 1240260,
+    "excluded_price_or_path_rows": 4293,
+    "label_rows": 1235967,
+    "mean_label": 0.011998855543482723,
+    "path_stop_rows": 273849,
+    "positive_label_rate": 0.48559387103377355,
+    "requested_rows": 1240260
+  },
+  "prediction_feature_rows": 415260,
+  "prediction_features_sha256": "7e9db266990b3c9f553675b257e6d6f50ad5d7ebd47db164e2fb87f91d4ea3ad",
+  "preprocessing": [
+    {
+      "eligible_rows": 1191115,
+      "end": "2024-12-31",
+      "maximum_rows_per_date": 1500,
+      "minimum_non_null_features": 61,
+      "output_rows": 363000,
+      "output_sessions": 242,
+      "source_rows": 1191115,
+      "source_sessions": 242,
+      "start": "2024-01-02"
+    },
+    {
+      "eligible_rows": 1199003,
+      "end": "2025-12-31",
+      "maximum_rows_per_date": 1500,
+      "minimum_non_null_features": 61,
+      "output_rows": 546507,
+      "output_sessions": 243,
+      "source_rows": 1199003,
+      "source_sessions": 243,
+      "start": "2025-01-01"
+    },
+    {
+      "eligible_rows": 738779,
+      "end": "2026-08-14",
+      "maximum_rows_per_date": 1500,
+      "minimum_non_null_features": 61,
+      "output_rows": 330753,
+      "output_sessions": 149,
+      "source_rows": 738779,
+      "source_sessions": 149,
+      "start": "2026-01-01"
+    }
+  ],
+  "training_feature_rows": 951000,
+  "training_feature_sessions": 634,
+  "training_features_sha256": "4f3b2d80d9337ea78d8a6350009f7e3a35bd91f6e5c01a548302289ad9ebbcdf",
+  "universe_filter": [
+    {
+      "delisted_rows": 0,
+      "eligible_rows": 1191115,
+      "end": "2024-12-31",
+      "excluded_suffix_rows": 60158,
+      "listing_age_rows": 14887,
+      "not_listed_rows": 0,
+      "pit_st_rows": 29930,
+      "source_rows": 1292359,
+      "start": "2024-01-02"
+    },
+    {
+      "delisted_rows": 0,
+      "eligible_rows": 1199003,
+      "end": "2025-12-31",
+      "excluded_suffix_rows": 65610,
+      "listing_age_rows": 12941,
+      "not_listed_rows": 0,
+      "pit_st_rows": 38581,
+      "source_rows": 1313283,
+      "start": "2025-01-01"
+    },
+    {
+      "delisted_rows": 0,
+      "eligible_rows": 738779,
+      "end": "2026-08-14",
+      "excluded_suffix_rows": 45951,
+      "listing_age_rows": 10714,
+      "not_listed_rows": 1399,
+      "pit_st_rows": 27845,
+      "source_rows": 818557,
+      "start": "2026-01-01"
+    }
+  ]
+}
