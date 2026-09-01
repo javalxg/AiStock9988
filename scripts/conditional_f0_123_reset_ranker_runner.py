@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Run the preregistered F0-123 ranker inside the fixed reset-state pool."""
+"""Run a preregistered F0-123 ranker inside one fixed-rule Stage1 pool."""
 from __future__ import annotations
 
 import argparse
@@ -10,7 +10,7 @@ import shutil
 import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
+from typing import Any, Mapping
 
 import numpy as np
 import pandas as pd
@@ -24,6 +24,10 @@ from aistock9988.data.q70_source import load_f0_panel
 from aistock9988.data.quantdb import readonly_connection
 from aistock9988.features.engine import build_feature_ledger
 from aistock9988.features.registry import FeatureSet
+from aistock9988.labeling.executable_path import (
+    ExecutablePathLabelProfile,
+    build_executable_path_labels,
+)
 from aistock9988.planning import RunRequest, compile_run_plan
 from aistock9988.reporting.metrics import summarize
 from aistock9988.selection.pipeline import build_rule_ledgers
@@ -31,14 +35,6 @@ from aistock9988.time.session import session_close, session_open
 
 
 ROOT = Path(__file__).resolve().parents[1]
-DEFAULT_STRATEGY = ROOT / "configs/strategy/conditional_reset_stage1_v1.yaml"
-DEFAULT_MODEL = ROOT / "configs/model_profiles/f0_123_conditional_reset_v1.yaml"
-DEFAULT_OUTPUT = (
-    ROOT / "docs/council_20260828"
-    / "F0_123_CONDITIONAL_RESET_RANKER_R2_20260901"
-)
-
-
 def _write_json(path: Path, payload: Any) -> None:
     if path.exists():
         raise FileExistsError(f"immutable artifact exists: {path}")
@@ -70,7 +66,11 @@ def _load_model_config(path: Path, feature_set: FeatureSet) -> dict[str, Any]:
     raw = yaml.safe_load(path.read_text(encoding="utf-8"))
     if not isinstance(raw, dict):
         raise ValueError("model profile must be a mapping")
-    if raw["identity"]["model_profile_id"] != "f0_123_conditional_reset_v1":
+    profile_id = raw["identity"]["model_profile_id"]
+    if profile_id not in {
+        "f0_123_conditional_reset_v1",
+        "f0_123_cap1_executable_v1",
+    }:
         raise ValueError("unexpected model profile")
     configured = raw["feature_set"]
     if (
@@ -82,16 +82,58 @@ def _load_model_config(path: Path, feature_set: FeatureSet) -> dict[str, Any]:
         raise ValueError("F0-123 feature manifest drift")
     if raw["evaluation"].get("parameter_sweep") is not False:
         raise ValueError("parameter_sweep must be false")
-    if raw["timeline"] != {
+    timeline = raw["timeline"]
+    if profile_id == "f0_123_conditional_reset_v1":
+        timeline.setdefault("train_end", "2025-12-31")
+        timeline.setdefault("training_execution_end", "2026-01-19")
+    required_timeline = {
+        "train_start",
+        "train_end",
+        "training_execution_end",
+        "prediction_start",
+        "prediction_end",
+        "execution_end",
+        "train_window_months",
+        "retrain",
+        "prediction",
+    }
+    if set(timeline) != required_timeline:
+        raise ValueError("model timeline fields differ from the registered contract")
+    if (
+        int(timeline["train_window_months"]) != 12
+        or timeline["retrain"] != "monthly_previous_month_end"
+        or timeline["prediction"] != "daily"
+    ):
+        raise ValueError("model timeline semantics differ from preregistration")
+    if profile_id == "f0_123_cap1_executable_v1" and timeline != {
         "train_start": "2025-01-02",
+        "train_end": "2025-12-31",
+        "training_execution_end": "2026-01-19",
         "prediction_start": "2026-01-05",
-        "prediction_end": "2026-08-17",
+        "prediction_end": "2026-08-28",
         "execution_end": "2026-09-01",
         "train_window_months": 12,
         "retrain": "monthly_previous_month_end",
         "prediction": "daily",
     }:
-        raise ValueError("model timeline differs from preregistration")
+        raise ValueError("CAP1 executable model timeline differs from preregistration")
+    label_profile = raw["label"].get("profile")
+    if label_profile not in {
+        "label.endpoint_open_open_t10.v1",
+        "label.executable_path_open_open_t10_base.v1",
+        "label.executable_path_open_open_t10_base.trailing_previous_close.v1",
+    }:
+        raise ValueError("unsupported conditional ranker label profile")
+    if profile_id == "f0_123_cap1_executable_v1" and raw["label"] != {
+        "profile": "label.executable_path_open_open_t10_base.trailing_previous_close.v1",
+        "signal_to_entry_sessions": 1,
+        "entry_to_time_exit_sessions": 10,
+        "stop_threshold_pct": -0.08,
+        "stop_mode": "trailing_from_last_close",
+        "stop_execute": "next_sellable_open",
+        "clamp_return": False,
+    }:
+        raise ValueError("CAP1 executable label differs from preregistration")
     return raw
 
 
@@ -119,6 +161,7 @@ def _period_plan(
     execution_end: str,
     output: Path,
     name: str,
+    require_complete_horizon: bool = True,
 ) -> tuple[Any, pd.DataFrame]:
     calendar_start = str((pd.Timestamp(signal_start) - pd.Timedelta(days=500)).date())
     calendar = load_trading_calendar(calendar_start, execution_end)
@@ -126,6 +169,7 @@ def _period_plan(
         strategy,
         RunRequest(signal_start, signal_end, execution_end, str(output), name),
         calendar["session"],
+        require_complete_horizon=require_complete_horizon,
     )
     return plan, calendar
 
@@ -134,7 +178,32 @@ def _build_labels(
     pool: pd.DataFrame,
     execution: pd.DataFrame,
     calendar: pd.DataFrame,
+    label_config: Mapping[str, Any],
 ) -> tuple[pd.DataFrame, dict[str, Any]]:
+    label_profile = str(label_config["profile"])
+    if label_profile.startswith("label.executable_path_open_open_t10_base"):
+        profile = ExecutablePathLabelProfile(
+            id=label_profile,
+            stop_threshold_pct=float(label_config["stop_threshold_pct"]),
+            stop_mode=str(label_config.get("stop_mode", "from_entry")),
+        )
+        labels, audit = build_executable_path_labels(
+            pool[["asof", "ts_code"]].rename(columns={"asof": "event_time"}),
+            execution,
+            pd.DatetimeIndex(pd.to_datetime(calendar["session"], utc=True)),
+            profile=profile,
+        )
+        return labels[
+            [
+                "event_time",
+                "ts_code",
+                "label_return",
+                "economic_return",
+                "trigger_type",
+                "exit_date",
+                "available_time",
+            ]
+        ], audit
     sessions = pd.DatetimeIndex(pd.to_datetime(calendar["session"], utc=True)).normalize()
     session_index = {day: index for index, day in enumerate(sessions)}
     source = pool[["asof", "ts_code"]].copy()
@@ -192,6 +261,7 @@ def _build_stage1_period(
     output: Path,
     *,
     retain_bundle: bool,
+    label_config: Mapping[str, Any],
 ) -> tuple[pd.DataFrame, pd.DataFrame, dict[str, Any], Any | None]:
     bundle = build_data_bundle(plan, strategy, output)
     features = build_feature_ledger(bundle, strategy)
@@ -210,7 +280,9 @@ def _build_stage1_period(
         on=["asof", "ts_code"],
         validate="one_to_one",
     )
-    labels, label_audit = _build_labels(pool, bundle.execution, bundle.calendar)
+    labels, label_audit = _build_labels(
+        pool, bundle.execution, bundle.calendar, label_config
+    )
     audit = {
         "bundle_id": bundle.bundle_id,
         "signal_start": plan.signal_start,
@@ -352,7 +424,9 @@ def _monthly_predictions(
             & joined["event_time"].le(cutoff)
             & pd.to_datetime(joined["label_available_time"], utc=True).le(session_close(cutoff))
         ].copy()
-        model_id = f"conditional_f0_123_{period.strftime('%Y%m')}"
+        model_id = (
+            f"{config['identity']['model_profile_id']}_{period.strftime('%Y%m')}"
+        )
         model, metadata = _fit_ranker_twice(training, feature_set, params, model_id)
         metadata.update({
             "training_cutoff": str(cutoff.date()),
@@ -390,14 +464,15 @@ def _candidate_ledgers(
     strategy: StrategyConfig,
 ) -> dict[str, pd.DataFrame]:
     frame = pool.merge(
-        predictions[["event_time", "ts_code", "model_score"]].rename(columns={"event_time": "asof"}),
+        predictions[["event_time", "ts_code", "model_score", "model_id"]].rename(
+            columns={"event_time": "asof"}
+        ),
         on=["asof", "ts_code"],
         validate="one_to_one",
     )
-    ascending = rank_column == "rule_score"
     frame = frame.sort_values(
         ["asof", rank_column, "ts_code"],
-        ascending=[True, ascending, True] if ascending else [True, False, True],
+        ascending=[True, False, True],
         kind="mergesort",
     )
     frame["candidate_rank"] = frame.groupby("asof", sort=False).cumcount() + 1
@@ -495,8 +570,89 @@ def _acceptance(
             "minimum_closed_trades": item["trade_count"] >= int(rules["minimum_closed_trades"]),
             "position_cap": item["max_open_positions"] <= int(rules["maximum_positions"]),
         }
+        if "trade_win_rate_min" in rules:
+            tests["trade_win_rate_minimum"] = (
+                item["trade_win_rate"] is not None
+                and item["trade_win_rate"] >= float(rules["trade_win_rate_min"])
+            )
         scenarios[scenario] = {"passed": all(tests.values()), "tests": tests}
     return {"passed": all(row["passed"] for row in scenarios.values()), "scenarios": scenarios}
+
+
+def _engine_label_parity(
+    result: dict[str, pd.DataFrame], labels: pd.DataFrame
+) -> dict[str, Any]:
+    fills = result["fills"]
+    decisions = result["execution_decisions"]
+    sells = fills[fills["side"].eq("SELL")][
+        ["decision_id", "ts_code", "trade_date", "economic_return", "reason"]
+    ].copy()
+    chosen = decisions[decisions["chosen"].astype(bool)][
+        ["decision_id", "ts_code", "signal_session"]
+    ].copy()
+    trades = sells.merge(
+        chosen,
+        on=["decision_id", "ts_code"],
+        how="left",
+        validate="one_to_one",
+        indicator="decision_match",
+    )
+    reference = labels[
+        [
+            "event_time",
+            "ts_code",
+            "economic_return",
+            "trigger_type",
+            "exit_date",
+        ]
+    ].rename(
+        columns={
+            "event_time": "signal_session",
+            "economic_return": "label_economic_return",
+        }
+    )
+    aligned = trades.merge(
+        reference,
+        on=["signal_session", "ts_code"],
+        how="left",
+        validate="one_to_one",
+        indicator="label_match",
+    )
+    errors = (
+        pd.to_numeric(aligned["economic_return"], errors="coerce")
+        - pd.to_numeric(aligned["label_economic_return"], errors="coerce")
+    ).abs()
+    maximum_error = float(errors.max()) if len(errors) else 0.0
+    unmatched_decisions = int(trades["decision_match"].ne("both").sum())
+    missing = int(aligned["label_match"].ne("both").sum())
+    trigger_mismatches = int(
+        aligned["reason"].astype(str).ne(aligned["trigger_type"].astype(str)).sum()
+    )
+    exit_date_mismatches = int(
+        pd.to_datetime(aligned["trade_date"], utc=True)
+        .dt.normalize()
+        .ne(pd.to_datetime(aligned["exit_date"], utc=True).dt.normalize())
+        .sum()
+    )
+    return {
+        "closed_control_sells": int(len(sells)),
+        "decision_matched_trades": int(len(trades) - unmatched_decisions),
+        "matched_labels": int(len(aligned) - missing),
+        "unmatched_decisions": unmatched_decisions,
+        "missing_labels": missing,
+        "trigger_type_mismatches": trigger_mismatches,
+        "exit_date_mismatches": exit_date_mismatches,
+        "maximum_absolute_economic_return_error": maximum_error,
+        "passed": bool(
+            len(sells) > 0
+            and len(trades) == len(sells)
+            and unmatched_decisions == 0
+            and missing == 0
+            and trigger_mismatches == 0
+            and exit_date_mismatches == 0
+            and maximum_error <= 1e-10
+        ),
+    }
 
 
 def _verify(
@@ -504,11 +660,63 @@ def _verify(
     portfolios: dict[str, dict[str, dict[str, Any]]],
     results: dict[str, dict[str, dict[str, pd.DataFrame]]],
     execution_end: str,
+    ledgers: dict[str, dict[str, pd.DataFrame]],
+    signal_sessions: tuple[str, ...],
+    model_profile_id: str,
+    label_parity: dict[str, Any],
 ) -> dict[str, Any]:
+    control_candidate = ledgers["control"]["candidate"]
+    challenger_candidate = ledgers["challenger"]["candidate"]
     checks: dict[str, bool] = {
         "eight_monthly_models": len(models) == 8,
         "no_skipped_months": all(row["training_rows"] > 0 for row in models),
         "model_bytes_deterministic": all(row["deterministic"] for row in models),
+        "all_training_labels_mature": all(
+            pd.Timestamp(row["maximum_label_available_time"])
+            <= session_close(row["training_cutoff"])
+            for row in models
+        ),
+        "control_rule_score_descending": bool(
+            control_candidate.groupby("asof", sort=False)["rule_score"]
+            .apply(lambda values: values.is_monotonic_decreasing)
+            .all()
+        ),
+        "challenger_model_score_descending": bool(
+            challenger_candidate.groupby("asof", sort=False)["model_score"]
+            .apply(lambda values: values.is_monotonic_decreasing)
+            .all()
+        ),
+        "control_all_signal_dates_present": int(
+            ledgers["control"]["selection"]["asof"].nunique()
+        )
+        == len(signal_sessions),
+        "challenger_all_signal_dates_present": int(
+            ledgers["challenger"]["selection"]["asof"].nunique()
+        )
+        == len(signal_sessions),
+        "control_candidate_keys_unique": not control_candidate.duplicated(
+            ["asof", "ts_code"]
+        ).any(),
+        "challenger_candidate_keys_unique": not challenger_candidate.duplicated(
+            ["asof", "ts_code"]
+        ).any(),
+        "control_month_model_identity": bool(
+            (
+                control_candidate["model_id"]
+                == control_candidate["asof"].map(
+                    lambda day: f"{model_profile_id}_{pd.Timestamp(day).strftime('%Y%m')}"
+                )
+            ).all()
+        ),
+        "challenger_month_model_identity": bool(
+            (
+                challenger_candidate["model_id"]
+                == challenger_candidate["asof"].map(
+                    lambda day: f"{model_profile_id}_{pd.Timestamp(day).strftime('%Y%m')}"
+                )
+            ).all()
+        ),
+        "base_control_executable_label_parity": bool(label_parity["passed"]),
     }
     for arm in ("control", "challenger"):
         for scenario in ("base", "stress"):
@@ -543,9 +751,9 @@ def _write_result(
     verification: dict[str, Any],
 ) -> None:
     lines = [
-        "# F0-123 Conditional Reset Ranker", "",
+        "# F0-123 Conditional Stage1 Ranker", "",
         "## Contract", "",
-        "- Fixed reset-state Stage-1, then frozen F0=123 XGBRanker inside that pool.",
+        "- Configured fixed-rule Stage-1, then frozen F0=123 XGBRanker inside that pool.",
         "- All 123 columns are retained; feature-level NaN is passed to XGBoost without imputation.",
         "- Monthly trailing-12-month training, daily 2026 prediction, no skipped month or fallback.",
         "- Same canonical portfolio engine, Base/Stress costs, H10, trailing stop, 20% sizing and five-position cap.",
@@ -554,8 +762,8 @@ def _write_result(
         f"- Stage-1 rows: `{sample['combined_stage1_rows']}`; F0-eligible rows: `{sample['f0_eligible_rows']}` ({sample['f0_eligible_ratio']:.2%}).",
         f"- Training labels: `{sample['training_label_rows']}`; 2026 prediction rows: `{sample['prediction_rows']}`.", "",
         "## Portfolio", "",
-        "| Cost | Transparent control | F0-123 challenger | Delta | Challenger PF | MaxDD | Ex-best | Ex-top3 | Trades | Pass |",
-        "|---|---:|---:|---:|---:|---:|---:|---:|---:|---|",
+        "| Cost | Transparent control | F0-123 challenger | Delta | Win rate | PF | MaxDD | Ex-best | Ex-top3 | Weekly >=5% | Trades | Pass |",
+        "|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---|",
     ]
     for scenario in ("base", "stress"):
         base = control[scenario]
@@ -563,8 +771,10 @@ def _write_result(
         lines.append(
             f"| {scenario} | {base['total_return']:+.2%} | {item['total_return']:+.2%} | "
             f"{item['total_return'] - base['total_return']:+.2%} | "
-            f"{item['portfolio_profit_factor']:.3f} | {item['max_drawdown']:.2%} | "
+            f"{item['trade_win_rate']:.1%} | {item['portfolio_profit_factor']:.3f} | "
+            f"{item['max_drawdown']:.2%} | "
             f"{item['return_excluding_best_week']:+.2%} | {item['return_excluding_top3_profit']:+.2%} | "
+            f"{item['weekly_ge_5_count']} ({item['weekly_ge_5_ratio']:.1%}) | "
             f"{item['trade_count']} | {acceptance['scenarios'][scenario]['passed']} |"
         )
     lines.extend(["", "## Decision", ""])
@@ -581,27 +791,47 @@ def run(args: argparse.Namespace) -> Path:
     output = args.output.resolve()
     if output.exists() and any(output.iterdir()):
         raise FileExistsError(f"immutable output directory is not empty: {output}")
+    prereg = args.prereg.resolve()
+    if not prereg.is_file():
+        raise FileNotFoundError(f"preregistration is missing: {prereg}")
     strategy = StrategyConfig.from_yaml(args.strategy)
     feature_set = FeatureSet.from_f0_json(ROOT / "configs/feature_sets/f0_123_columns.json")
     model_config = _load_model_config(args.model_profile, feature_set)
+    if (
+        model_config["identity"]["model_profile_id"]
+        == "f0_123_cap1_executable_v1"
+        and strategy.strategy_id != "reset_weak_confirm_v3_cap1_20"
+    ):
+        raise ValueError("CAP1 executable model requires the exact CAP1-20 strategy")
+    strategy_binding = model_config.get("strategy", {})
+    if model_config["identity"]["model_profile_id"] == "f0_123_cap1_executable_v1" and (
+        strategy_binding.get("strategy_id") != strategy.strategy_id
+        or strategy_binding.get("config_hash") != strategy.config_hash
+    ):
+        raise ValueError("CAP1 executable model strategy hash differs from preregistration")
     cutoffs = _source_cutoffs()
     if min(cutoffs["stock_factor_pro_ts"], cutoffs["daily_basic_ts"]) < model_config["timeline"]["prediction_end"]:
         raise ValueError(f"F0 source cutoff does not cover prediction end: {cutoffs}")
 
+    timeline = model_config["timeline"]
+    label_config = model_config["label"]
     train_plan, _ = _period_plan(
         strategy,
-        signal_start="2025-01-02",
-        signal_end="2025-12-31",
-        execution_end="2026-01-19",
+        signal_start=timeline["train_start"],
+        signal_end=timeline["train_end"],
+        execution_end=timeline["training_execution_end"],
         output=output,
         name="conditional_reset_training_2025",
     )
     train_pool, train_labels, train_audit, _ = _build_stage1_period(
-        strategy, train_plan, output, retain_bundle=False
+        strategy,
+        train_plan,
+        output,
+        retain_bundle=False,
+        label_config=label_config,
     )
     gc.collect()
 
-    timeline = model_config["timeline"]
     prediction_plan, prediction_calendar = _period_plan(
         strategy,
         signal_start=timeline["prediction_start"],
@@ -609,9 +839,14 @@ def run(args: argparse.Namespace) -> Path:
         execution_end=timeline["execution_end"],
         output=output,
         name="conditional_f0_123_prediction_2026",
+        require_complete_horizon=False,
     )
     prediction_pool, prediction_labels, prediction_audit, execution_bundle = _build_stage1_period(
-        strategy, prediction_plan, output, retain_bundle=True
+        strategy,
+        prediction_plan,
+        output,
+        retain_bundle=True,
+        label_config=label_config,
     )
     combined_pool = pd.concat([train_pool, prediction_pool], ignore_index=True)
     combined_labels = pd.concat([train_labels, prediction_labels], ignore_index=True)
@@ -659,8 +894,16 @@ def run(args: argparse.Namespace) -> Path:
     acceptance = _acceptance(control_portfolio, challenger_portfolio, model_config)
     portfolios = {"control": control_portfolio, "challenger": challenger_portfolio}
     results = {"control": control_results, "challenger": challenger_results}
+    label_parity = _engine_label_parity(control_results["base"], prediction_labels)
     verification = _verify(
-        models, portfolios, results, timeline["execution_end"]
+        models,
+        portfolios,
+        results,
+        timeline["execution_end"],
+        {"control": control_ledgers, "challenger": challenger_ledgers},
+        prediction_plan.signal_sessions,
+        str(model_config["identity"]["model_profile_id"]),
+        label_parity,
     )
     if not verification["passed"]:
         raise AssertionError(f"verification failed: {verification['failed']}")
@@ -675,6 +918,7 @@ def run(args: argparse.Namespace) -> Path:
         "prediction_rows": int(len(predictions)),
         "prediction_sessions": int(predictions["event_time"].nunique()),
         "f0_audit": f0_audit,
+        "base_control_executable_label_parity": label_parity,
     }
     comparison = {
         scenario: {
@@ -697,6 +941,7 @@ def run(args: argparse.Namespace) -> Path:
         (output / name).mkdir()
     shutil.copyfile(args.strategy, output / "configs/strategy.yaml")
     shutil.copyfile(args.model_profile, output / "configs/model_profile.yaml")
+    shutil.copyfile(prereg, output / "configs/preregistration.md")
     _write_json(output / "RUN_STATUS.json", {
         "status": "DIAGNOSTIC_COMPLETED",
         "completed_at": datetime.now(timezone.utc).isoformat(),
@@ -727,10 +972,12 @@ def run(args: argparse.Namespace) -> Path:
     code_paths = [
         ROOT / "src/aistock9988/data/q70_source.py",
         ROOT / "src/aistock9988/features/engine.py",
+        ROOT / "src/aistock9988/labeling/executable_path.py",
         ROOT / "src/aistock9988/selection/pipeline.py",
         ROOT / "src/aistock9988/backtest/engine.py",
         Path(__file__).resolve(),
     ]
+    code_paths.append(prereg)
     _write_json(output / "manifests/code_manifest.json", {
         str(path.relative_to(ROOT)): _sha(path) for path in code_paths
     })
@@ -745,9 +992,10 @@ def run(args: argparse.Namespace) -> Path:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--strategy", type=Path, default=DEFAULT_STRATEGY)
-    parser.add_argument("--model-profile", type=Path, default=DEFAULT_MODEL)
-    parser.add_argument("--output", type=Path, default=DEFAULT_OUTPUT)
+    parser.add_argument("--strategy", type=Path, required=True)
+    parser.add_argument("--model-profile", type=Path, required=True)
+    parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument("--prereg", type=Path, required=True)
     args = parser.parse_args()
     print(f"run_complete={run(args)}")
 

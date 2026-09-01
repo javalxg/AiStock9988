@@ -16,6 +16,7 @@ class ExecutablePathLabelProfile:
     entry_delay_sessions: int = 1
     hold_sessions_from_fill: int = 10
     stop_threshold_pct: float = -0.08
+    stop_mode: str = "from_entry"
     buy_slippage: float = 0.001
     sell_slippage: float = 0.001
     buy_commission: float = 0.0003
@@ -27,6 +28,8 @@ class ExecutablePathLabelProfile:
             raise ValueError("entry delay and holding horizon must be positive")
         if not -1.0 < self.stop_threshold_pct < 0.0:
             raise ValueError("stop threshold must be in (-1, 0)")
+        if self.stop_mode not in {"from_entry", "trailing_from_last_close"}:
+            raise ValueError("stop_mode must be from_entry or trailing_from_last_close")
         costs = (
             self.buy_slippage,
             self.sell_slippage,
@@ -155,6 +158,7 @@ def build_executable_path_labels(
     stop_offset = np.full(count, -1, dtype="int64")
     stop_crossing_return = np.full(count, np.nan, dtype=float)
     active = np.ones(count, dtype=bool)
+    trailing_reference = np.full(count, np.nan, dtype=float)
     for offset in range(profile.hold_sessions_from_fill):
         path_index = source["entry_index"].to_numpy(dtype="int64") + offset
         in_calendar = path_index < len(sessions)
@@ -166,10 +170,13 @@ def build_executable_path_labels(
         )
         valid_close = pd.Series(eligible).fillna(False).astype(bool).to_numpy()
         valid_close &= np.isfinite(close) & (close > 0.0) & in_calendar
+        reference = source["entry_economic_fill"].to_numpy(dtype=float)
+        if profile.stop_mode == "trailing_from_last_close":
+            reference = np.where(np.isfinite(trailing_reference), trailing_reference, close)
         path_return = np.full(count, np.nan, dtype=float)
         np.divide(
             close,
-            source["entry_economic_fill"].to_numpy(dtype=float),
+            reference,
             out=path_return,
             where=valid_close,
         )
@@ -178,6 +185,8 @@ def build_executable_path_labels(
         stop_offset[hit] = offset
         stop_crossing_return[hit] = path_return[hit]
         active[hit] = False
+        if profile.stop_mode == "trailing_from_last_close":
+            trailing_reference[valid_close] = close[valid_close]
 
     entry_index = source["entry_index"].to_numpy(dtype="int64")
     desired_exit_index = entry_index + profile.hold_sessions_from_fill
