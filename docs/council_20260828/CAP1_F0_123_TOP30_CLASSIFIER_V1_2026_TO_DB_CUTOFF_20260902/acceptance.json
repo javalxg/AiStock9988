@@ -1,0 +1,23 @@
+{
+  "checks": {
+    "base_ex_best": true,
+    "base_ex_top3": true,
+    "base_full_cap1_return": false,
+    "base_maxdd": true,
+    "base_paired_return": false,
+    "base_pf": false,
+    "base_positions": true,
+    "base_trades": true,
+    "base_win_rate": false,
+    "stress_ex_best": true,
+    "stress_ex_top3": true,
+    "stress_full_cap1_return": false,
+    "stress_maxdd": true,
+    "stress_paired_return": false,
+    "stress_pf": false,
+    "stress_positions": true,
+    "stress_trades": true,
+    "stress_win_rate": false
+  },
+  "passed": false
+}
