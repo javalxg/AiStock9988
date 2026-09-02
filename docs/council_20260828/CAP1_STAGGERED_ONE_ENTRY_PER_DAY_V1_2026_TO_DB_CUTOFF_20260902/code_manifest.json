@@ -1,0 +1,8 @@
+{
+  "configs/strategy/reset_weak_confirm_v3_cap1_20.yaml": "6d0af91e975a4a4d1e28ce4f508f06c94a3bb6b9e5b6f72db2f366ed5e81404d",
+  "configs/strategy/reset_weak_confirm_v3_cap1_staggered_one_entry_v1.yaml": "7341b3cca2ba49d6a79502bb95b39fb08f83b68eb99490f19f64e970dda77c69",
+  "docs/council_20260828/CAP1_STAGGERED_ONE_ENTRY_PER_DAY_V1_PREREG_20260902.md": "7439cc3a5ef016d5e1f5c97fec6067c76456b8f905c99ed5f93437740bf6355b",
+  "scripts/cap1_staggered_one_entry_runner.py": "5e6b5b254033b5b09ea156ec6fc6b55845689cc9bf3a3251dd5c655e530bb665",
+  "src/aistock9988/backtest/engine.py": "4ff7126b61959939225e748dd2b910392ee7c55bd0609a512114777cd64dab47",
+  "src/aistock9988/features/engine.py": "63395ac19e60556c1abb8f60a972bb7d434f8d086fb8b9bcde04cc2d6b73b1d0"
+}

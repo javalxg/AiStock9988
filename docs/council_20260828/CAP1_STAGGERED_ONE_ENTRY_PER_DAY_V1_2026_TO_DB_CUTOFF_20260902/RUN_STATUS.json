@@ -1,0 +1,10 @@
+{
+  "completed_at": "2026-09-02T01:24:30.990793+00:00",
+  "credentials_persisted": false,
+  "raw_business_data_persisted": false,
+  "status": "INVALIDATED_IMPLEMENTATION_ERROR",
+  "invalidated_reason": "challenger reused control selection ledger and did not execute one-entry behavior",
+  "years_used_for_performance": [
+    2026
+  ]
+}

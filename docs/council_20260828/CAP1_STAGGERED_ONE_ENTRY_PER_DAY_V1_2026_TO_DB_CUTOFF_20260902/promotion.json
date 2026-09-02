@@ -1,0 +1,21 @@
+{
+  "checks": {
+    "base_drawdown_limit": true,
+    "base_drawdown_not_worse": true,
+    "base_ex_best_not_worse": true,
+    "base_ex_best_positive": true,
+    "base_pf_min": true,
+    "base_pf_not_worse": true,
+    "base_position_cap": true,
+    "base_return_improves": false,
+    "stress_drawdown_limit": true,
+    "stress_drawdown_not_worse": true,
+    "stress_ex_best_not_worse": true,
+    "stress_ex_best_positive": true,
+    "stress_pf_min": true,
+    "stress_pf_not_worse": true,
+    "stress_position_cap": true,
+    "stress_return_improves": false
+  },
+  "passed": false
+}

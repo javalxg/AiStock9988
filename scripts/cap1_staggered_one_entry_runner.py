@@ -23,8 +23,8 @@ from aistock9988.time.session import session_close
 ROOT = Path(__file__).resolve().parents[1]
 CONTROL = ROOT / "configs/strategy/reset_weak_confirm_v3_cap1_20.yaml"
 CHALLENGER = ROOT / "configs/strategy/reset_weak_confirm_v3_cap1_staggered_one_entry_v1.yaml"
-PREREG = ROOT / "docs/council_20260828/CAP1_STAGGERED_ONE_ENTRY_PER_DAY_V1_PREREG_20260902.md"
-DEFAULT_OUTPUT = ROOT / "docs/council_20260828/CAP1_STAGGERED_ONE_ENTRY_PER_DAY_V1_2026_TO_DB_CUTOFF_20260902"
+PREREG = ROOT / "docs/council_20260828/CAP1_STAGGERED_ONE_ENTRY_PER_DAY_V2_PREREG_20260902.md"
+DEFAULT_OUTPUT = ROOT / "docs/council_20260828/CAP1_STAGGERED_ONE_ENTRY_PER_DAY_V2_2026_TO_DB_CUTOFF_20260902"
 
 
 def _write_json(path: Path, payload: Any) -> None:
@@ -116,13 +116,19 @@ def run(output: Path, signal_start: str) -> Path:
     feature_cutoff = pd.to_datetime(features["asof"], errors="raise", utc=True).map(session_close)
     if not (pd.to_datetime(features["available_time"], errors="raise", utc=True) <= feature_cutoff).all():
         raise AssertionError("feature PIT audit failed")
-    ledgers = build_rule_ledgers(features, control, plan.signal_sessions)
-    selection = _selection_summary(ledgers)
+    control_ledgers = build_rule_ledgers(features, control, plan.signal_sessions)
+    challenger_ledgers = build_rule_ledgers(features, challenger, plan.signal_sessions)
+    # The changed portfolio field must alter orders, not the opportunity set.
+    if not control_ledgers["score"].equals(challenger_ledgers["score"]):
+        raise AssertionError("one-entry challenger changed the shared score ledger")
+    if not control_ledgers["candidate"].equals(challenger_ledgers["candidate"]):
+        raise AssertionError("one-entry challenger changed the shared candidate ledger")
+    selection = _selection_summary(control_ledgers)
     controls: dict[str, Any] = {}
     challengers: dict[str, Any] = {}
     for scenario in ("base", "stress"):
-        control_result = run_backtest(candidate_ledger=ledgers["candidate"], selection_ledger=ledgers["selection"], execution_panel=bundle.execution, corporate_actions=bundle.corporate_actions, strategy=control, execution_sessions=plan.execution_sessions, scenario_name=scenario)
-        challenger_result = run_backtest(candidate_ledger=ledgers["candidate"], selection_ledger=ledgers["selection"], execution_panel=bundle.execution, corporate_actions=bundle.corporate_actions, strategy=challenger, execution_sessions=plan.execution_sessions, scenario_name=scenario)
+        control_result = run_backtest(candidate_ledger=control_ledgers["candidate"], selection_ledger=control_ledgers["selection"], execution_panel=bundle.execution, corporate_actions=bundle.corporate_actions, strategy=control, execution_sessions=plan.execution_sessions, scenario_name=scenario)
+        challenger_result = run_backtest(candidate_ledger=control_ledgers["candidate"], selection_ledger=challenger_ledgers["selection"], execution_panel=bundle.execution, corporate_actions=bundle.corporate_actions, strategy=challenger, execution_sessions=plan.execution_sessions, scenario_name=scenario)
         controls[scenario] = _metrics(control_result, control, selection)
         challengers[scenario] = _metrics(challenger_result, challenger, selection)
     comparison = _promotion(controls, challengers)
